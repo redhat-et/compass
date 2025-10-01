@@ -1,8 +1,8 @@
-# System-Level Architecture for Pre-Deployment Assistance
+# System-Level Architecture for Pre-Deployment Assistant
 
 ## Overview
 
-This document defines the system architecture for the **Pre-Deployment Assistance for LLM Serving** capability, which streamlines the path from concept to production-ready endpoint for Red Hat AI (RHAI) customers.
+This document defines the system architecture for the **Pre-Deployment Assistant for LLM Serving** capability, which streamlines the path from concept to production-ready endpoint for Red Hat AI (RHAI) customers.
 
 ## Project Context
 
@@ -385,4 +385,4 @@ For the initial iteration, recommended technology choices:
 
 - Project Proposal: RHAI Assistant Pitch (July 2025)
 - Feature List: AI Deployment Assistant 1-N
-- Initial Scope: Pre-Deployment Assistance for LLM Serving
+- Initial Scope: Pre-Deployment Assistant for LLM Serving
