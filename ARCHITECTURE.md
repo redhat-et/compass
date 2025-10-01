@@ -45,7 +45,7 @@ The assistant follows a **4-stage conversational flow**:
 ---
 
 ### 2. Context & Intent Engine
-**Purpose**: Extract structured intent from conversational input (task type, load, constraints)
+**Purpose**: Extract structured intent from conversational input and generate comprehensive deployment specifications
 
 **Technology Options**:
 - **LangChain with structured output** - Built-in prompt engineering for extraction
@@ -54,67 +54,311 @@ The assistant follows a **4-stage conversational flow**:
 
 **Key Functions**:
 - Parse user inputs into structured data (task definition, expected load, priorities)
+- Auto-generate traffic characteristics from high-level descriptions
+- Map use cases to appropriate default SLOs
 - Validate completeness before proceeding to recommendations
 - Store conversation context for iterative refinement
+- Present editable specification to user for review/modification
 
-**Data Schema Example**:
+**Enhanced Data Schema**:
 ```python
 class DeploymentIntent:
-    task_type: str  # "chatbot", "summarization", "code-completion"
-    expected_qps: float
-    concurrent_users: int
-    priority: str  # "accuracy", "latency", "cost"
-    constraints: dict  # budget, max_latency, etc.
+    # High-level intent (user-provided)
+    task_type: str  # "chatbot", "summarization", "code-generation"
+    use_case_description: str  # Natural language description
+    subject_matter: Optional[str]  # May influence model selection
+
+    # Workload characteristics (auto-inferred or user-specified)
+    expected_qps: Optional[float]
+    concurrent_users: Optional[int]
+
+    # Traffic profile (auto-generated from use case, editable by user)
+    prompt_length_avg: Optional[int]  # Phase 1: point estimates
+    prompt_length_dist: Optional[Distribution]  # Phase 2: full distribution
+    generation_length_avg: Optional[int]
+    generation_length_dist: Optional[Distribution]
+    concurrency_steady_state: Optional[int]
+    concurrency_peak: Optional[int]
+    burstiness_pattern: Optional[str]  # "steady", "moderate", "high", "diurnal"
+    request_heterogeneity: Optional[dict]  # mix of short/long, streaming vs non-streaming
+
+    # Constraints
+    priority: str  # "accuracy", "latency", "cost", "balanced"
+    budget: Optional[BudgetConstraint]
+
+    # SLOs (auto-suggested from use case template, user-editable)
+    target_ttft_p90_ms: Optional[float]  # Time to First Token
+    target_tpot_p90_ms: Optional[float]  # Time Per Output Token
+    target_e2e_latency_p95_ms: Optional[float]  # End-to-End latency
+    target_throughput_rps: Optional[float]  # Requests per second
+    quality_threshold: Optional[str]  # "standard", "high", "very_high"
+    reliability_target: Optional[float]  # e.g., 99.9% uptime
+
+    # Optional user preferences
+    preferred_models: Optional[List[str]]  # User can specify models to consider
+    available_gpus: Optional[List[str]]  # User can specify available GPU types
+    gpu_constraints: Optional[dict]  # max count, tensor parallelism preferences
+
+class BudgetConstraint:
+    max_monthly_cost_usd: Optional[float]
+    max_hourly_cost_usd: Optional[float]
+    cost_per_1k_tokens: Optional[float]
+```
+
+**Use Case → SLO Mapping**:
+The engine maintains templates for common use cases:
+```python
+USE_CASE_TEMPLATES = {
+    "interactive_chatbot": {
+        "default_slos": {
+            "ttft_p90_ms": 300,
+            "tpot_p90_ms": 50,
+            "e2e_latency_p95_ms": 2000,
+            "quality": "high"
+        },
+        "traffic_defaults": {
+            "prompt_length_avg": 150,
+            "generation_length_avg": 200,
+            "burstiness_pattern": "moderate"
+        }
+    },
+    "document_summarization": {
+        "default_slos": {
+            "ttft_p90_ms": 1000,
+            "tpot_p90_ms": 100,
+            "e2e_latency_p95_ms": 10000,
+            "quality": "very_high"
+        },
+        "traffic_defaults": {
+            "prompt_length_avg": 2000,
+            "generation_length_avg": 500,
+            "burstiness_pattern": "low"
+        }
+    },
+    "code_generation": {
+        "default_slos": {
+            "ttft_p90_ms": 500,
+            "tpot_p90_ms": 75,
+            "e2e_latency_p95_ms": 5000,
+            "quality": "high"
+        },
+        "traffic_defaults": {
+            "prompt_length_avg": 300,
+            "generation_length_avg": 400,
+            "burstiness_pattern": "moderate"
+        }
+    }
+}
 ```
 
 ---
 
 ### 3. Recommendation Engine
-**Purpose**: Suggest model, hardware, and SLO configurations based on captured context
+**Purpose**: Suggest model, hardware, and SLO configurations based on captured context and deployment specifications
 
 **Technology Options**:
 - **Rule-based decision tree + LLM augmentation** - Hybrid approach with explainability
 - **Vector similarity search (FAISS/Pinecone) + retrieval** - Match context to known deployment patterns
 - **Custom ML model** - Train on historical deployment data (future iteration)
 
+**Sub-Components**:
+
+#### 3a. Traffic Profile Generator
+Translates high-level use case descriptions into concrete traffic characteristics.
+
 **Inputs**:
-- User context (task, load, constraints)
-- Benchmarking data (from Knowledge Base)
-- Hardware availability (from cluster inventory)
+- Use case type (chatbot, summarization, etc.)
+- User count and concurrency estimates
+- Business context
 
 **Outputs**:
-- Ranked model recommendations with rationale
-- Hardware profiles (GPU/CPU types, counts)
-- Suggested SLOs (latency, throughput targets)
+- Prompt/generation length estimates (Phase 1: averages, Phase 2: distributions)
+- QPS estimates (steady-state and peak)
+- Burstiness patterns
+- Request heterogeneity profile
+
+**Implementation Approach (Phase 1)**:
+- Rule-based heuristics using use case templates
+- LLM-assisted estimation for edge cases
+- Simple point estimates (mean values only)
+
+**Phase 2 Enhancements**:
+- Full statistical distributions
+- Industry benchmark lookup from Knowledge Base
+- Pattern learning from historical deployments
+
+#### 3b. Model Recommendation Engine
+Filters and ranks models based on task compatibility and user constraints.
+
+**Inputs**:
+- Deployment specification (from Context Engine)
+- Traffic profile
+- SLO targets
+- User preferences (optional preferred models, subject matter domain)
 
 **Recommendation Logic**:
-1. Filter models by task compatibility
-2. Estimate resource requirements based on expected load
-3. Match to available hardware profiles
-4. Rank by user priority (cost vs latency vs accuracy)
-5. Generate explanation for each recommendation
+1. Filter models by task compatibility and subject matter domain
+2. Consider user-specified model preferences (if any)
+3. Apply curated model constraints (approved model catalog)
+4. Evaluate performance vs accuracy trade-offs against SLOs
+5. Query benchmark data for each candidate model
+6. Rank by user priority (cost vs latency vs accuracy)
+7. Generate explanation with rationale for each recommendation
+
+**Outputs**:
+- Ranked list of model recommendations with detailed rationale
+- Performance projections for each model
+- Trade-off analysis (accuracy vs cost vs latency)
+
+#### 3c. Capacity Planning Engine
+Determines GPU requirements (type, count, configuration) for each model recommendation.
+
+**Inputs**:
+- Selected model (or candidate model for evaluation)
+- Traffic profile
+- SLO targets
+- Available GPU types (optional user constraint)
+- Budget constraints
+
+**Capacity Calculation Logic**:
+```python
+def calculate_capacity(
+    model: Model,
+    gpu_type: GPUType,
+    traffic_profile: TrafficProfile,
+    slo_targets: SLOTargets
+) -> CapacityPlan:
+    """
+    Returns:
+    - num_gpus_required: int
+    - deployment_strategy: "independent" | "tensor_parallel"
+    - tensor_parallel_degree: Optional[int]
+    - expected_throughput_rps: float
+    - predicted_slo_compliance: Dict[str, bool]  # TTFT, TPOT, E2E
+    - estimated_cost: CostEstimate
+    """
+    # Phase 1: Benchmark data interpolation
+    # 1. Query: (model, gpu_type) -> throughput_per_gpu, latency metrics
+    # 2. Check if model fits on single GPU (memory constraint)
+    # 3. If not, require tensor parallelism
+    # 4. Calculate: num_gpus = ceil(traffic_profile.peak_qps / throughput_per_gpu)
+    # 5. Validate SLO compliance using benchmark latency data
+    # 6. Estimate cost: num_gpus * gpu_hourly_rate
+
+    # Phase 2 enhancements:
+    # - Optimize batch size for throughput/latency trade-off
+    # - Consider auto-scaling (min/max GPU count)
+    # - Advanced tensor parallelism optimization
+```
+
+**Benchmark Data Requirements**:
+```json
+{
+  "model": "llama-3-70b",
+  "gpu_type": "A100-80GB",
+  "tensor_parallel_degree": 4,
+  "batch_size": 32,
+  "metrics": {
+    "throughput_tokens_per_sec": 3500,
+    "ttft_p50_ms": 95,
+    "ttft_p90_ms": 120,
+    "ttft_p99_ms": 180,
+    "tpot_p50_ms": 12,
+    "tpot_p90_ms": 15,
+    "tpot_p99_ms": 22,
+    "memory_usage_gb": 280
+  }
+}
+```
+
+**Outputs**:
+- GPU configuration (type, count, parallelism strategy)
+- Deployment topology (independent replicas vs tensor parallelism)
+- Cost estimates (hourly, monthly, per-1k-tokens)
+- SLO compliance predictions
+
+**Overall Recommendation Engine Outputs**:
+- Ranked recommendations combining model + GPU configuration
+- Example: "Llama-3-8B on 2x L4 GPUs: $X/month, meets TTFT<200ms, TPOT<50ms"
+- Detailed trade-off analysis for top 3-5 options
 
 ---
 
 ### 4. Simulation & Exploration Layer
-**Purpose**: Enable what-if analysis with cost/latency/throughput predictions
+**Purpose**: Enable what-if analysis with cost/latency/throughput predictions and interactive specification editing
 
 **Technology Options**:
 - **Custom analytical models** - Formula-based estimation (tokens/sec × cost/token)
-- **Discrete event simulation (SimPy)** - More accurate workload modeling
+- **Discrete event simulation (SimPy)** - More accurate workload modeling (Phase 2)
 - **Historical performance extrapolation** - Use real benchmark data interpolation
 
 **Key Functions**:
-- Cost estimation (GPU hours × hourly rate)
-- Latency prediction (model size + GPU memory bandwidth)
-- Throughput calculation (batch size + concurrency limits)
-- Scenario comparison UI (side-by-side configs)
+
+#### Specification Review & Editing
+- Display auto-generated deployment specification in user-friendly format
+- Allow inline editing of traffic characteristics (prompt length, QPS, etc.)
+- Allow modification of SLO targets (TTFT, TPOT, E2E latency)
+- Re-trigger recommendations after manual specification changes
+
+**UI Example**:
+```
+┌─────────────────────────────────────────────┐
+│ Deployment Specification                    │
+├─────────────────────────────────────────────┤
+│ Use Case: Interactive Chatbot               │
+│ Subject Matter: Customer Support            │
+│ Expected Users: 1000 concurrent             │
+│ Priority: Low Latency                       │
+│                                             │
+│ Traffic Profile (Auto-Generated):           │
+│   Avg Prompt Length: 150 tokens [Edit]     │
+│   Avg Response Length: 250 tokens [Edit]   │
+│   Steady-State QPS: 50 [Edit]              │
+│   Peak QPS: 100 [Edit]                     │
+│   Burstiness: Moderate [Edit]              │
+│                                             │
+│ SLO Targets (Suggested):                    │
+│   TTFT (p90): 200ms [Edit]                 │
+│   TPOT (p90): 50ms [Edit]                  │
+│   E2E Latency (p95): 2000ms [Edit]         │
+│   Throughput: 100 rps [Edit]               │
+│   Quality: High [Edit]                     │
+│   Reliability: 99.9% [Edit]                │
+│                                             │
+│ Budget Constraints:                         │
+│   Max Monthly Cost: $5000 [Edit]           │
+│                                             │
+│ [Regenerate Recommendations] [Deploy]       │
+└─────────────────────────────────────────────┘
+```
+
+#### What-If Scenario Analysis
+- Modify model selection and see impact on cost/latency
+- Change GPU types and see capacity/cost implications
+- Adjust SLO targets and see which configurations remain viable
+- Compare scenarios side-by-side
+
+**Scenario Comparison Example**:
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Scenario A              │ Scenario B              │ Difference   │
+├──────────────────────────────────────────────────────────────────┤
+│ Llama-3-8B              │ Llama-3-70B             │              │
+│ 2x NVIDIA L4            │ 4x NVIDIA A100          │              │
+│ $800/month              │ $2400/month             │ +$1600/month │
+│ TTFT p90: 180ms ✓       │ TTFT p90: 150ms ✓       │ -30ms        │
+│ TPOT p90: 45ms ✓        │ TPOT p90: 35ms ✓        │ -10ms        │
+│ Quality: High           │ Quality: Very High      │ Better       │
+│ Throughput: 120 rps ✓   │ Throughput: 200 rps ✓   │ +80 rps      │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 **Simulation Outputs**:
-- Estimated monthly cost
-- P50/P95/P99 latency predictions
-- Expected throughput (requests/sec)
-- Resource utilization estimates
+- Estimated costs (hourly, monthly, per-1k-tokens)
+- SLO compliance predictions (TTFT, TPOT, E2E latency percentiles)
+- Expected throughput (requests/sec, tokens/sec)
+- Resource utilization estimates (GPU memory, compute)
+- Quality projections (based on model capabilities)
 
 ---
 
@@ -168,31 +412,189 @@ Consider migrating to Go if requirements evolve to include:
 ---
 
 ### 6. Knowledge Base & Benchmarking Data Store
-**Purpose**: Store performance data, industry standards, and deployment patterns
+**Purpose**: Store performance data, industry standards, deployment patterns, and use case templates
 
 **Technology Options**:
 - **PostgreSQL + pgvector** - Relational data + vector search for similarity matching
 - **MongoDB + Atlas Search** - Flexible schema for varied benchmark data
 - **Specialized vector DB (Qdrant/Weaviate)** - Optimized for embedding-based retrieval
 
-**Data Schema**:
-- Model benchmarks (throughput, latency, memory usage per GPU type)
-- Hardware profiles (GPU specs, availability, cost)
-- Deployment templates (curated configs for common scenarios)
-- Historical deployment outcomes (for continuous learning)
+**Data Collections**:
 
-**Benchmark Data Example**:
+#### 6a. Model Benchmarks
+Comprehensive performance metrics for model + GPU combinations.
+
+**Schema Requirements**:
 ```json
 {
-  "model_id": "meta-llama/Llama-3-8b",
-  "gpu_type": "NVIDIA-L4",
+  "model_id": "meta-llama/Llama-3-70b",
+  "gpu_type": "NVIDIA-A100-80GB",
+  "tensor_parallel_degree": 4,
   "batch_size": 32,
+  "quantization": null,  // or "int8", "int4", "awq"
   "metrics": {
-    "throughput_tokens_per_sec": 1250,
-    "latency_p50_ms": 45,
-    "latency_p99_ms": 120,
-    "memory_usage_gb": 16
+    "throughput_tokens_per_sec": 3500,
+    "throughput_requests_per_sec": 45,
+    "ttft_p50_ms": 95,
+    "ttft_p90_ms": 120,
+    "ttft_p99_ms": 180,
+    "tpot_p50_ms": 12,
+    "tpot_p90_ms": 15,
+    "tpot_p99_ms": 22,
+    "e2e_latency_p50_ms": 450,
+    "e2e_latency_p95_ms": 680,
+    "e2e_latency_p99_ms": 920,
+    "memory_usage_gb": 280,
+    "gpu_utilization_pct": 85
+  },
+  "test_conditions": {
+    "prompt_length_avg": 512,
+    "generation_length_avg": 256,
+    "concurrency": 32
+  },
+  "timestamp": "2025-01-15T00:00:00Z"
+}
+```
+
+#### 6b. Hardware Profiles
+GPU specifications, availability, and pricing.
+
+```json
+{
+  "gpu_type": "NVIDIA-A100-80GB",
+  "vram_gb": 80,
+  "tflops_fp16": 312,
+  "memory_bandwidth_gbps": 2039,
+  "manufacturer": "NVIDIA",
+  "architecture": "Ampere",
+  "available": true,
+  "supported_parallelism": ["tensor", "pipeline"],
+  "max_tensor_parallel": 8
+}
+```
+
+#### 6c. Cost Data
+Pricing information for different GPU types.
+
+```json
+{
+  "gpu_type": "NVIDIA-A100-80GB",
+  "cloud_provider": "AWS",
+  "instance_type": "p4d.24xlarge",
+  "hourly_rate_usd": 32.77,
+  "monthly_rate_usd": 23914.00,
+  "region": "us-east-1",
+  "effective_date": "2025-01-01"
+}
+```
+
+#### 6d. Use Case SLO Templates
+Default SLO targets and traffic profiles for common use cases.
+
+```json
+{
+  "use_case": "interactive_chatbot",
+  "description": "Real-time conversational assistant for customer support",
+  "default_slos": {
+    "ttft_p90_ms": 300,
+    "tpot_p90_ms": 50,
+    "e2e_latency_p95_ms": 2000,
+    "quality": "high",
+    "reliability_pct": 99.9
+  },
+  "traffic_defaults": {
+    "prompt_length_avg": 150,
+    "prompt_length_p95": 300,
+    "generation_length_avg": 200,
+    "generation_length_p95": 500,
+    "burstiness_pattern": "moderate",
+    "typical_concurrency_ratio": 0.1  // 10% of users active simultaneously
+  },
+  "recommended_model_characteristics": {
+    "max_latency_priority": true,
+    "min_size": "7B",
+    "max_size": "70B",
+    "quantization_acceptable": true
   }
+}
+```
+
+#### 6e. Model Catalog
+Curated list of approved models with metadata.
+
+```json
+{
+  "model_id": "meta-llama/Llama-3-8b-instruct",
+  "model_family": "Llama-3",
+  "size_parameters": "8B",
+  "context_window": 8192,
+  "supported_tasks": ["chatbot", "summarization", "qa", "code-generation"],
+  "subject_matter_domains": ["general", "technical"],
+  "quality_tier": "high",
+  "license": "Meta Community License",
+  "approved_for_production": true,
+  "minimum_vram_gb": 16,
+  "supports_quantization": true
+}
+```
+
+#### 6f. Deployment Templates
+Pre-configured deployment patterns for common scenarios.
+
+```json
+{
+  "template_id": "chatbot-low-latency-medium-scale",
+  "use_case": "interactive_chatbot",
+  "model_id": "meta-llama/Llama-3-8b-instruct",
+  "gpu_type": "NVIDIA-L4",
+  "gpu_count": 2,
+  "tensor_parallel_degree": 1,
+  "kserve_config": {
+    "predictor": {
+      "minReplicas": 2,
+      "maxReplicas": 4
+    }
+  },
+  "vllm_config": {
+    "max_model_len": 4096,
+    "gpu_memory_utilization": 0.9
+  },
+  "autoscaling_config": {
+    "metric": "concurrency",
+    "target": 10
+  }
+}
+```
+
+#### 6g. Deployment Outcomes
+Historical data from real deployments for continuous learning.
+
+```json
+{
+  "deployment_id": "deploy-abc123",
+  "template_id": "chatbot-low-latency-medium-scale",
+  "model_id": "meta-llama/Llama-3-8b-instruct",
+  "gpu_type": "NVIDIA-L4",
+  "gpu_count": 2,
+  "actual_metrics": {
+    "ttft_p90_ms": 185,
+    "tpot_p90_ms": 42,
+    "throughput_avg_rps": 125,
+    "cost_per_hour_usd": 4.20
+  },
+  "slo_compliance": {
+    "ttft": true,
+    "tpot": true,
+    "e2e_latency": true,
+    "availability": 99.95
+  },
+  "traffic_observed": {
+    "prompt_length_avg": 165,
+    "generation_length_avg": 220,
+    "peak_qps": 95
+  },
+  "deployed_at": "2025-01-10T00:00:00Z",
+  "observation_period_days": 7
 }
 ```
 
@@ -250,36 +652,60 @@ Consider migrating to Go if requirements evolve to include:
 
 ---
 
-## Data Flow Diagram
+## Enhanced Data Flow Diagram
 
 ```
+User: "I need a chatbot for 1000 users, low latency is critical"
+    ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                         User                                │
+│              Conversational Interface Layer                 │
 └───────────────────────┬─────────────────────────────────────┘
                         │ Natural Language Input
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Conversational Interface Layer                 │
+│              Context & Intent Engine                        │
+│  • Extract: task_type, users, priority                     │
+│  • Lookup use case template → default SLOs                  │
+│  • Generate traffic profile (prompt/gen length, QPS)        │
 └───────────────────────┬─────────────────────────────────────┘
-                        │
+                        │ Deployment Specification
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Context & Intent Engine                        │
-│              (Extract structured requirements)              │
+│         Specification Review UI (Optional Edit)             │
+│  • Display auto-generated spec                              │
+│  • User can modify SLOs, traffic params                     │
 └───────────────────────┬─────────────────────────────────────┘
-                        │
+                        │ Confirmed Specification
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
 │              Recommendation Engine                          │
-│              ← Query Knowledge Base                         │
+│  ┌──────────────────────────────────────────┐               │
+│  │ Traffic Profile Generator                │               │
+│  │  → QPS, prompt/gen lengths, burstiness  │               │
+│  └──────────────────────────────────────────┘               │
+│  ┌──────────────────────────────────────────┐               │
+│  │ Model Recommendation Engine              │               │
+│  │  → Filter by task, rank by priority     │               │
+│  └──────────────────────────────────────────┘               │
+│  ┌──────────────────────────────────────────┐               │
+│  │ Capacity Planning Engine                 │               │
+│  │  → Calculate GPU count, predict SLOs    │               │
+│  └──────────────────────────────────────────┘               │
+│              ↕ Query Knowledge Base                         │
+│        (benchmarks, SLO templates, costs)                   │
 └───────────────────────┬─────────────────────────────────────┘
-                        │
+                        │ Ranked Recommendations
                         ↓
-         Present recommendations to user
+         Present recommendations to user:
+         "Llama-3-8B on 2x L4: $800/mo, TTFT<200ms"
+         "Llama-3-70B on 4x A100: $2400/mo, better quality"
                         │
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         Simulation Layer (What-if exploration)              │
+│       Simulation & Exploration Layer (What-if)              │
+│  • Modify model/GPU → see cost/latency impact               │
+│  • Compare scenarios side-by-side                           │
+│  • Adjust SLOs → see viable configurations                  │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
@@ -288,11 +714,21 @@ Consider migrating to Go if requirements evolve to include:
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
 │         Deployment Automation Engine                        │
-│         → Generate YAML → Deploy to Kubernetes              │
+│  → Generate KServe/vLLM YAML                                │
+│  → Configure autoscaling                                    │
+│  → Deploy to Kubernetes                                     │
+│  → Setup observability hooks                                │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
-      Return deployment ID + observability links
+      Return: deployment ID + monitoring links + cost estimate
+                        │
+                        ↓ (Post-deployment feedback loop)
+┌─────────────────────────────────────────────────────────────┐
+│         Knowledge Base ← Deployment Outcomes                │
+│  Store: actual TTFT/TPOT, cost, SLO compliance              │
+│  Use for: improving future recommendations                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -383,13 +819,69 @@ For the initial iteration, recommended technology choices:
 
 ---
 
+## Key Architecture Enhancements
+
+This architecture has been enhanced to support sophisticated SLO-driven deployment planning:
+
+### 1. Comprehensive SLO Support
+- **Multiple SLO dimensions**: TTFT (Time to First Token), TPOT (Time Per Output Token), E2E Latency, Throughput, Quality, Reliability
+- **Percentile targets**: Support for p50, p90, p95, p99 targets
+- **Use case → SLO mapping**: Automatic default SLOs based on use case type (chatbot, summarization, etc.)
+- **User-editable targets**: Specifications can be reviewed and modified before deployment
+
+### 2. Traffic Characteristic Generation
+- **High-level to technical translation**: "1000 users" → QPS, prompt/gen lengths, concurrency
+- **Phase 1**: Point estimates (averages) for rapid implementation
+- **Phase 2**: Full statistical distributions (mean, variance, tail behavior)
+- **Burstiness modeling**: Steady-state vs peak, diurnal patterns, load spikes
+
+### 3. Intelligent Capacity Planning
+- **GPU count calculation**: Determine N GPUs needed for given model + traffic + SLOs
+- **Tensor parallelism decisions**: When to use tensor parallelism vs independent replicas
+- **SLO compliance prediction**: Pre-deployment validation that configuration meets targets
+- **Cost optimization**: Balance between meeting SLOs and minimizing cost
+
+### 4. Enhanced Recommendation Logic
+- **Multi-factor ranking**: Task compatibility + performance + accuracy + cost + user priority
+- **Subject matter awareness**: Route to specialized models when applicable
+- **Curated model catalog**: Limit to approved, production-ready models
+- **Optional user preferences**: Respect user-specified models or GPU types
+
+### 5. Interactive Specification Editing
+- **Auto-generation**: System generates complete spec from conversational input
+- **Transparency**: User can view all auto-generated assumptions
+- **Editability**: Inline modification of traffic params, SLOs, constraints
+- **Re-recommendation**: Trigger new recommendations after spec changes
+
+### 6. Rich Knowledge Base
+- **Comprehensive benchmarks**: TTFT/TPOT/E2E metrics for model+GPU combinations
+- **Use case templates**: Pre-configured SLO and traffic defaults for common scenarios
+- **Cost data**: GPU pricing across providers and regions
+- **Historical outcomes**: Learn from real deployments to improve recommendations
+- **Model catalog**: Metadata-rich model registry with task/domain mappings
+
+---
+
 ## Future Enhancements (Post-Phase 1)
+
+### Traffic Modeling (Phase 2)
+- Full statistical distributions (not just point estimates)
+- Advanced burstiness pattern recognition
+- Request heterogeneity modeling (mix of short/long requests)
+- Streaming vs non-streaming workload separation
+
+### Capacity Planning (Phase 2)
+- Advanced tensor parallelism optimization
+- Pipeline parallelism support
+- Auto-scaling policy generation (min/max replicas)
+- Batch size optimization for throughput/latency trade-offs
 
 ### Day-2 Operations
 - Proactive optimization recommendations for running deployments
-- Automated quantization suggestions
+- Automated quantization suggestions based on latency requirements
 - Speculative decoding automation
-- Cost anomaly detection
+- Cost anomaly detection and alerts
+- Drift detection (actual vs predicted SLOs)
 
 ### Advanced Features
 - Multi-model deployments (model ensembles)
@@ -397,6 +889,7 @@ For the initial iteration, recommended technology choices:
 - Fine-tuning pipeline integration
 - Capacity planning for MaaS deployments
 - Continuous learning from deployment outcomes
+- Quality metric integration (BLEU scores, accuracy benchmarks)
 
 ---
 
