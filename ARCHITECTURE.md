@@ -125,6 +125,25 @@ class DeploymentIntent:
 - **Jinja2 templating + Python** - Generate KServe/vLLM YAML from templates
 - **Kubernetes Python client** - Direct K8s API interaction for deployment
 - **ArgoCD/Flux GitOps** - Push generated configs to Git for automated sync
+- **Go + native Kubernetes client** - For advanced use cases requiring tighter K8s integration (Phase 2+)
+
+**Phase 1 Recommendation: Python**
+
+For the initial 3-month iteration, we recommend Python for these reasons:
+- **Stack consistency**: Entire system uses Python (LangChain, Chainlit, LLM interactions)
+- **Rapid development**: Jinja2 templating is native and highly productive
+- **Mature client library**: Kubernetes Python client is feature-complete and well-maintained
+- **Team expertise**: Likely more Python experience on AI-focused teams
+- **Sufficient performance**: Not building performance-critical controllers or watch loops
+
+**Phase 2+ Consideration: Go**
+
+Consider migrating to Go if requirements evolve to include:
+- **Custom Kubernetes operators**: Building CRDs with reconciliation loops
+- **Advanced watch patterns**: Complex event-driven K8s resource management
+- **Performance optimization**: High-volume deployment operations
+- **Native K8s ecosystem**: Tighter integration with controller-runtime and operator-sdk
+- **Smaller container footprint**: No Python runtime overhead
 
 **Outputs**:
 - KServe InferenceService YAML
