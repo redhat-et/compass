@@ -208,12 +208,12 @@ I've analyzed your requirements and generated a recommendation:
 **{rec['model_name']}** on **{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}**
 
 **Performance:**
-- TTFT p90: {rec['predicted_performance']['ttft_p90_ms']}ms
-- TPOT p90: {rec['predicted_performance']['tpot_p90_ms']}ms
-- E2E p95: {rec['predicted_performance']['e2e_latency_p95_ms']}ms
-- Throughput: {rec['predicted_performance']['throughput_qps']:.1f} QPS
+- TTFT p90: {rec['predicted_ttft_p90_ms']}ms
+- TPOT p90: {rec['predicted_tpot_p90_ms']}ms
+- E2E p95: {rec['predicted_e2e_p95_ms']}ms
+- Throughput: {rec['predicted_throughput_qps']:.1f} QPS
 
-**Cost:** ${rec['cost']['monthly_usd']:,.2f}/month
+**Cost:** ${rec['cost_per_month_usd']:,.2f}/month
 
 **Status:** {slo_status}
 
@@ -277,19 +277,17 @@ def render_overview_tab(rec: Dict[str, Any]):
 
     metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)
 
-    perf = rec['predicted_performance']
-
     with metrics_col1:
-        st.metric("TTFT p90", f"{perf['ttft_p90_ms']}ms")
+        st.metric("TTFT p90", f"{rec['predicted_ttft_p90_ms']}ms")
 
     with metrics_col2:
-        st.metric("TPOT p90", f"{perf['tpot_p90_ms']}ms")
+        st.metric("TPOT p90", f"{rec['predicted_tpot_p90_ms']}ms")
 
     with metrics_col3:
-        st.metric("E2E p95", f"{perf['e2e_latency_p95_ms']}ms")
+        st.metric("E2E p95", f"{rec['predicted_e2e_p95_ms']}ms")
 
     with metrics_col4:
-        st.metric("Throughput", f"{perf['throughput_qps']:.1f} QPS")
+        st.metric("Throughput", f"{rec['predicted_throughput_qps']:.1f} QPS")
 
     st.markdown("---")
 
@@ -311,7 +309,7 @@ def render_specifications_tab(rec: Dict[str, Any]):
     col1, col2 = st.columns(2)
     with col1:
         st.text_input("Use Case", value=intent['use_case'], disabled=True)
-        st.number_input("Users", value=intent['users'], disabled=True)
+        st.number_input("Users", value=intent['user_count'], disabled=True)
 
     with col2:
         st.text_input("Latency Requirement", value=intent['latency_requirement'], disabled=True)
@@ -323,7 +321,7 @@ def render_specifications_tab(rec: Dict[str, Any]):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.number_input("Peak QPS", value=traffic['peak_qps'], format="%.2f", disabled=not st.session_state.editing_mode)
+        st.number_input("Expected QPS", value=traffic['expected_qps'], format="%.2f", disabled=not st.session_state.editing_mode)
 
     with col2:
         st.number_input("Avg Prompt Tokens", value=traffic['prompt_tokens_mean'], disabled=not st.session_state.editing_mode)
@@ -337,13 +335,13 @@ def render_specifications_tab(rec: Dict[str, Any]):
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.number_input("TTFT p90 (ms)", value=slo['ttft_p90_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input("TTFT p90 (ms)", value=slo['ttft_p90_target_ms'], disabled=not st.session_state.editing_mode)
 
     with col2:
-        st.number_input("TPOT p90 (ms)", value=slo['tpot_p90_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input("TPOT p90 (ms)", value=slo['tpot_p90_target_ms'], disabled=not st.session_state.editing_mode)
 
     with col3:
-        st.number_input("E2E p95 (ms)", value=slo['e2e_latency_p95_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input("E2E p95 (ms)", value=slo['e2e_p95_target_ms'], disabled=not st.session_state.editing_mode)
 
     # Edit mode toggle
     st.markdown("---")
@@ -368,46 +366,41 @@ def render_performance_tab(rec: Dict[str, Any]):
 
     st.markdown("### 📊 Predicted Performance")
 
-    perf = rec['predicted_performance']
     slo = rec['slo_targets']
 
     # TTFT
     st.markdown("#### Time to First Token (TTFT)")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric("p50", f"{perf['ttft_p50_ms']}ms")
+        st.metric("Predicted p90", f"{rec['predicted_ttft_p90_ms']}ms")
     with col2:
-        st.metric("p90", f"{perf['ttft_p90_ms']}ms", delta=f"{perf['ttft_p90_ms'] - slo['ttft_p90_ms']}ms vs target")
-    with col3:
-        st.metric("p99", f"{perf['ttft_p99_ms']}ms")
+        delta_ms = rec['predicted_ttft_p90_ms'] - slo['ttft_p90_target_ms']
+        st.metric("Target p90", f"{slo['ttft_p90_target_ms']}ms",
+                 delta=f"{delta_ms}ms", delta_color="inverse")
 
     # TPOT
     st.markdown("#### Time Per Output Token (TPOT)")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric("p50", f"{perf['tpot_p50_ms']}ms")
+        st.metric("Predicted p90", f"{rec['predicted_tpot_p90_ms']}ms")
     with col2:
-        st.metric("p90", f"{perf['tpot_p90_ms']}ms", delta=f"{perf['tpot_p90_ms'] - slo['tpot_p90_ms']}ms vs target")
-    with col3:
-        st.metric("p99", f"{perf['tpot_p99_ms']}ms")
+        delta_ms = rec['predicted_tpot_p90_ms'] - slo['tpot_p90_target_ms']
+        st.metric("Target p90", f"{slo['tpot_p90_target_ms']}ms",
+                 delta=f"{delta_ms}ms", delta_color="inverse")
 
     # E2E Latency
     st.markdown("#### End-to-End Latency")
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     with col1:
-        st.metric("p50", f"{perf['e2e_latency_p50_ms']}ms")
+        st.metric("Predicted p95", f"{rec['predicted_e2e_p95_ms']}ms")
     with col2:
-        st.metric("p95", f"{perf['e2e_latency_p95_ms']}ms", delta=f"{perf['e2e_latency_p95_ms'] - slo['e2e_latency_p95_ms']}ms vs target")
-    with col3:
-        st.metric("p99", f"{perf['e2e_latency_p99_ms']}ms")
+        delta_ms = rec['predicted_e2e_p95_ms'] - slo['e2e_p95_target_ms']
+        st.metric("Target p95", f"{slo['e2e_p95_target_ms']}ms",
+                 delta=f"{delta_ms}ms", delta_color="inverse")
 
     # Throughput
     st.markdown("#### Throughput")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Requests/sec", f"{perf['throughput_qps']:.1f} QPS")
-    with col2:
-        st.metric("Tokens/sec", f"{perf['throughput_tokens_per_sec']:,.0f}")
+    st.metric("Requests/sec", f"{rec['predicted_throughput_qps']:.1f} QPS")
 
 
 def render_cost_tab(rec: Dict[str, Any]):
@@ -415,20 +408,18 @@ def render_cost_tab(rec: Dict[str, Any]):
 
     st.markdown("### 💰 Cost Breakdown")
 
-    cost = rec['cost']
-
     # Main cost metrics
     col1, col2 = st.columns(2)
     with col1:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown("#### Hourly Cost")
-        st.markdown(f"## ${cost['hourly_usd']:.2f}")
+        st.markdown(f"## ${rec['cost_per_hour_usd']:.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown("#### Monthly Cost")
-        st.markdown(f"## ${cost['monthly_usd']:,.2f}")
+        st.markdown(f"## ${rec['cost_per_month_usd']:,.2f}")
         st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")

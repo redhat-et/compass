@@ -37,6 +37,8 @@ source venv/bin/activate
 streamlit run ../ui/app.py
 ```
 
+**Note**: On first run, Streamlit may prompt for an email address. Just press Enter to skip.
+
 The UI will start on http://localhost:8501
 
 ## Testing Checklist

@@ -23,13 +23,22 @@ This repository contains the architecture design for the **Red Hat AI Pre-Deploy
   - Entity-relationship diagrams for data models
 
 - **backend/**: Python backend implementation
-  - Component modules stubbed out (context_intent, recommendation, etc.)
+  - Component modules: context_intent, recommendation, knowledge_base, orchestration, api
   - LLM integration with Ollama client
-  - FastAPI for REST endpoints (Sprint 2+)
+  - FastAPI REST endpoints with CORS support
+  - Pydantic schemas for type safety
 
-- **frontend/**: Streamlit UI (Sprint 3+)
+- **ui/**: Streamlit UI (Sprint 3 ✅)
+  - Chat interface for conversational requirement gathering
+  - Multi-tab recommendation display (Overview, Specifications, Performance, Cost)
+  - Editable specifications with review mode
+  - Red Hat branding and professional styling
 
 - **data/**: Synthetic benchmark and catalog data for POC
+  - benchmarks.json: 24 model+GPU combinations with vLLM performance data
+  - model_catalog.json: 10 approved models with metadata
+  - slo_templates.json: 7 use case templates
+  - demo_scenarios.json: 3 test scenarios
 
 ## Architecture Key Concepts
 
