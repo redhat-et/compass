@@ -900,49 +900,6 @@ For the initial iteration, recommended technology choices:
 
 ---
 
-## Key Architecture Enhancements
-
-This architecture has been enhanced to support sophisticated SLO-driven deployment planning:
-
-### 1. Comprehensive SLO Support
-- **Multiple SLO dimensions**: TTFT (Time to First Token), TPOT (Time Per Output Token), E2E Latency, Throughput, Quality, Reliability
-- **Percentile targets**: Support for p50, p90, p95, p99 targets
-- **Use case → SLO mapping**: Automatic default SLOs based on use case type (chatbot, summarization, etc.)
-- **User-editable targets**: Specifications can be reviewed and modified before deployment
-
-### 2. Traffic Characteristic Generation
-- **High-level to technical translation**: "1000 users" → QPS, prompt/gen lengths, concurrency
-- **Phase 1**: Point estimates (averages) for rapid implementation
-- **Phase 2**: Full statistical distributions (mean, variance, tail behavior)
-- **Burstiness modeling**: Steady-state vs peak, diurnal patterns, load spikes
-
-### 3. Intelligent Capacity Planning
-- **GPU count calculation**: Determine N GPUs needed for given model + traffic + SLOs
-- **Tensor parallelism decisions**: When to use tensor parallelism vs independent replicas
-- **SLO compliance prediction**: Pre-deployment validation that configuration meets targets
-- **Cost optimization**: Balance between meeting SLOs and minimizing cost
-
-### 4. Enhanced Recommendation Logic
-- **Multi-factor ranking**: Task compatibility + performance + accuracy + cost + user priority
-- **Subject matter awareness**: Route to specialized models when applicable
-- **Curated model catalog**: Limit to approved, production-ready models
-- **Optional user preferences**: Respect user-specified models or GPU types
-
-### 5. Interactive Specification Editing
-- **Auto-generation**: System generates complete spec from conversational input
-- **Transparency**: User can view all auto-generated assumptions
-- **Editability**: Inline modification of traffic params, SLOs, constraints
-- **Re-recommendation**: Trigger new recommendations after spec changes
-
-### 6. Rich Knowledge Base
-- **Comprehensive benchmarks**: TTFT/TPOT/E2E metrics for model+GPU combinations
-- **Use case templates**: Pre-configured SLO and traffic defaults for common scenarios
-- **Cost data**: GPU pricing across providers and regions
-- **Historical outcomes**: Learn from real deployments to improve recommendations
-- **Model catalog**: Metadata-rich model registry with task/domain mappings
-
----
-
 ## Future Enhancements (Post-Phase 1)
 
 ### Traffic Modeling (Phase 2)
