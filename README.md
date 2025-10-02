@@ -1,4 +1,4 @@
-# Red Hat AI Pre-Deployment Assistant - POC
+# AI Pre-Deployment Assistant - POC
 
 A conversational AI system that guides users from concept to production-ready LLM deployments through intelligent capacity planning and SLO-driven recommendations.
 
