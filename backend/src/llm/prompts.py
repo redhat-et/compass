@@ -50,10 +50,13 @@ Your task is to extract structured information about their deployment requiremen
 
 Be intelligent about inference:
 - "thousands of users" → estimate specific number
-- "needs to be fast" → latency_requirement: high or very_high
+- "needs to be fast" or "low latency critical" → latency_requirement: very_high
+- "can tolerate higher latency" or "quality over speed" → latency_requirement: medium or low
 - "batch processing" → throughput_priority: very_high, latency_requirement: low
 - "customer-facing" → latency_requirement: high or very_high
+- "budget is flexible" or "no budget constraint" → budget_constraint: flexible or none
 - No budget mentioned → budget_constraint: moderate
+- "cost-sensitive" or "cost efficiency important" → budget_constraint: strict or moderate
 
 {INTENT_EXTRACTION_SCHEMA}
 """

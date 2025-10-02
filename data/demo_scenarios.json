@@ -21,15 +21,15 @@
         }
       },
       "expected_recommendation": {
-        "model_id": "meta-llama/Llama-3.1-8B-Instruct",
-        "reasoning": "Fast 8B model suitable for customer service with strong instruction following",
+        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+        "reasoning": "Fast 7B model meeting strict customer service latency requirements",
         "gpu_config": {
           "gpu_type": "NVIDIA-A100-80GB",
-          "gpu_count": 2,
+          "gpu_count": 1,
           "tensor_parallel": 1,
-          "replicas": 2
+          "replicas": 1
         },
-        "estimated_cost_per_month": 6480,
+        "estimated_cost_per_month": 3285,
         "meets_slo": true
       }
     },
@@ -54,15 +54,15 @@
         }
       },
       "expected_recommendation": {
-        "model_id": "meta-llama/Llama-3.1-70B-Instruct",
-        "reasoning": "Larger 70B model provides superior code generation quality with acceptable latency",
+        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+        "reasoning": "Strong code generation capabilities with cost-effective GPU choice",
         "gpu_config": {
-          "gpu_type": "NVIDIA-A100-80GB",
-          "gpu_count": 4,
-          "tensor_parallel": 4,
+          "gpu_type": "NVIDIA-A10G",
+          "gpu_count": 1,
+          "tensor_parallel": 1,
           "replicas": 1
         },
-        "estimated_cost_per_month": 12960,
+        "estimated_cost_per_month": 730,
         "meets_slo": true
       }
     },
@@ -87,15 +87,15 @@
         }
       },
       "expected_recommendation": {
-        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
-        "reasoning": "Cost-effective 7B model with good summarization capabilities and high throughput",
+        "model_id": "ibm-granite/granite-3.0-8b-instruct",
+        "reasoning": "Most cost-effective option with excellent summarization and RAG capabilities",
         "gpu_config": {
-          "gpu_type": "NVIDIA-A10G",
-          "gpu_count": 2,
+          "gpu_type": "NVIDIA-L4",
+          "gpu_count": 1,
           "tensor_parallel": 1,
-          "replicas": 2
+          "replicas": 1
         },
-        "estimated_cost_per_month": 1440,
+        "estimated_cost_per_month": 365,
         "meets_slo": true
       }
     }

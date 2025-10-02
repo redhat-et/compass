@@ -257,7 +257,6 @@ def calculate_capacity(
   "model": "llama-3-70b",
   "gpu_type": "A100-80GB",
   "tensor_parallel_degree": 4,
-  "batch_size": 32,
   "metrics": {
     "throughput_tokens_per_sec": 3500,
     "ttft_p50_ms": 95,
@@ -267,7 +266,8 @@ def calculate_capacity(
     "tpot_p90_ms": 15,
     "tpot_p99_ms": 22,
     "memory_usage_gb": 280
-  }
+  },
+  "note": "Benchmarks collected using vLLM defaults (dynamic batching enabled)"
 }
 ```
 
@@ -424,14 +424,28 @@ Consider migrating to Go if requirements evolve to include:
 #### 6a. Model Benchmarks
 Comprehensive performance metrics for model + GPU combinations.
 
-**Schema Requirements**:
+**Phase 1 POC Simplification**: Current implementation uses point estimates under typical conditions (150 input tokens, 200 output tokens, steady traffic). Benchmarks are collected using vLLM default configuration with dynamic batching enabled. This is sufficient for demonstrating the workflow but lacks precision for production use.
+
+**Phase 2+ Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
+- Input/output token lengths (longer prompts/generations affect latency and throughput)
+- Concurrency levels and traffic patterns (bursty vs steady affects tail latencies)
+- KV cache efficiency (prefix caching reduces TTFT for similar prompts)
+- Different vLLM configuration tunings for specific workload patterns
+
+The system should interpolate between benchmark points or use parametric models (regression-based) for continuous prediction when exact traffic matches aren't available.
+
+**Schema Requirements (Full Version - Phase 2+)**:
 ```json
 {
   "model_id": "meta-llama/Llama-3-70b",
   "gpu_type": "NVIDIA-A100-80GB",
   "tensor_parallel_degree": 4,
-  "batch_size": 32,
   "quantization": null,  // or "int8", "int4", "awq"
+  "vllm_config": {
+    "version": "0.6.x",
+    "max_num_seqs": 256,
+    "max_num_batched_tokens": 8192
+  },
   "metrics": {
     "throughput_tokens_per_sec": 3500,
     "throughput_requests_per_sec": 45,
