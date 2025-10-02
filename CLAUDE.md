@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains the architecture design for the **Red Hat AI Pre-Deployment Assistant**, a system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
 
-**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprint 1 foundation is complete, with subsequent sprints building out the full system.
+**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprints 1-2 are complete (foundation + core recommendation engine), with subsequent sprints building out the full system.
 
 ## Repository Structure
 
@@ -93,7 +93,8 @@ The system translates high-level user intent into technical specifications:
    - Phase 2+ may migrate Deployment Automation Engine to Go for K8s integration
 
 2. **Phase 1 uses point estimates** for traffic (avg prompt length, avg QPS)
-   - Phase 2 adds full statistical distributions (mean, variance, tail)
+   - Benchmarks collected using vLLM default configuration (dynamic batching enabled)
+   - Phase 2 adds full statistical distributions (mean, variance, tail) and multi-dimensional benchmarks
 
 3. **SLO metrics are mandatory**:
    - TTFT (Time to First Token): p50, p90, p99
@@ -156,8 +157,11 @@ This repository follows standard commit practices:
 
 ## Important Notes
 
-- **Sprint 1 Complete** - Project structure, synthetic data, and LLM client implemented
+- **Sprint 1-2 Complete**:
+  - Sprint 1: Project structure, synthetic data, and LLM client implemented
+  - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
 - When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
 - Use synthetic data in data/ directory for POC; production would use PostgreSQL
+- Benchmarks use vLLM default configuration with dynamic batching (no fixed batch_size)
