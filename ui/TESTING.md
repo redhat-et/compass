@@ -46,7 +46,7 @@ The UI will start on http://localhost:8501
 ### 1. UI Loads Successfully
 
 - [ ] Streamlit app starts without errors
-- [ ] Header displays: "🤖 AI Pre-Deployment Assistant"
+- [ ] Header displays "AI Pre-Deployment Assistant" with app icon
 - [ ] Sidebar shows app title and navigation
 - [ ] Two-column layout visible (Conversation | Recommendation)
 - [ ] Chat input field is present

@@ -18,7 +18,7 @@ API_BASE_URL = "http://localhost:8000"
 # Page configuration
 st.set_page_config(
     page_title="AI Pre-Deployment Assistant",
-    page_icon="🤖",
+    page_icon="docs/ai_assistant_favicon.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -73,8 +73,12 @@ def main():
     """Main application entry point."""
 
     # Header
-    st.markdown('<div class="main-header">🤖 AI Pre-Deployment Assistant</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">From concept to production-ready LLM deployment</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns([1, 20])
+    with col1:
+        st.image("docs/ai_assistant_icon_256.png", width=50)
+    with col2:
+        st.markdown('<div class="main-header">AI Pre-Deployment Assistant</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-header">From concept to production-ready LLM deployment</div>', unsafe_allow_html=True)
 
     # Sidebar
     render_sidebar()
@@ -97,7 +101,11 @@ def main():
 def render_sidebar():
     """Render sidebar with app information and quick actions."""
     with st.sidebar:
-        st.markdown("### 🤖 AI Pre-Deployment Assistant")
+        col1, col2 = st.columns([1, 5])
+        with col1:
+            st.image("docs/ai_assistant_icon_256.png", width=30)
+        with col2:
+            st.markdown("### AI Pre-Deployment Assistant")
 
         st.markdown("---")
         st.markdown("### 🎯 Quick Start")
@@ -260,7 +268,7 @@ def render_overview_tab(rec: Dict[str, Any]):
     # Model and GPU
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### 🤖 Model")
+        st.markdown("### Model")
         st.markdown(f"**{rec['model_name']}**")
         st.caption(f"ID: `{rec['model_id']}`")
 
