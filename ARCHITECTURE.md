@@ -311,22 +311,22 @@ def calculate_capacity(
 │ Priority: Low Latency                       │
 │                                             │
 │ Traffic Profile (Auto-Generated):           │
-│   Avg Prompt Length: 150 tokens [Edit]     │
-│   Avg Response Length: 250 tokens [Edit]   │
-│   Steady-State QPS: 50 [Edit]              │
-│   Peak QPS: 100 [Edit]                     │
-│   Burstiness: Moderate [Edit]              │
+│   Avg Prompt Length: 150 tokens [Edit]      │
+│   Avg Response Length: 250 tokens [Edit]    │
+│   Steady-State QPS: 50 [Edit]               │
+│   Peak QPS: 100 [Edit]                      │
+│   Burstiness: Moderate [Edit]               │
 │                                             │
 │ SLO Targets (Suggested):                    │
-│   TTFT (p90): 200ms [Edit]                 │
-│   TPOT (p90): 50ms [Edit]                  │
-│   E2E Latency (p95): 2000ms [Edit]         │
-│   Throughput: 100 rps [Edit]               │
-│   Quality: High [Edit]                     │
-│   Reliability: 99.9% [Edit]                │
+│   TTFT (p90): 200ms [Edit]                  │
+│   TPOT (p90): 50ms [Edit]                   │
+│   E2E Latency (p95): 2000ms [Edit]          │
+│   Throughput: 100 rps [Edit]                │
+│   Quality: High [Edit]                      │
+│   Reliability: 99.9% [Edit]                 │
 │                                             │
 │ Budget Constraints:                         │
-│   Max Monthly Cost: $5000 [Edit]           │
+│   Max Monthly Cost: $5000 [Edit]            │
 │                                             │
 │ [Regenerate Recommendations] [Deploy]       │
 └─────────────────────────────────────────────┘
@@ -692,31 +692,31 @@ Understand actual workload vs predictions:
 **Dashboard Example**:
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Deployment: chatbot-prod-llama3-8b                     │
+│ Deployment: chatbot-prod-llama3-8b                      │
 ├─────────────────────────────────────────────────────────┤
-│ SLO Compliance (Last 7 days):                          │
-│   TTFT p90:    185ms ✓ (target: 200ms)                │
-│   TPOT p90:     48ms ✓ (target: 50ms)                 │
-│   E2E p95:    1850ms ✓ (target: 2000ms)               │
-│   Throughput:  122 rps ✓ (target: 100 rps)            │
-│   Uptime:     99.94% ✓ (target: 99.9%)                │
+│ SLO Compliance (Last 7 days):                           │
+│   TTFT p90:    185ms ✓ (target: 200ms)                  │
+│   TPOT p90:     48ms ✓ (target: 50ms)                   │
+│   E2E p95:    1850ms ✓ (target: 2000ms)                 │
+│   Throughput:  122 rps ✓ (target: 100 rps)              │
+│   Uptime:     99.94% ✓ (target: 99.9%)                  │
 │                                                         │
 │ Resource Utilization:                                   │
-│   GPU Usage:     78% ⚠️ (2x L4, could optimize)        │
-│   GPU Memory:    14.2 / 24 GB per GPU                  │
-│   Avg Batch:     18 requests                           │
+│   GPU Usage:     78% ⚠️ (2x L4, could optimize)         │
+│   GPU Memory:    14.2 / 24 GB per GPU                   │
+│   Avg Batch:     18 requests                            │
 │                                                         │
 │ Cost Analysis:                                          │
-│   Actual:       $812/month (predicted: $800)           │
-│   Per 1k tok:   $0.042 (predicted: $0.040)            │
+│   Actual:       $812/month (predicted: $800)            │
+│   Per 1k tok:   $0.042 (predicted: $0.040)              │
 │                                                         │
 │ Traffic Patterns:                                       │
-│   Avg Prompt:   165 tokens (predicted: 150)           │
-│   Avg Gen:      220 tokens (predicted: 200)           │
-│   Peak QPS:     95 (predicted: 100)                   │
+│   Avg Prompt:   165 tokens (predicted: 150)             │
+│   Avg Gen:      220 tokens (predicted: 200)             │
+│   Peak QPS:     95 (predicted: 100)                     │
 │                                                         │
-│ Recommendation: GPU utilization below 80%.             │
-│ Consider downsizing to 1x L4 to reduce cost by 50%.   │
+│ Recommendation: GPU utilization below 80%.              │
+│ Consider downsizing to 1x L4 to reduce cost by 50%.     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -739,7 +739,7 @@ User: "I need a chatbot for 1000 users, low latency is critical"
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
 │              Context & Intent Engine                        │
-│  • Extract: task_type, users, priority                     │
+│  • Extract: task_type, users, priority                      │
 │  • Lookup use case template → default SLOs                  │
 │  • Generate traffic profile (prompt/gen length, QPS)        │
 └───────────────────────┬─────────────────────────────────────┘
@@ -756,15 +756,15 @@ User: "I need a chatbot for 1000 users, low latency is critical"
 │              Recommendation Engine                          │
 │  ┌──────────────────────────────────────────┐               │
 │  │ Traffic Profile Generator                │               │
-│  │  → QPS, prompt/gen lengths, burstiness  │               │
+│  │  → QPS, prompt/gen lengths, burstiness   │               │
 │  └──────────────────────────────────────────┘               │
 │  ┌──────────────────────────────────────────┐               │
 │  │ Model Recommendation Engine              │               │
-│  │  → Filter by task, rank by priority     │               │
+│  │  → Filter by task, rank by priority      │               │
 │  └──────────────────────────────────────────┘               │
 │  ┌──────────────────────────────────────────┐               │
 │  │ Capacity Planning Engine                 │               │
-│  │  → Calculate GPU count, predict SLOs    │               │
+│  │  → Calculate GPU count, predict SLOs     │               │
 │  └──────────────────────────────────────────┘               │
 │              ↕ Query Knowledge Base                         │
 │        (benchmarks, SLO templates, costs)                   │
