@@ -87,42 +87,79 @@ pip install -r requirements.txt
 
 ### 3. Pull Ollama Model
 
-The POC uses `llama3.2:3b` for intent extraction:
+The POC uses `llama3.1:8b` for intent extraction:
 
 ```bash
-ollama pull llama3.2:3b
+ollama pull llama3.1:8b
 ```
 
 **Alternative models** (if needed):
-- `mistral:7b` - Faster, good for demos
-- `llama3.1:8b` - Better quality, slower
+- `llama3.2:3b` - Smaller/faster, less accurate
+- `mistral:7b` - Good balance of speed and quality
 
 ### 4. Verify Ollama Setup
 
 ```bash
 # Test Ollama is working
-ollama list  # Should show llama3.2:3b
+ollama list  # Should show llama3.1:8b
 ```
 
 ## Running the POC
 
-### Option 1: Run Full Stack (Future - Sprint 2+)
+### Option 1: Test End-to-End Workflow (Sprint 2)
 
-Once backend API is implemented:
+Test the complete recommendation workflow with demo scenarios:
+
+```bash
+cd backend
+source venv/bin/activate
+python test_workflow.py
+```
+
+This tests all 3 demo scenarios end-to-end.
+
+### Option 2: Run FastAPI Backend
+
+Start the API server:
+
+```bash
+cd backend
+source venv/bin/activate
+python -m src.api.routes
+```
+
+Test the API:
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Quick test
+curl -X POST http://localhost:8000/api/v1/test
+
+# Full recommendation
+curl -X POST http://localhost:8000/api/v1/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"user_message": "I need a chatbot for 5000 users with low latency"}'
+```
+
+### Option 3: Run Full Stack (Sprint 3+)
+
+Frontend UI coming in Sprint 3:
 
 ```bash
 # Terminal 1 - Backend
 cd backend
 source venv/bin/activate
-uvicorn src.api.routes:app --reload --port 8000
+python -m src.api.routes
 
-# Terminal 2 - Frontend
+# Terminal 2 - Frontend (Sprint 3+)
 cd frontend
 source venv/bin/activate
 streamlit run app.py
 ```
 
-### Option 2: Test Individual Components (Sprint 1)
+### Option 4: Test Individual Components
 
 Test the LLM client:
 
@@ -163,8 +200,8 @@ All data files in `data/` are synthetic for POC purposes:
 
 ## Architecture Components (Sprint Roadmap)
 
-- ✅ **Sprint 1** (Current): Project structure, synthetic data, LLM client
-- ⏳ **Sprint 2**: Intent extraction, recommendation engines, knowledge base
+- ✅ **Sprint 1** (Complete): Project structure, synthetic data, LLM client
+- ✅ **Sprint 2** (Complete): Intent extraction, recommendation engines, knowledge base, FastAPI backend
 - ⏳ **Sprint 3**: Streamlit UI with chat and spec editor
 - ⏳ **Sprint 4**: YAML generation, mock monitoring dashboard
 - ⏳ **Sprint 5**: KIND cluster setup, KServe installation
@@ -217,13 +254,29 @@ which python  # Should show path to venv
 pip install -r requirements.txt
 ```
 
+## Testing
+
+See [backend/TESTING.md](backend/TESTING.md) for detailed testing instructions.
+
+Quick tests:
+
+```bash
+# Test end-to-end workflow
+cd backend && source venv/bin/activate
+python test_workflow.py
+
+# Test FastAPI endpoints
+python -m src.api.routes  # Start server
+curl -X POST http://localhost:8000/api/v1/test
+```
+
 ## Next Steps
 
-After Sprint 1 completion:
-1. Implement Context & Intent Engine (Sprint 2)
-2. Build recommendation logic using synthetic benchmarks
-3. Create Streamlit conversational interface
-4. Test end-to-end flow with demo scenarios
+Sprint 2 complete! Next up (Sprint 3):
+1. Streamlit UI implementation
+2. Chat interface with conversation history
+3. Interactive spec editor
+4. Recommendation visualization
 
 ## Contributing
 

@@ -311,8 +311,8 @@ erDiagram
         string model_id PK
         string gpu_type FK
         int tensor_parallel_degree
-        int batch_size
         string quantization
+        json vllm_config
         float throughput_tokens_per_sec
         float throughput_requests_per_sec
         float ttft_p50_ms

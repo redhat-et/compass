@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 class OllamaClient:
     """Client for interacting with Ollama LLM service."""
 
-    def __init__(self, model: str = "llama3.2:3b", host: Optional[str] = None):
+    def __init__(self, model: str = "llama3.1:8b", host: Optional[str] = None):
         """
         Initialize Ollama client.
 
         Args:
-            model: Model name to use (default: llama3.2:3b)
+            model: Model name to use (default: llama3.1:8b)
             host: Optional Ollama host URL (defaults to localhost:11434)
         """
         self.model = model

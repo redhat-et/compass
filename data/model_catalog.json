@@ -44,7 +44,7 @@
       "license": "Apache 2.0",
       "license_type": "permissive",
       "min_gpu_memory_gb": 14,
-      "recommended_for": ["chatbot", "code_generation"],
+      "recommended_for": ["chatbot", "customer_service", "code_generation"],
       "approval_status": "approved",
       "notes": "Efficient and fast model with strong code capabilities"
     },
