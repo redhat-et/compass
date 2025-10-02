@@ -44,6 +44,11 @@ class RecommendationRequest(BaseModel):
     conversation_history: Optional[List[ConversationMessage]] = None
 
 
+class SimpleRecommendationRequest(BaseModel):
+    """Simple request for deployment recommendation (UI compatibility)."""
+    message: str
+
+
 class RecommendationResponse(BaseModel):
     """Response with deployment recommendation."""
     recommendation: DeploymentRecommendation
@@ -153,6 +158,37 @@ async def list_use_cases():
     except Exception as e:
         logger.error(f"Failed to list use cases: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Simplified recommendation endpoint for UI
+@app.post("/api/recommend")
+async def simple_recommend(request: SimpleRecommendationRequest):
+    """
+    Simplified recommendation endpoint for UI compatibility.
+
+    Args:
+        request: Simple request with message field
+
+    Returns:
+        Recommendation as JSON dict
+    """
+    try:
+        logger.info(f"Received UI recommendation request: {request.message[:100]}...")
+
+        recommendation = workflow.generate_recommendation(
+            user_message=request.message,
+            conversation_history=None
+        )
+
+        # Return recommendation as dict for easier UI consumption
+        return recommendation.model_dump()
+
+    except Exception as e:
+        logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate recommendation: {str(e)}"
+        )
 
 
 # Simple test endpoint for quick validation
