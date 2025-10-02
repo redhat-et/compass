@@ -634,21 +634,96 @@ Historical data from real deployments for continuous learning.
 
 ---
 
-### 9. Observability & Telemetry
-**Purpose**: Monitor assistant performance and user interactions
+### 9. Inference Observability & SLO Monitoring
+**Purpose**: Monitor deployed inference systems to validate SLO compliance and enable feedback loop to improve recommendations
 
 **Technology Options**:
-- **OpenTelemetry + Prometheus + Grafana** - Standard observability stack
-- **LangSmith** - LLM-specific tracing and debugging
-- **Custom logging + ELK stack** - Flexible log aggregation
+- **OpenTelemetry + Prometheus + Grafana** - Standard observability stack for metrics
+- **RHAI Observability Platform** - Integrate with existing Red Hat AI observability
+- **Custom metrics exporters** - vLLM/KServe-specific instrumentation
 
-**Metrics to Track**:
-- Conversation completion rate
+**Key Responsibilities**:
+
+#### SLO Compliance Monitoring
+Track whether deployed models meet their predicted SLO targets:
+- **TTFT (Time to First Token)**: p50, p90, p99 latencies
+- **TPOT (Time Per Output Token)**: p50, p90, p99 latencies
+- **E2E Latency**: Full request-response time at p50, p95, p99
+- **Throughput**: Actual requests/sec and tokens/sec vs predicted
+- **Quality**: Model accuracy/quality metrics if available
+- **Reliability**: Uptime, error rates, timeout rates
+
+#### Resource Utilization Metrics
+Monitor efficiency of GPU allocation:
+- **GPU utilization**: Compute usage per GPU (target: >80% for cost efficiency)
+- **GPU memory usage**: VRAM consumption vs available
+- **Batch efficiency**: Average batch size achieved
+- **Request queue depth**: Backlog indicating capacity constraints
+- **Token throughput per GPU**: Measure of effective GPU usage
+
+#### Cost Tracking
+Validate cost predictions and identify optimization opportunities:
+- **Actual cost per hour/month**: Compare to predicted
+- **Cost per 1k tokens**: Unit economics
+- **Cost per request**: Overhead analysis
+- **Idle GPU time**: Identify overprovisioning
+
+#### Traffic Pattern Analysis
+Understand actual workload vs predictions:
+- **Prompt length distribution**: Actual vs predicted (mean, p95, max)
+- **Generation length distribution**: Actual vs predicted
+- **QPS patterns**: Steady-state, peak, burstiness
+- **Temporal patterns**: Diurnal cycles, weekday/weekend differences
+- **Request heterogeneity**: Mix of short/long requests
+
+**Integration Points**:
+- **vLLM metrics endpoint**: Native Prometheus metrics for inference stats
+- **KServe ServiceMonitor**: Kubernetes-native metrics collection
+- **Grafana dashboards**: Pre-configured for SLO visualization
+- **Alerting**: Proactive alerts when SLOs are violated or GPUs underutilized
+
+**Feedback Loop to Knowledge Base**:
+- Store actual performance metrics in Deployment Outcomes
+- Compare predicted vs actual TTFT, TPOT, throughput, cost
+- Identify systematic biases in predictions
+- Update benchmark data and recommendation logic
+- Enable continuous improvement of capacity planning accuracy
+
+**Dashboard Example**:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Deployment: chatbot-prod-llama3-8b                     │
+├─────────────────────────────────────────────────────────┤
+│ SLO Compliance (Last 7 days):                          │
+│   TTFT p90:    185ms ✓ (target: 200ms)                │
+│   TPOT p90:     48ms ✓ (target: 50ms)                 │
+│   E2E p95:    1850ms ✓ (target: 2000ms)               │
+│   Throughput:  122 rps ✓ (target: 100 rps)            │
+│   Uptime:     99.94% ✓ (target: 99.9%)                │
+│                                                         │
+│ Resource Utilization:                                   │
+│   GPU Usage:     78% ⚠️ (2x L4, could optimize)        │
+│   GPU Memory:    14.2 / 24 GB per GPU                  │
+│   Avg Batch:     18 requests                           │
+│                                                         │
+│ Cost Analysis:                                          │
+│   Actual:       $812/month (predicted: $800)           │
+│   Per 1k tok:   $0.042 (predicted: $0.040)            │
+│                                                         │
+│ Traffic Patterns:                                       │
+│   Avg Prompt:   165 tokens (predicted: 150)           │
+│   Avg Gen:      220 tokens (predicted: 200)           │
+│   Peak QPS:     95 (predicted: 100)                   │
+│                                                         │
+│ Recommendation: GPU utilization below 80%.             │
+│ Consider downsizing to 1x L4 to reduce cost by 50%.   │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Assistant Performance Metrics** (secondary focus):
 - Recommendation acceptance rate
-- Deployment success rate
 - Time-to-deployment
-- User satisfaction scores
-- System performance (latency, error rates)
+- Specification edit frequency (indicates auto-generation accuracy)
 
 ---
 
