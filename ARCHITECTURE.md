@@ -891,6 +891,12 @@ For the initial iteration, recommended technology choices:
 4. **Model catalog integration**: Do we sync with HuggingFace, or maintain a curated list?
 5. **Versioning**: How do we handle updates to recommendations as benchmarks improve?
 6. **Rollback**: What's the UX for reverting a deployment if it doesn't meet expectations?
+7. **Conversational clarification flow** (Future Phase): How do we handle insufficient information gracefully?
+   - When user provides minimal details, system should ask targeted follow-up questions
+   - More detailed information → more precise recommendations with narrower option set
+   - Limited information → broader recommendation set with clear pros/cons for each
+   - System should gracefully handle "I don't know" responses and still provide useful recommendations
+   - Balance between gathering information and not overwhelming user with too many questions
 
 ---
 
