@@ -11,12 +11,23 @@ echo ""
 # Check if virtual environment exists
 if [ ! -d "backend/venv" ]; then
     echo "❌ Virtual environment not found!"
-    echo "Please run: cd backend && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
-    exit 1
+    echo "Creating virtual environment..."
+    cd backend
+    python -m venv venv
+    cd ..
 fi
 
 # Activate virtual environment
 source backend/venv/bin/activate
+
+# Check if requirements are installed
+echo "Checking dependencies..."
+if ! python -c "import fastapi" &> /dev/null; then
+    echo "⚠️  Dependencies not found. Installing from requirements.txt..."
+    pip install -r backend/requirements.txt
+    echo "✅ Dependencies installed"
+    echo ""
+fi
 
 # Check if Ollama is running
 echo "Checking if Ollama is running..."

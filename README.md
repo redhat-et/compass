@@ -276,11 +276,11 @@ curl -X POST http://localhost:8000/api/v1/test
 
 ## Next Steps
 
-Sprint 2 complete! Next up (Sprint 3):
-1. Streamlit UI implementation
-2. Chat interface with conversation history
-3. Interactive spec editor
-4. Recommendation visualization
+Sprint 3 complete! Next up (Sprint 4):
+1. YAML generation for KServe/vLLM deployments
+2. Mock monitoring dashboard
+3. Deployment templates with Jinja2
+4. Configuration validation
 
 ## Contributing
 
