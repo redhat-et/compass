@@ -1,0 +1,103 @@
+{
+  "scenarios": [
+    {
+      "id": "scenario-1",
+      "name": "Customer Service Chatbot - High Volume",
+      "description": "Large-scale customer service chatbot with strict latency requirements",
+      "user_description": "I need a customer service chatbot for about 5000 concurrent users. Response time is critical - we need sub-500ms latency. Users will be asking common questions about orders, returns, and product information.",
+      "expected_extraction": {
+        "use_case": "customer_service",
+        "user_count": 5000,
+        "latency_requirement": "very_high",
+        "expected_qps": 350,
+        "slo_targets": {
+          "ttft_p90_target_ms": 150,
+          "tpot_p90_target_ms": 40,
+          "e2e_p95_target_ms": 500
+        },
+        "traffic_profile": {
+          "prompt_tokens_mean": 200,
+          "generation_tokens_mean": 250
+        }
+      },
+      "expected_recommendation": {
+        "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+        "reasoning": "Fast 8B model suitable for customer service with strong instruction following",
+        "gpu_config": {
+          "gpu_type": "NVIDIA-A100-80GB",
+          "gpu_count": 2,
+          "tensor_parallel": 1,
+          "replicas": 2
+        },
+        "estimated_cost_per_month": 6480,
+        "meets_slo": true
+      }
+    },
+    {
+      "id": "scenario-2",
+      "name": "Code Generation Assistant - Developer Team",
+      "description": "Internal code copilot for software development team",
+      "user_description": "We have a team of 500 developers who need a code generation assistant. It should help with code completion, bug fixes, and documentation. We can tolerate slightly higher latency if it means better code quality. Budget is flexible.",
+      "expected_extraction": {
+        "use_case": "code_generation",
+        "user_count": 500,
+        "latency_requirement": "medium",
+        "expected_qps": 140,
+        "slo_targets": {
+          "ttft_p90_target_ms": 250,
+          "tpot_p90_target_ms": 60,
+          "e2e_p95_target_ms": 3000
+        },
+        "traffic_profile": {
+          "prompt_tokens_mean": 500,
+          "generation_tokens_mean": 300
+        }
+      },
+      "expected_recommendation": {
+        "model_id": "meta-llama/Llama-3.1-70B-Instruct",
+        "reasoning": "Larger 70B model provides superior code generation quality with acceptable latency",
+        "gpu_config": {
+          "gpu_type": "NVIDIA-A100-80GB",
+          "gpu_count": 4,
+          "tensor_parallel": 4,
+          "replicas": 1
+        },
+        "estimated_cost_per_month": 12960,
+        "meets_slo": true
+      }
+    },
+    {
+      "id": "scenario-3",
+      "name": "Document Summarization - Batch Processing",
+      "description": "High-throughput document summarization for content analysis pipeline",
+      "user_description": "We need to summarize thousands of documents daily - news articles, research papers, customer feedback. Speed isn't as critical as throughput. We need to process around 2000 users worth of documents per day, with each document being 3-5 pages. Cost efficiency is important.",
+      "expected_extraction": {
+        "use_case": "summarization",
+        "user_count": 2000,
+        "latency_requirement": "low",
+        "expected_qps": 100,
+        "slo_targets": {
+          "ttft_p90_target_ms": 500,
+          "tpot_p90_target_ms": 80,
+          "e2e_p95_target_ms": 8000
+        },
+        "traffic_profile": {
+          "prompt_tokens_mean": 2000,
+          "generation_tokens_mean": 400
+        }
+      },
+      "expected_recommendation": {
+        "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+        "reasoning": "Cost-effective 7B model with good summarization capabilities and high throughput",
+        "gpu_config": {
+          "gpu_type": "NVIDIA-A10G",
+          "gpu_count": 2,
+          "tensor_parallel": 1,
+          "replicas": 2
+        },
+        "estimated_cost_per_month": 1440,
+        "meets_slo": true
+      }
+    }
+  ]
+}

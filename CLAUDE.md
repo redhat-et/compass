@@ -6,21 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains the architecture design for the **Red Hat AI Pre-Deployment Assistant**, a system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
 
-**Key Principle**: This is currently a **design/planning phase repository**. There is no code implementation yet - only architecture documentation.
+**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprint 1 foundation is complete, with subsequent sprints building out the full system.
 
 ## Repository Structure
 
-- **ARCHITECTURE.md**: Comprehensive system architecture document
+- **docs/ARCHITECTURE.md**: Comprehensive system architecture document
   - 9 core components with technology recommendations
   - Enhanced data schemas for SLO-driven deployment planning
   - Phase 1 (3-month) vs Phase 2+ implementation strategy
   - Knowledge Base schemas with 7 data collections
 
-- **architecture-diagram.md**: Visual architecture representations
+- **docs/architecture-diagram.md**: Visual architecture representations
   - Mermaid component diagrams
   - Sequence diagrams showing end-to-end flows
   - State machine for workflow orchestration
   - Entity-relationship diagrams for data models
+
+- **backend/**: Python backend implementation
+  - Component modules stubbed out (context_intent, recommendation, etc.)
+  - LLM integration with Ollama client
+  - FastAPI for REST endpoints (Sprint 2+)
+
+- **frontend/**: Streamlit UI (Sprint 3+)
+
+- **data/**: Synthetic benchmark and catalog data for POC
 
 ## Architecture Key Concepts
 
@@ -73,7 +82,7 @@ The system translates high-level user intent into technical specifications:
 
 ### When Modifying Architecture Documents
 
-**ARCHITECTURE.md and architecture-diagram.md must stay synchronized**:
+**docs/ARCHITECTURE.md and docs/architecture-diagram.md must stay synchronized**:
 - If you change component descriptions in ARCHITECTURE.md, update architecture-diagram.md diagrams
 - If you add/remove components, update both files
 - Component numbering must match (e.g., "Component 3" in both docs)
@@ -108,27 +117,30 @@ The system translates high-level user intent into technical specifications:
 ### Common Editing Patterns
 
 **Adding a new use case template**:
-1. Add to Context & Intent Engine's USE_CASE_TEMPLATES in ARCHITECTURE.md
-2. Add corresponding entry to Knowledge Base → Use Case SLO Templates schema
-3. Update examples in Simulation Layer if relevant
+1. Add to Context & Intent Engine's USE_CASE_TEMPLATES in docs/ARCHITECTURE.md
+2. Add corresponding entry to data/slo_templates.json
+3. Update Knowledge Base → Use Case SLO Templates schema in docs/ARCHITECTURE.md
+4. Update examples in Simulation Layer if relevant
 
 **Adding a new SLO metric**:
-1. Update DeploymentIntent schema in Context & Intent Engine
-2. Update MODEL_BENCHMARKS schema in Knowledge Base
-3. Update Inference Observability section
-4. Update dashboard example if applicable
-5. Update architecture-diagram.md data model ERD
+1. Update DeploymentIntent schema in Context & Intent Engine (docs/ARCHITECTURE.md)
+2. Update MODEL_BENCHMARKS schema in Knowledge Base (docs/ARCHITECTURE.md)
+3. Update data/benchmarks.json with new metric fields
+4. Update Inference Observability section
+5. Update dashboard example if applicable
+6. Update docs/architecture-diagram.md data model ERD
 
 **Adding a new component**:
-1. Add numbered section to ARCHITECTURE.md (maintain sequential numbering)
+1. Add numbered section to docs/ARCHITECTURE.md (maintain sequential numbering)
 2. Update "Architecture Components" count in Overview
-3. Add to architecture-diagram.md component diagram
-4. Update sequence diagram if component participates in main flow
-5. Update Phase 1 technology choices table if relevant
+3. Add to docs/architecture-diagram.md component diagram
+4. Create corresponding backend/src/<component>/ directory
+5. Update sequence diagram if component participates in main flow
+6. Update Phase 1 technology choices table if relevant
 
 ## Open Questions and Future Work
 
-See "Open Questions for Refinement" section in ARCHITECTURE.md for:
+See "Open Questions for Refinement" section in docs/ARCHITECTURE.md for:
 - Multi-tenancy isolation
 - Security validation of generated configs
 - Conversational clarification flow (future phase)
@@ -144,7 +156,8 @@ This repository follows standard commit practices:
 
 ## Important Notes
 
-- **No code exists yet** - this is pure architecture/design
-- When implementation begins, preserve the architectural principles documented here
+- **Sprint 1 Complete** - Project structure, synthetic data, and LLM client implemented
+- When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
+- Use synthetic data in data/ directory for POC; production would use PostgreSQL
