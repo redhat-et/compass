@@ -106,7 +106,24 @@ ollama list  # Should show llama3.1:8b
 
 ## Running the POC
 
-### Option 1: Test End-to-End Workflow (Sprint 2)
+### Option 1: Run Full Stack with UI (Sprint 3 - Recommended)
+
+The easiest way to use the assistant:
+
+```bash
+# Terminal 1 - Start Ollama (if not already running)
+ollama serve
+
+# Terminal 2 - Start FastAPI Backend
+./run_api.sh
+
+# Terminal 3 - Start Streamlit UI
+./run_ui.sh
+```
+
+Then open http://localhost:8501 in your browser.
+
+### Option 2: Test End-to-End Workflow
 
 Test the complete recommendation workflow with demo scenarios:
 
@@ -118,14 +135,20 @@ python test_workflow.py
 
 This tests all 3 demo scenarios end-to-end.
 
-### Option 2: Run FastAPI Backend
+### Option 3: Run FastAPI Backend Only
 
 Start the API server:
 
 ```bash
+./run_api.sh
+```
+
+Or manually:
+
+```bash
 cd backend
 source venv/bin/activate
-python -m src.api.routes
+uvicorn src.api.routes:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Test the API:
@@ -134,29 +157,10 @@ Test the API:
 # Health check
 curl http://localhost:8000/health
 
-# Quick test
-curl -X POST http://localhost:8000/api/v1/test
-
 # Full recommendation
-curl -X POST http://localhost:8000/api/v1/recommend \
+curl -X POST http://localhost:8000/api/recommend \
   -H "Content-Type: application/json" \
-  -d '{"user_message": "I need a chatbot for 5000 users with low latency"}'
-```
-
-### Option 3: Run Full Stack (Sprint 3+)
-
-Frontend UI coming in Sprint 3:
-
-```bash
-# Terminal 1 - Backend
-cd backend
-source venv/bin/activate
-python -m src.api.routes
-
-# Terminal 2 - Frontend (Sprint 3+)
-cd frontend
-source venv/bin/activate
-streamlit run app.py
+  -d '{"message": "I need a chatbot for 5000 users with low latency"}'
 ```
 
 ### Option 4: Test Individual Components
@@ -202,7 +206,7 @@ All data files in `data/` are synthetic for POC purposes:
 
 - ✅ **Sprint 1** (Complete): Project structure, synthetic data, LLM client
 - ✅ **Sprint 2** (Complete): Intent extraction, recommendation engines, knowledge base, FastAPI backend
-- ⏳ **Sprint 3**: Streamlit UI with chat and spec editor
+- ✅ **Sprint 3** (Complete): Streamlit UI with chat and spec editor
 - ⏳ **Sprint 4**: YAML generation, mock monitoring dashboard
 - ⏳ **Sprint 5**: KIND cluster setup, KServe installation
 - ⏳ **Sprint 6**: End-to-end deployment simulation

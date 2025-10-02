@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains the architecture design for the **Red Hat AI Pre-Deployment Assistant**, a system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
 
-**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprints 1-2 are complete (foundation + core recommendation engine), with subsequent sprints building out the full system.
+**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprints 1-3 are complete (foundation + core recommendation engine + UI), with subsequent sprints building out the full system.
 
 ## Repository Structure
 
@@ -157,9 +157,10 @@ This repository follows standard commit practices:
 
 ## Important Notes
 
-- **Sprint 1-2 Complete**:
+- **Sprint 1-3 Complete**:
   - Sprint 1: Project structure, synthetic data, and LLM client implemented
   - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
+  - Sprint 3: Streamlit UI with chat interface, recommendation display, and editable specifications
 - When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
