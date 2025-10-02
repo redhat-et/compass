@@ -47,7 +47,7 @@ The UI will start on http://localhost:8501
 
 - [ ] Streamlit app starts without errors
 - [ ] Header displays: "🤖 AI Pre-Deployment Assistant"
-- [ ] Sidebar shows Red Hat logo and navigation
+- [ ] Sidebar shows app title and navigation
 - [ ] Two-column layout visible (Conversation | Recommendation)
 - [ ] Chat input field is present
 
@@ -120,7 +120,7 @@ Test all tabs when a recommendation is displayed:
 
 - [ ] "🔄 New Conversation" button clears state and reloads
 - [ ] Switching between tabs works smoothly
-- [ ] Custom CSS styling applied (Red Hat colors, metric cards)
+- [ ] Custom CSS styling applied (professional theme, metric cards)
 - [ ] Responsive layout works on different screen sizes
 
 ### 7. Error Handling

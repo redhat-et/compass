@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the system architecture for the **Pre-Deployment Assistant for LLM Serving** capability, which streamlines the path from concept to production-ready endpoint for Red Hat AI (RHAI) customers.
+This document defines the system architecture for the **Pre-Deployment Assistant for LLM Serving** capability, which streamlines the path from concept to production-ready endpoint for LLM deployments on Kubernetes.
 
 ## Project Context
 
@@ -618,7 +618,7 @@ Historical data from real deployments for continuous learning.
 **Purpose**: Power conversational AI and reasoning
 
 **Technology Options**:
-- **InstructLab-served model** - Aligned with Red Hat ecosystem
+- **InstructLab-served model** - Open source model training and serving
 - **OpenAI API** - Fast prototyping, higher cost
 - **Self-hosted Llama 3 via vLLM** - Full control, lower marginal cost
 
@@ -653,7 +653,7 @@ Historical data from real deployments for continuous learning.
 
 **Technology Options**:
 - **OpenTelemetry + Prometheus + Grafana** - Standard observability stack for metrics
-- **RHAI Observability Platform** - Integrate with existing Red Hat AI observability
+- **Observability Platform** - Integrate with Kubernetes monitoring ecosystem
 - **Custom metrics exporters** - vLLM/KServe-specific instrumentation
 
 **Key Responsibilities**:
@@ -853,12 +853,12 @@ For the initial iteration, recommended technology choices:
 
 ## Integration Points
 
-### With RHAI Ecosystem
+### With Kubernetes Ecosystem
 - **KServe**: Primary model serving platform
 - **vLLM**: LLM runtime for inference
-- **OpenShift**: Kubernetes platform
+- **Kubernetes**: Container orchestration platform
 - **InstructLab**: Model fine-tuning and serving
-- **RHAI Observability**: Metrics and monitoring infrastructure
+- **Observability Stack**: Metrics and monitoring infrastructure (Prometheus/Grafana)
 
 ### External Dependencies
 - Model registries (HuggingFace Hub, custom)
@@ -947,6 +947,6 @@ For the initial iteration, recommended technology choices:
 
 ## References
 
-- Project Proposal: RHAI Assistant Pitch (July 2025)
+- Project Proposal: AI Pre-Deployment Assistant Pitch (July 2025)
 - Feature List: AI Deployment Assistant 1-N
 - Initial Scope: Pre-Deployment Assistant for LLM Serving

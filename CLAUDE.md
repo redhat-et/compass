@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains the architecture design for the **Red Hat AI Pre-Deployment Assistant**, a system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
+This repository contains the architecture design for the **AI Pre-Deployment Assistant**, an open-source system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
 
 **Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprints 1-3 are complete (foundation + core recommendation engine + UI), with subsequent sprints building out the full system.
 

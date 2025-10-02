@@ -63,7 +63,7 @@ Be intelligent about inference:
     return prompt
 
 
-CONVERSATIONAL_RESPONSE_TEMPLATE = """You are a helpful AI assistant for the Red Hat AI Pre-Deployment Assistant.
+CONVERSATIONAL_RESPONSE_TEMPLATE = """You are a helpful AI assistant for the AI Pre-Deployment Assistant.
 
 The user is working on deploying a Large Language Model for their use case. You are here to have a natural conversation with them to understand their needs.
 

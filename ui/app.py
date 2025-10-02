@@ -29,7 +29,7 @@ st.markdown("""
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
-        color: #EE0000;
+        color: #1f77b4;
         margin-bottom: 1rem;
     }
     .sub-header {
@@ -41,7 +41,7 @@ st.markdown("""
         background-color: #f0f2f6;
         padding: 1rem;
         border-radius: 0.5rem;
-        border-left: 4px solid #EE0000;
+        border-left: 4px solid #1f77b4;
     }
     .success-badge {
         background-color: #28a745;
@@ -97,7 +97,7 @@ def main():
 def render_sidebar():
     """Render sidebar with app information and quick actions."""
     with st.sidebar:
-        st.image("https://www.redhat.com/cms/managed-files/styles/wysiwyg_full_width/s3/Logo-Red_Hat-A-Standard-RGB.png?itok=HmIGtbTN", width=150)
+        st.markdown("### 🤖 AI Pre-Deployment Assistant")
 
         st.markdown("---")
         st.markdown("### 🎯 Quick Start")
@@ -137,7 +137,7 @@ def render_sidebar():
         - Define LLM deployment requirements
         - Get GPU recommendations
         - Review SLO targets
-        - Deploy to OpenShift/Kubernetes
+        - Deploy to Kubernetes
         """)
 
 
