@@ -64,7 +64,7 @@ class DeploymentGenerator:
         Generate a unique deployment ID that meets Kubernetes naming requirements:
         - Must start with a letter
         - Only lowercase alphanumeric and hyphens
-        - Max 63 characters
+        - Max 44 characters (KServe adds "-predictor-default" suffix, total must be ≤63)
 
         Args:
             recommendation: Deployment recommendation
@@ -74,7 +74,7 @@ class DeploymentGenerator:
         """
         import re
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Compact timestamp, no hyphens
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # 14 chars: YYYYMMDDHHMMSS
         use_case = recommendation.intent.use_case.replace("_", "-")
 
         # Clean model name: remove special chars, keep alphanumeric and hyphens
@@ -86,10 +86,13 @@ class DeploymentGenerator:
         # Build ID
         deployment_id = f"{use_case}-{model_name}-{timestamp}"
 
-        # Ensure max 63 chars (Kubernetes limit)
-        if len(deployment_id) > 63:
+        # KServe creates names like "{deployment_id}-predictor-default" (adds 19 chars)
+        # So deployment_id must be max 44 chars to stay under 63 char DNS limit
+        MAX_DEPLOYMENT_ID_LEN = 44
+
+        if len(deployment_id) > MAX_DEPLOYMENT_ID_LEN:
             # Truncate model name to fit
-            max_model_len = 63 - len(use_case) - len(timestamp) - 2  # 2 for hyphens
+            max_model_len = MAX_DEPLOYMENT_ID_LEN - len(use_case) - len(timestamp) - 2  # 2 for hyphens
             model_name = model_name[:max_model_len].rstrip('-')
             deployment_id = f"{use_case}-{model_name}-{timestamp}"
 
