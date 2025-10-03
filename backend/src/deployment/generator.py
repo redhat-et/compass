@@ -61,19 +61,39 @@ class DeploymentGenerator:
 
     def generate_deployment_id(self, recommendation: DeploymentRecommendation) -> str:
         """
-        Generate a unique deployment ID.
+        Generate a unique deployment ID that meets Kubernetes naming requirements:
+        - Must start with a letter
+        - Only lowercase alphanumeric and hyphens
+        - Max 63 characters
 
         Args:
             recommendation: Deployment recommendation
 
         Returns:
-            Deployment ID (e.g., "chatbot-llama3-8b-20251003-143022")
+            Deployment ID (e.g., "chatbot-mistral-7b-20251003143022")
         """
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        use_case = recommendation.intent.use_case.replace("_", "-")
-        model_name = recommendation.model_id.split("/")[-1].lower().replace("_", "-")
+        import re
 
-        return f"{use_case}-{model_name}-{timestamp}"
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")  # Compact timestamp, no hyphens
+        use_case = recommendation.intent.use_case.replace("_", "-")
+
+        # Clean model name: remove special chars, keep alphanumeric and hyphens
+        model_name = recommendation.model_id.split("/")[-1].lower()
+        model_name = re.sub(r'[^a-z0-9-]', '-', model_name)
+        # Remove consecutive hyphens
+        model_name = re.sub(r'-+', '-', model_name).strip('-')
+
+        # Build ID
+        deployment_id = f"{use_case}-{model_name}-{timestamp}"
+
+        # Ensure max 63 chars (Kubernetes limit)
+        if len(deployment_id) > 63:
+            # Truncate model name to fit
+            max_model_len = 63 - len(use_case) - len(timestamp) - 2  # 2 for hyphens
+            model_name = model_name[:max_model_len].rstrip('-')
+            deployment_id = f"{use_case}-{model_name}-{timestamp}"
+
+        return deployment_id
 
     def _prepare_template_context(
         self,
@@ -240,7 +260,8 @@ class DeploymentGenerator:
                 with open(output_path, "w") as f:
                     f.write(rendered)
 
-                config_type = output_filename.split("-", 1)[-1].replace(".yaml", "")
+                # Extract config type from template name (remove .j2 suffix)
+                config_type = template_name.replace(".yaml.j2", "").replace("kserve-", "")
                 generated_files[config_type] = str(output_path)
 
                 logger.info(f"Generated {config_type}: {output_path}")

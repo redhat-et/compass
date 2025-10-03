@@ -162,10 +162,12 @@ See "Open Questions for Refinement" section in docs/ARCHITECTURE.md for:
 This repository follows standard commit practices:
 - Descriptive commit messages
 - Include DCO Signed-off-by line (use `git commit -s`)
-- Co-Author: Claude <noreply@anthropic.com> (for code written with Claude's assistance)
+- Include Co-Authored-By: Claude <noreply@anthropic.com> (for code written with Claude's assistance)
+- **DO NOT include** the "🤖 Generated with [Claude Code]" line in commit messages
 - Push to `main` branch (no PR process currently)
 
-**Example commit message:**
+**IMPORTANT**: Commit messages must follow this exact format:
+
 ```
 Add YAML generation module for Sprint 4
 
@@ -176,13 +178,26 @@ Signed-off-by: Your Name <your.email@example.com>
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+**DO NOT use this format:**
+```
+Add YAML generation module for Sprint 4
+
+Implement DeploymentGenerator with Jinja2 templates for KServe,
+vLLM, HPA, and ServiceMonitor configurations.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
 ## Important Notes
 
-- **Sprint 1-4 Complete**:
+- **Sprint 1-5 Complete**:
   - Sprint 1: Project structure, synthetic data, and LLM client implemented
   - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
   - Sprint 3: Streamlit UI with chat interface, recommendation display, and editable specifications
   - Sprint 4: YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard, deployment automation
+  - Sprint 5: KIND cluster setup, KServe installation, Kubernetes deployment automation, real cluster status monitoring
 - When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away

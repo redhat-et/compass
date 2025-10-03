@@ -25,7 +25,7 @@ pip install streamlit requests
 
 ```bash
 # From project root
-./run_ui.sh
+scripts/run_ui.sh
 ```
 
 ### Option 2: Manual start

@@ -33,7 +33,7 @@ fi
 echo "Checking if FastAPI backend is running..."
 if ! curl -s http://localhost:8000/health > /dev/null 2>&1; then
     echo "⚠️  Warning: FastAPI backend is not running on http://localhost:8000"
-    echo "Please start it in another terminal: ./run_api.sh"
+    echo "Please start it in another terminal: scripts/run_api.sh"
     echo ""
 fi
 
