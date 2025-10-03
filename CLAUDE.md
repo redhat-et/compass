@@ -28,11 +28,12 @@ This repository contains the architecture design for the **AI Pre-Deployment Ass
   - FastAPI REST endpoints with CORS support
   - Pydantic schemas for type safety
 
-- **ui/**: Streamlit UI (Sprint 3 ✅)
+- **ui/**: Streamlit UI (Sprint 3-4 ✅)
   - Chat interface for conversational requirement gathering
-  - Multi-tab recommendation display (Overview, Specifications, Performance, Cost)
+  - Multi-tab recommendation display (Overview, Specifications, Performance, Cost, Monitoring)
   - Editable specifications with review mode
-  - Red Hat branding and professional styling
+  - Action buttons for YAML generation and deployment
+  - Mock monitoring dashboard with SLO compliance, resource utilization, and cost tracking
 
 - **data/**: Synthetic benchmark and catalog data for POC
   - benchmarks.json: 24 model+GPU combinations with vLLM performance data
@@ -177,10 +178,11 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## Important Notes
 
-- **Sprint 1-3 Complete**:
+- **Sprint 1-4 Complete**:
   - Sprint 1: Project structure, synthetic data, and LLM client implemented
   - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
   - Sprint 3: Streamlit UI with chat interface, recommendation display, and editable specifications
+  - Sprint 4: YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard, deployment automation
 - When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
