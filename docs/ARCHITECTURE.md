@@ -926,7 +926,6 @@ For the initial iteration, recommended technology choices:
 - Advanced tensor parallelism optimization
 - Pipeline parallelism support
 - Auto-scaling policy generation (min/max replicas)
-- Batch size optimization for throughput/latency trade-offs
 
 ### Day-2 Operations
 - Proactive optimization recommendations for running deployments
@@ -942,11 +941,3 @@ For the initial iteration, recommended technology choices:
 - Capacity planning for MaaS deployments
 - Continuous learning from deployment outcomes
 - Quality metric integration (BLEU scores, accuracy benchmarks)
-
----
-
-## References
-
-- Project Proposal: AI Pre-Deployment Assistant Pitch (July 2025)
-- Feature List: AI Deployment Assistant 1-N
-- Initial Scope: Pre-Deployment Assistant for LLM Serving
