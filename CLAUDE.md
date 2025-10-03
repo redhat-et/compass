@@ -160,9 +160,20 @@ See "Open Questions for Refinement" section in docs/ARCHITECTURE.md for:
 
 This repository follows standard commit practices:
 - Descriptive commit messages
-- Include "🤖 Generated with Claude Code" footer
-- Co-Author: Claude <noreply@anthropic.com>
+- Include DCO Signed-off-by line (use `git commit -s`)
+- Co-Author: Claude <noreply@anthropic.com> (for code written with Claude's assistance)
 - Push to `main` branch (no PR process currently)
+
+**Example commit message:**
+```
+Add YAML generation module for Sprint 4
+
+Implement DeploymentGenerator with Jinja2 templates for KServe,
+vLLM, HPA, and ServiceMonitor configurations.
+
+Signed-off-by: Your Name <your.email@example.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
 
 ## Important Notes
 

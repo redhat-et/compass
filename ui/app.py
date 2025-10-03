@@ -67,6 +67,10 @@ if "recommendation" not in st.session_state:
     st.session_state.recommendation = None
 if "editing_mode" not in st.session_state:
     st.session_state.editing_mode = False
+if "deployment_id" not in st.session_state:
+    st.session_state.deployment_id = None
+if "deployment_files" not in st.session_state:
+    st.session_state.deployment_files = None
 
 
 def main():
@@ -89,6 +93,22 @@ def main():
     with col1:
         st.subheader("💬 Conversation")
         render_chat_interface()
+
+        # Action buttons below chat
+        if st.session_state.recommendation:
+            st.markdown("---")
+            st.markdown("### 🚀 Actions")
+
+            action_col1, action_col2 = st.columns(2)
+
+            with action_col1:
+                if st.button("📄 Generate Deployment YAML", use_container_width=True, type="primary"):
+                    generate_deployment_yaml(st.session_state.recommendation)
+
+            with action_col2:
+                if st.session_state.deployment_files:
+                    st.button("🚢 Deploy to Kubernetes", use_container_width=True, disabled=True,
+                             help="Coming in Sprint 5/6")
 
     with col2:
         if st.session_state.recommendation:
@@ -238,19 +258,22 @@ def render_recommendation():
     rec = st.session_state.recommendation
 
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost"])
+    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📡 Monitoring"])
 
-    with tab1:
+    with tabs[0]:
         render_overview_tab(rec)
 
-    with tab2:
+    with tabs[1]:
         render_specifications_tab(rec)
 
-    with tab3:
+    with tabs[2]:
         render_performance_tab(rec)
 
-    with tab4:
+    with tabs[3]:
         render_cost_tab(rec)
+
+    with tabs[4]:
+        render_monitoring_tab(rec)
 
 
 def render_overview_tab(rec: Dict[str, Any]):
@@ -453,15 +476,246 @@ def render_cost_tab(rec: Dict[str, Any]):
     - Actual costs may vary by cloud provider
     """)
 
-    # Next steps
+
+def generate_deployment_yaml(rec: Dict[str, Any]):
+    """Generate deployment YAML files via API."""
+    try:
+        with st.spinner("Generating deployment YAML files..."):
+            response = requests.post(
+                f"{API_BASE_URL}/api/deploy",
+                json={"recommendation": rec, "namespace": "default"},
+                timeout=30
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                st.session_state.deployment_id = result["deployment_id"]
+                st.session_state.deployment_files = result["files"]
+
+                st.success(f"✅ Deployment files generated successfully!")
+                st.info(f"**Deployment ID:** `{result['deployment_id']}`")
+
+                # Show file paths
+                st.markdown("**Generated Files:**")
+                for config_type, file_path in result["files"].items():
+                    st.code(file_path, language="text")
+
+                st.markdown("---")
+                st.markdown("**Next:** Go to the **Monitoring** tab to see simulated observability metrics!")
+
+            else:
+                st.error(f"Failed to generate YAML: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running.")
+    except Exception as e:
+        st.error(f"❌ Error generating deployment: {str(e)}")
+
+
+def render_monitoring_tab(rec: Dict[str, Any]):
+    """Render mock monitoring dashboard."""
+
+    st.markdown("### 📡 Deployment Monitoring")
+
+    if not st.session_state.deployment_id:
+        st.info("""
+        👈 **No deployment yet!**
+
+        Generate deployment YAML files from the **Cost** tab, and monitoring data will appear here.
+
+        This dashboard demonstrates Component 9 (Inference Observability & SLO Monitoring) from the architecture,
+        showing what real-time metrics would look like after deployment.
+        """)
+        return
+
+    # Fetch mock monitoring data
+    try:
+        with st.spinner("Loading deployment metrics..."):
+            response = requests.get(
+                f"{API_BASE_URL}/api/deployments/{st.session_state.deployment_id}/status",
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                status = response.json()
+                render_monitoring_dashboard(status, rec)
+            else:
+                st.error(f"Failed to fetch monitoring data: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API.")
+    except Exception as e:
+        st.error(f"❌ Error fetching monitoring data: {str(e)}")
+
+
+def render_monitoring_dashboard(status: Dict[str, Any], rec: Dict[str, Any]):
+    """Render the actual monitoring dashboard with metrics."""
+
+    deployment_id = status["deployment_id"]
+
+    st.markdown(f"**Deployment ID:** `{deployment_id}`")
+    st.markdown(f"**Status:** 🟢 {status['status'].upper()}")
+
     st.markdown("---")
-    st.markdown("### 🚀 Next Steps")
 
-    if st.button("📄 Generate Deployment YAML", use_container_width=True):
-        st.info("YAML generation will be implemented in Sprint 4!")
+    # SLO Compliance
+    st.markdown("### ✅ SLO Compliance (Last 7 Days)")
 
-    if st.button("🚢 Deploy to Kubernetes", use_container_width=True):
-        st.info("Kubernetes deployment will be implemented in Sprint 6!")
+    slo = status["slo_compliance"]
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        ttft_delta = slo["ttft_p90_ms"] - slo["ttft_target_ms"]
+        st.metric(
+            "TTFT p90",
+            f"{slo['ttft_p90_ms']}ms",
+            delta=f"{ttft_delta}ms vs target",
+            delta_color="inverse"
+        )
+        st.caption(f"Target: {slo['ttft_target_ms']}ms {'✓' if slo['ttft_compliant'] else '⚠️'}")
+
+    with col2:
+        tpot_delta = slo["tpot_p90_ms"] - slo["tpot_target_ms"]
+        st.metric(
+            "TPOT p90",
+            f"{slo['tpot_p90_ms']}ms",
+            delta=f"{tpot_delta}ms vs target",
+            delta_color="inverse"
+        )
+        st.caption(f"Target: {slo['tpot_target_ms']}ms {'✓' if slo['tpot_compliant'] else '⚠️'}")
+
+    with col3:
+        e2e_delta = slo["e2e_p95_ms"] - slo["e2e_target_ms"]
+        st.metric(
+            "E2E p95",
+            f"{slo['e2e_p95_ms']}ms",
+            delta=f"{e2e_delta}ms vs target",
+            delta_color="inverse"
+        )
+        st.caption(f"Target: {slo['e2e_target_ms']}ms {'✓' if slo['e2e_compliant'] else '⚠️'}")
+
+    with col4:
+        qps_delta = slo["throughput_qps"] - slo["throughput_target_qps"]
+        st.metric(
+            "Throughput",
+            f"{slo['throughput_qps']} QPS",
+            delta=f"{qps_delta:+.0f} vs target"
+        )
+        st.caption(f"Target: {slo['throughput_target_qps']} QPS {'✓' if slo['throughput_compliant'] else '⚠️'}")
+
+    # Uptime
+    st.markdown("---")
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        uptime_delta = slo["uptime_pct"] - slo["uptime_target_pct"]
+        st.metric(
+            "Uptime",
+            f"{slo['uptime_pct']:.2f}%",
+            delta=f"{uptime_delta:+.2f}% vs target"
+        )
+        st.caption(f"Target: {slo['uptime_target_pct']}% {'✓' if slo['uptime_compliant'] else '⚠️'}")
+
+    # Resource Utilization
+    st.markdown("---")
+    st.markdown("### 🖥️ Resource Utilization")
+
+    util = status["resource_utilization"]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("GPU Utilization", f"{util['gpu_utilization_pct']}%")
+        st.caption("Target: >80% for cost efficiency")
+        if util['gpu_utilization_pct'] < 80:
+            st.warning("⚠️ Below efficiency target")
+
+    with col2:
+        st.metric(
+            "GPU Memory",
+            f"{util['gpu_memory_used_gb']:.1f} GB",
+            delta=f"of {util['gpu_memory_total_gb']} GB"
+        )
+
+    with col3:
+        st.metric("Avg Batch Size", util['avg_batch_size'])
+        st.caption(f"Queue depth: {util['queue_depth']}")
+
+    # Cost Analysis
+    st.markdown("---")
+    st.markdown("### 💰 Cost Analysis")
+
+    cost = status["cost_analysis"]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        cost_diff_month = cost["actual_cost_per_month_usd"] - cost["predicted_cost_per_month_usd"]
+        st.metric(
+            "Monthly Cost",
+            f"${cost['actual_cost_per_month_usd']:.0f}",
+            delta=f"${cost_diff_month:+.0f} vs predicted"
+        )
+        st.caption(f"Predicted: ${cost['predicted_cost_per_month_usd']:.0f}")
+
+    with col2:
+        st.metric(
+            "Cost per 1k Tokens",
+            f"${cost['cost_per_1k_tokens_usd']:.3f}"
+        )
+        st.caption(f"Predicted: ${cost['predicted_cost_per_1k_tokens_usd']:.3f}")
+
+    # Traffic Patterns
+    st.markdown("---")
+    st.markdown("### 📊 Traffic Patterns")
+
+    traffic = status["traffic_patterns"]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        prompt_diff = traffic["avg_prompt_tokens"] - traffic["predicted_prompt_tokens"]
+        st.metric(
+            "Avg Prompt Tokens",
+            traffic["avg_prompt_tokens"],
+            delta=f"{prompt_diff:+d} vs predicted"
+        )
+        st.caption(f"Predicted: {traffic['predicted_prompt_tokens']}")
+
+    with col2:
+        gen_diff = traffic["avg_generation_tokens"] - traffic["predicted_generation_tokens"]
+        st.metric(
+            "Avg Generation Tokens",
+            traffic["avg_generation_tokens"],
+            delta=f"{gen_diff:+d} vs predicted"
+        )
+        st.caption(f"Predicted: {traffic['predicted_generation_tokens']}")
+
+    with col3:
+        qps_diff = traffic["peak_qps"] - traffic["predicted_peak_qps"]
+        st.metric(
+            "Peak QPS",
+            traffic["peak_qps"],
+            delta=f"{qps_diff:+d} vs predicted"
+        )
+        st.caption(f"Predicted: {traffic['predicted_peak_qps']}")
+
+    # Request volume
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Requests (Last Hour)", f"{traffic['requests_last_hour']:,}")
+    with col2:
+        st.metric("Requests (Last 24h)", f"{traffic['requests_last_24h']:,}")
+
+    # Recommendations
+    st.markdown("---")
+    st.markdown("### 💡 Optimization Recommendations")
+
+    for recommendation in status.get("recommendations", []):
+        st.info(recommendation)
+
+    st.markdown("---")
+    st.caption("**Note:** This is simulated monitoring data for POC purposes. In production, this would connect to Prometheus/Grafana.")
 
 
 if __name__ == "__main__":

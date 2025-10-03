@@ -1,0 +1,126 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ deployment_id }}-metrics
+  namespace: {{ namespace }}
+  labels:
+    app: llm-inference
+    deployment-id: {{ deployment_id }}
+    prometheus: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      deployment-id: {{ deployment_id }}
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    relabelings:
+    - sourceLabels: [__meta_kubernetes_pod_name]
+      targetLabel: pod
+    - sourceLabels: [__meta_kubernetes_pod_node_name]
+      targetLabel: node
+    - sourceLabels: [__meta_kubernetes_namespace]
+      targetLabel: namespace
+    - replacement: {{ deployment_id }}
+      targetLabel: deployment_id
+    - replacement: {{ model_id }}
+      targetLabel: model_id
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ deployment_id }}-metrics
+  namespace: {{ namespace }}
+  labels:
+    deployment-id: {{ deployment_id }}
+spec:
+  selector:
+    deployment-id: {{ deployment_id }}
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+# Grafana Dashboard ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ deployment_id }}-dashboard
+  namespace: {{ namespace }}
+  labels:
+    grafana_dashboard: "1"
+data:
+  dashboard.json: |
+    {
+      "dashboard": {
+        "title": "{{ model_name }} - {{ deployment_id }}",
+        "tags": ["llm", "inference", "{{ use_case }}"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "SLO Compliance",
+            "type": "stat",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.90, rate(vllm_time_to_first_token_seconds_bucket{deployment_id=\"{{ deployment_id }}\"}[5m])) * 1000",
+                "legendFormat": "TTFT p90 (ms)"
+              },
+              {
+                "expr": "histogram_quantile(0.90, rate(vllm_time_per_output_token_seconds_bucket{deployment_id=\"{{ deployment_id }}\"}[5m])) * 1000",
+                "legendFormat": "TPOT p90 (ms)"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+          },
+          {
+            "title": "Request Rate (QPS)",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(vllm_request_success_total{deployment_id=\"{{ deployment_id }}\"}[5m])",
+                "legendFormat": "Success Rate"
+              },
+              {
+                "expr": "rate(vllm_request_failure_total{deployment_id=\"{{ deployment_id }}\"}[5m])",
+                "legendFormat": "Failure Rate"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+          },
+          {
+            "title": "GPU Utilization",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "avg(DCGM_FI_DEV_GPU_UTIL{pod=~\"{{ deployment_id }}.*\"})",
+                "legendFormat": "GPU Utilization %"
+              },
+              {
+                "expr": "avg(DCGM_FI_DEV_FB_USED{pod=~\"{{ deployment_id }}.*\"}) / avg(DCGM_FI_DEV_FB_FREE{pod=~\"{{ deployment_id }}.*\"} + DCGM_FI_DEV_FB_USED{pod=~\"{{ deployment_id }}.*\"}) * 100",
+                "legendFormat": "GPU Memory %"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+          },
+          {
+            "title": "Batch Statistics",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "avg(vllm_avg_batch_size{deployment_id=\"{{ deployment_id }}\"})",
+                "legendFormat": "Average Batch Size"
+              },
+              {
+                "expr": "vllm_num_requests_waiting{deployment_id=\"{{ deployment_id }}\"}",
+                "legendFormat": "Queue Depth"
+              }
+            ],
+            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+          }
+        ]
+      }
+    }

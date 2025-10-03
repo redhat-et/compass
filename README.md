@@ -207,7 +207,7 @@ All data files in `data/` are synthetic for POC purposes:
 - ✅ **Sprint 1** (Complete): Project structure, synthetic data, LLM client
 - ✅ **Sprint 2** (Complete): Intent extraction, recommendation engines, knowledge base, FastAPI backend
 - ✅ **Sprint 3** (Complete): Streamlit UI with chat and spec editor
-- ⏳ **Sprint 4**: YAML generation, mock monitoring dashboard
+- ✅ **Sprint 4** (Complete): YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard
 - ⏳ **Sprint 5**: KIND cluster setup, KServe installation
 - ⏳ **Sprint 6**: End-to-end deployment simulation
 
@@ -269,18 +269,48 @@ Quick tests:
 cd backend && source venv/bin/activate
 python test_workflow.py
 
+# Test Sprint 4: YAML generation and validation
+python test_deployment.py
+
 # Test FastAPI endpoints
 python -m src.api.routes  # Start server
 curl -X POST http://localhost:8000/api/v1/test
 ```
 
+## Sprint 4 Features (NEW!)
+
+Sprint 4 is complete! New features:
+
+### YAML Deployment Generation
+- ✅ KServe InferenceService YAML with vLLM configuration
+- ✅ HorizontalPodAutoscaler (HPA) for autoscaling
+- ✅ Prometheus ServiceMonitor for metrics collection
+- ✅ Grafana Dashboard ConfigMap
+- ✅ Full YAML validation before generation
+- ✅ Files written to `generated_configs/` directory
+
+### Mock Monitoring Dashboard
+- ✅ **Monitoring tab** in Streamlit UI showing Component 9 (Inference Observability)
+- ✅ **SLO Compliance** metrics (TTFT, TPOT, E2E latency, throughput, uptime)
+- ✅ **Resource Utilization** (GPU usage, memory, batch size, queue depth)
+- ✅ **Cost Analysis** (actual vs predicted monthly cost, per-token cost)
+- ✅ **Traffic Patterns** (actual vs predicted prompt/generation tokens, QPS)
+- ✅ **Optimization Recommendations** (auto-generated suggestions)
+
+### How to Use Sprint 4 Features
+1. Get a deployment recommendation from the chat interface
+2. Go to the **Cost** tab and click **"Generate Deployment YAML"**
+3. View generated YAML file paths
+4. Go to the **Monitoring** tab to see simulated observability dashboard
+5. Check `generated_configs/` directory for all YAML files
+
 ## Next Steps
 
-Sprint 3 complete! Next up (Sprint 4):
-1. YAML generation for KServe/vLLM deployments
-2. Mock monitoring dashboard
-3. Deployment templates with Jinja2
-4. Configuration validation
+Sprint 4 complete! Next up (Sprint 5):
+1. KIND cluster setup
+2. KServe installation on KIND
+3. Deploy vLLM model to cluster
+4. End-to-end validation
 
 ## Contributing
 

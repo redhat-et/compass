@@ -1,0 +1,76 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ deployment_id }}-hpa
+  namespace: {{ namespace }}
+  labels:
+    app: llm-inference
+    deployment-id: {{ deployment_id }}
+spec:
+  scaleTargetRef:
+    apiVersion: serving.kserve.io/v1beta1
+    kind: InferenceService
+    name: {{ deployment_id }}
+  minReplicas: {{ min_replicas }}
+  maxReplicas: {{ max_replicas }}
+  metrics:
+  # Scale based on concurrent requests
+  - type: Object
+    object:
+      metric:
+        name: {{ autoscaling_metric }}
+      describedObject:
+        apiVersion: serving.kserve.io/v1beta1
+        kind: InferenceService
+        name: {{ deployment_id }}
+      target:
+        type: AverageValue
+        averageValue: "{{ autoscaling_target }}"
+  # CPU-based scaling as fallback
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 120
+      selectPolicy: Min
+---
+# Optional: KEDA ScaledObject for advanced autoscaling
+# Uncomment if KEDA is installed in the cluster
+# apiVersion: keda.sh/v1alpha1
+# kind: ScaledObject
+# metadata:
+#   name: {{ deployment_id }}-keda
+#   namespace: {{ namespace }}
+# spec:
+#   scaleTargetRef:
+#     apiVersion: serving.kserve.io/v1beta1
+#     kind: InferenceService
+#     name: {{ deployment_id }}
+#   minReplicaCount: {{ min_replicas }}
+#   maxReplicaCount: {{ max_replicas }}
+#   triggers:
+#   - type: prometheus
+#     metadata:
+#       serverAddress: http://prometheus-operated.monitoring.svc:9090
+#       metricName: vllm_request_queue_depth
+#       query: |
+#         avg(vllm_num_requests_waiting{job="{{ deployment_id }}"})
+#       threshold: "{{ queue_depth_threshold }}"

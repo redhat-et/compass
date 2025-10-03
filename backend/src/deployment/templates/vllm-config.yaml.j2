@@ -1,0 +1,67 @@
+# ============================================================================
+# DOCUMENTATION ONLY - NOT A KUBERNETES RESOURCE
+# ============================================================================
+# This file provides a human-readable summary of the deployment configuration.
+# It is NOT applied to Kubernetes. For actual deployment, use:
+#   - {{ deployment_id }}-inferenceservice.yaml (KServe InferenceService)
+#   - {{ deployment_id }}-autoscaling.yaml (HorizontalPodAutoscaler)
+#   - {{ deployment_id }}-servicemonitor.yaml (Prometheus monitoring)
+# ============================================================================
+#
+# vLLM Runtime Configuration
+# Generated for deployment: {{ deployment_id }}
+# Model: {{ model_name }} ({{ model_id }})
+# Use case: {{ use_case }}
+
+model_config:
+  model_id: "{{ model_id }}"
+  model_name: "{{ model_name }}"
+  trust_remote_code: true
+  dtype: "{{ dtype }}"
+
+gpu_config:
+  gpu_type: "{{ gpu_type }}"
+  gpu_count: {{ gpu_count }}
+  tensor_parallel_size: {{ tensor_parallel }}
+  pipeline_parallel_size: 1
+  gpu_memory_utilization: {{ gpu_memory_utilization }}
+
+serving_config:
+  max_model_len: {{ max_model_len }}
+  max_num_seqs: {{ max_num_seqs }}
+  max_num_batched_tokens: {{ max_num_batched_tokens }}
+  enable_prefix_caching: {{ enable_prefix_caching | lower }}
+  disable_log_requests: false
+
+performance_tuning:
+  # Dynamic batching configuration
+  max_batch_size: {{ max_batch_size }}
+  block_size: 16
+  swap_space: 4  # GB
+
+  # Scheduling
+  scheduler_policy: "fcfs"  # First-come-first-served
+
+slo_targets:
+  ttft_p90_ms: {{ ttft_target }}
+  tpot_p90_ms: {{ tpot_target }}
+  e2e_p95_ms: {{ e2e_target }}
+  target_qps: {{ target_qps }}
+
+traffic_profile:
+  expected_qps: {{ expected_qps }}
+  prompt_tokens_mean: {{ prompt_tokens_mean }}
+  generation_tokens_mean: {{ generation_tokens_mean }}
+
+cost_estimation:
+  cost_per_hour_usd: {{ cost_per_hour }}
+  cost_per_month_usd: {{ cost_per_month }}
+  gpu_hourly_rate: {{ gpu_hourly_rate }}
+
+metadata:
+  generated_at: "{{ generated_at }}"
+  generated_by: "AI Pre-Deployment Assistant"
+  deployment_intent:
+    user_count: {{ user_count }}
+    latency_requirement: "{{ latency_requirement }}"
+    budget_constraint: "{{ budget_constraint }}"

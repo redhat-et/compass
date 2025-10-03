@@ -1,0 +1,67 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: {{ deployment_id }}
+  namespace: {{ namespace }}
+  labels:
+    app: llm-inference
+    model: {{ model_id | replace('/', '-') }}
+    deployment-id: {{ deployment_id }}
+  annotations:
+    serving.kserve.io/deploymentMode: RawDeployment
+    description: "{{ use_case }} deployment - {{ reasoning | truncate(100) }}"
+spec:
+  predictor:
+    minReplicas: {{ min_replicas }}
+    maxReplicas: {{ max_replicas }}
+    containers:
+    - name: kserve-container
+      image: vllm/vllm-openai:{{ vllm_version }}
+      args:
+      - --model={{ model_id }}
+      - --tensor-parallel-size={{ tensor_parallel }}
+      - --gpu-memory-utilization={{ gpu_memory_utilization }}
+      - --max-model-len={{ max_model_len }}
+      - --dtype={{ dtype }}
+      - --trust-remote-code
+      - --port=8080
+      env:
+      - name: HUGGING_FACE_HUB_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: hf-token-secret
+            key: token
+            optional: true
+      resources:
+        requests:
+          cpu: "{{ cpu_request }}"
+          memory: "{{ memory_request }}"
+          nvidia.com/gpu: "{{ gpus_per_replica }}"
+        limits:
+          cpu: "{{ cpu_limit }}"
+          memory: "{{ memory_limit }}"
+          nvidia.com/gpu: "{{ gpus_per_replica }}"
+      ports:
+      - containerPort: 8080
+        protocol: TCP
+        name: http
+      livenessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 120
+        periodSeconds: 30
+        timeoutSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /health
+          port: 8080
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 5
+    nodeSelector:
+      nvidia.com/gpu.product: {{ gpu_type }}
+    tolerations:
+    - key: nvidia.com/gpu
+      operator: Exists
+      effect: NoSchedule
