@@ -18,7 +18,8 @@ Run the test script with all 3 demo scenarios:
 ```bash
 cd backend
 source venv/bin/activate
-python test_workflow.py
+cd ..
+python tests/test_sprint2.py
 ```
 
 This will test:

@@ -71,6 +71,10 @@ if "deployment_id" not in st.session_state:
     st.session_state.deployment_id = None
 if "deployment_files" not in st.session_state:
     st.session_state.deployment_files = None
+if "cluster_accessible" not in st.session_state:
+    st.session_state.cluster_accessible = None
+if "deployed_to_cluster" not in st.session_state:
+    st.session_state.deployed_to_cluster = False
 
 
 def main():
@@ -107,8 +111,20 @@ def main():
 
             with action_col2:
                 if st.session_state.deployment_files:
-                    st.button("🚢 Deploy to Kubernetes", use_container_width=True, disabled=True,
-                             help="Coming in Sprint 5/6")
+                    # Check cluster status on first render
+                    if st.session_state.cluster_accessible is None:
+                        check_cluster_status()
+
+                    # Enable button if cluster is accessible and not already deployed
+                    button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+                    button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+                    button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
+                        "Deploy to Kubernetes cluster" if st.session_state.cluster_accessible else
+                        "Kubernetes cluster not accessible"
+                    )
+
+                    if st.button(button_label, use_container_width=True, disabled=button_disabled, help=button_help):
+                        deploy_to_cluster(st.session_state.recommendation)
 
     with col2:
         if st.session_state.recommendation:
@@ -477,6 +493,20 @@ def render_cost_tab(rec: Dict[str, Any]):
     """)
 
 
+def check_cluster_status():
+    """Check if Kubernetes cluster is accessible."""
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/cluster-status", timeout=5)
+        if response.status_code == 200:
+            status = response.json()
+            st.session_state.cluster_accessible = status.get("accessible", False)
+            return status
+        return {"accessible": False}
+    except:
+        st.session_state.cluster_accessible = False
+        return {"accessible": False}
+
+
 def generate_deployment_yaml(rec: Dict[str, Any]):
     """Generate deployment YAML files via API."""
     try:
@@ -500,8 +530,16 @@ def generate_deployment_yaml(rec: Dict[str, Any]):
                 for config_type, file_path in result["files"].items():
                     st.code(file_path, language="text")
 
-                st.markdown("---")
-                st.markdown("**Next:** Go to the **Monitoring** tab to see simulated observability metrics!")
+                # Check cluster status
+                cluster_status = check_cluster_status()
+                if cluster_status.get("accessible"):
+                    st.markdown("---")
+                    st.success("✅ Kubernetes cluster is accessible!")
+                    st.markdown("**Next:** Click **Deploy to Kubernetes** to deploy to the cluster!")
+                else:
+                    st.markdown("---")
+                    st.warning("⚠️ Kubernetes cluster not accessible. YAML files generated but not deployed.")
+                    st.markdown("**Next:** Go to the **Monitoring** tab to see simulated observability metrics!")
 
             else:
                 st.error(f"Failed to generate YAML: {response.text}")
@@ -512,8 +550,49 @@ def generate_deployment_yaml(rec: Dict[str, Any]):
         st.error(f"❌ Error generating deployment: {str(e)}")
 
 
+def deploy_to_cluster(rec: Dict[str, Any]):
+    """Deploy model to Kubernetes cluster."""
+    try:
+        with st.spinner("Deploying to Kubernetes cluster..."):
+            response = requests.post(
+                f"{API_BASE_URL}/api/deploy-to-cluster",
+                json={"recommendation": rec, "namespace": "default"},
+                timeout=60
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                st.session_state.deployment_id = result["deployment_id"]
+                st.session_state.deployment_files = result["files"]
+                st.session_state.deployed_to_cluster = True
+
+                st.success(f"✅ Successfully deployed to Kubernetes cluster!")
+                st.info(f"**Deployment ID:** `{result['deployment_id']}`")
+                st.info(f"**Namespace:** `{result['namespace']}`")
+
+                # Show deployment details
+                st.markdown("**Deployed Resources:**")
+                deployment_result = result.get("deployment_result", {})
+                for applied_file in deployment_result.get("applied_files", []):
+                    st.markdown(f"- ✅ {applied_file['file']}")
+
+                st.markdown("---")
+                st.markdown("**Next:** Go to the **Monitoring** tab to see actual deployment status!")
+
+            elif response.status_code == 503:
+                st.error("❌ Kubernetes cluster not accessible. Ensure KIND cluster is running.")
+                st.code("kind get clusters", language="bash")
+            else:
+                st.error(f"Failed to deploy: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running.")
+    except Exception as e:
+        st.error(f"❌ Error deploying to cluster: {str(e)}")
+
+
 def render_monitoring_tab(rec: Dict[str, Any]):
-    """Render mock monitoring dashboard."""
+    """Render monitoring dashboard."""
 
     st.markdown("### 📡 Deployment Monitoring")
 
@@ -527,6 +606,11 @@ def render_monitoring_tab(rec: Dict[str, Any]):
         showing what real-time metrics would look like after deployment.
         """)
         return
+
+    # If deployed to cluster, show actual K8s status
+    if st.session_state.deployed_to_cluster:
+        render_k8s_status()
+        st.markdown("---")
 
     # Fetch mock monitoring data
     try:
@@ -548,18 +632,71 @@ def render_monitoring_tab(rec: Dict[str, Any]):
         st.error(f"❌ Error fetching monitoring data: {str(e)}")
 
 
+def render_k8s_status():
+    """Render actual Kubernetes deployment status."""
+    st.markdown("#### 🎛️ Kubernetes Cluster Status")
+
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/deployments/{st.session_state.deployment_id}/k8s-status",
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            k8s_status = response.json()
+            isvc = k8s_status.get("inferenceservice", {})
+            pods = k8s_status.get("pods", [])
+
+            # InferenceService status
+            if isvc.get("exists"):
+                st.success(f"✅ InferenceService: **{st.session_state.deployment_id}**")
+                st.markdown(f"**Ready:** {'✅ Yes' if isvc.get('ready') else '⏳ Not yet'}")
+
+                if isvc.get("url"):
+                    st.markdown(f"**URL:** `{isvc['url']}`")
+
+                # Show conditions
+                with st.expander("📋 Resource Conditions"):
+                    for condition in isvc.get("conditions", []):
+                        status_icon = "✅" if condition.get("status") == "True" else "⏳"
+                        st.markdown(f"{status_icon} **{condition.get('type')}**: {condition.get('message', 'N/A')}")
+            else:
+                st.warning(f"⚠️ InferenceService not found: {isvc.get('error', 'Unknown error')}")
+
+            # Pod status
+            if pods:
+                st.markdown(f"**Pods:** {len(pods)} pod(s)")
+                with st.expander("🔍 Pod Details"):
+                    for pod in pods:
+                        st.markdown(f"**{pod.get('name')}**")
+                        st.markdown(f"- Phase: {pod.get('phase')}")
+                        st.markdown(f"- Node: {pod.get('node_name')}")
+            else:
+                st.info("ℹ️ No pods found yet (may still be creating)")
+
+        elif response.status_code == 503:
+            st.error("❌ Kubernetes cluster not accessible")
+        else:
+            st.error(f"Failed to fetch K8s status: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API.")
+    except Exception as e:
+        st.error(f"❌ Error fetching K8s status: {str(e)}")
+
+
 def render_monitoring_dashboard(status: Dict[str, Any], rec: Dict[str, Any]):
     """Render the actual monitoring dashboard with metrics."""
 
     deployment_id = status["deployment_id"]
 
     st.markdown(f"**Deployment ID:** `{deployment_id}`")
-    st.markdown(f"**Status:** 🟢 {status['status'].upper()}")
+    st.markdown(f"**Status:** 🟢 {status['status'].upper()} (Simulated)")
 
     st.markdown("---")
 
     # SLO Compliance
-    st.markdown("### ✅ SLO Compliance (Last 7 Days)")
+    st.markdown("### ✅ SLO Compliance (Last 7 Days) - Simulated Data")
 
     slo = status["slo_compliance"]
 

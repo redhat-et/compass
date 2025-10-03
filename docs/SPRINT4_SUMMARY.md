@@ -119,7 +119,7 @@ Sprint 4 successfully implemented YAML generation for Kubernetes deployments and
 
 ### 4. Testing
 
-#### Test Script ([backend/test_deployment.py](../backend/test_deployment.py))
+#### Test Script ([tests/test_sprint4.py](../tests/test_sprint4.py))
 - **test_yaml_generation()**: End-to-end test function
 - Creates test recommendation
 - Generates all YAML files
@@ -184,7 +184,7 @@ backend/src/deployment/
     ├── autoscaling.yaml.j2                        (69 lines)
     └── servicemonitor.yaml.j2                     (110 lines)
 
-backend/test_deployment.py                          (180 lines)
+tests/test_sprint4.py                               (180 lines)
 docs/SPRINT4_SUMMARY.md                            (this file)
 ```
 
@@ -228,8 +228,8 @@ README.md                                          (updated sprint status, featu
 - ✅ UI displays monitoring data correctly
 
 ### Manual Testing Checklist
-- [ ] Start backend: `./run_api.sh`
-- [ ] Start UI: `./run_ui.sh`
+- [ ] Start backend: `scripts/run_api.sh`
+- [ ] Start UI: `scripts/run_ui.sh`
 - [ ] Get recommendation from chat
 - [ ] Click "Generate Deployment YAML"
 - [ ] Verify files in `generated_configs/`

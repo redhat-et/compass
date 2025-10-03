@@ -16,38 +16,55 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 
 ```
 ai-assistant/
-├── backend/                    # FastAPI backend
-│   ├── src/
-│   │   ├── context_intent/     # Component 2: Intent extraction
-│   │   ├── recommendation/     # Component 3: Model/GPU recommendations
-│   │   ├── simulation/         # Component 4: What-if analysis
-│   │   ├── deployment/         # Component 5: YAML generation
-│   │   ├── knowledge_base/     # Component 6: Data access layer
-│   │   ├── orchestration/      # Component 8: Workflow coordination
-│   │   ├── llm/                # Component 7: Ollama LLM client
-│   │   └── api/                # FastAPI routes
-│   └── requirements.txt
-├── frontend/                   # Streamlit UI (Component 1)
-│   ├── app.py
-│   ├── components/
-│   └── requirements.txt
-├── data/                       # Synthetic data for POC
-│   ├── benchmarks.json         # Model performance data
-│   ├── slo_templates.json      # Use case SLO defaults
-│   ├── model_catalog.json      # Available models
-│   ├── sample_outcomes.json    # Mock deployment results
-│   └── demo_scenarios.json     # 3 demo scenarios
-├── generated_configs/          # Output directory for YAML files
-└── tests/
+├── backend/                    # FastAPI backend with core recommendation engine
+│   └── src/
+│       ├── context_intent/     # Component 2: Intent extraction
+│       ├── recommendation/     # Component 3: Model/GPU recommendations & capacity planning
+│       ├── simulation/         # Component 4: What-if analysis (placeholder)
+│       ├── deployment/         # Component 5: YAML generation & K8s deployment
+│       ├── knowledge_base/     # Component 6: Data access layer (benchmarks, catalog, SLOs)
+│       ├── orchestration/      # Component 8: Workflow coordination
+│       ├── llm/                # Component 7: Ollama LLM client
+│       └── api/                # FastAPI REST endpoints
+├── ui/                         # Component 1: Streamlit conversational UI
+├── data/                       # Synthetic data for POC (benchmarks, catalog, SLO templates)
+├── generated_configs/          # Output directory for generated YAML files
+├── config/                     # Configuration files (KIND cluster)
+├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kcluster.sh)
+├── tests/                      # Test suites (sprint2, sprint4, sprint5)
+├── docs/                       # Architecture documentation and diagrams
+├── CLAUDE.md                   # AI assistant guidance
+└── README.md                   # This file
 ```
 
 ## Prerequisites
+
+### Required for All Features
 
 - **Python 3.11+**
 - **Ollama** installed and running
   ```bash
   brew install ollama
   ollama serve  # Start Ollama service
+  ```
+
+### Required for Sprint 5+ (Kubernetes Deployment)
+
+- **Docker Desktop** - Required for KIND
+  ```bash
+  # Download from https://www.docker.com/products/docker-desktop
+  # Or install via Homebrew
+  brew install --cask docker
+  ```
+
+- **kubectl** - Kubernetes CLI
+  ```bash
+  brew install kubectl
+  ```
+
+- **KIND (Kubernetes in Docker)** - Will be installed automatically by setup scripts
+  ```bash
+  brew install kind
   ```
 
 ## Setup Instructions
@@ -115,10 +132,10 @@ The easiest way to use the assistant:
 ollama serve
 
 # Terminal 2 - Start FastAPI Backend
-./run_api.sh
+scripts/run_api.sh
 
 # Terminal 3 - Start Streamlit UI
-./run_ui.sh
+scripts/run_ui.sh
 ```
 
 Then open http://localhost:8501 in your browser.
@@ -146,9 +163,7 @@ Start the API server:
 Or manually:
 
 ```bash
-cd backend
-source venv/bin/activate
-uvicorn src.api.routes:app --host 0.0.0.0 --port 8000 --reload
+scripts/run_api.sh
 ```
 
 Test the API:
@@ -208,8 +223,8 @@ All data files in `data/` are synthetic for POC purposes:
 - ✅ **Sprint 2** (Complete): Intent extraction, recommendation engines, knowledge base, FastAPI backend
 - ✅ **Sprint 3** (Complete): Streamlit UI with chat and spec editor
 - ✅ **Sprint 4** (Complete): YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard
-- ⏳ **Sprint 5**: KIND cluster setup, KServe installation
-- ⏳ **Sprint 6**: End-to-end deployment simulation
+- ✅ **Sprint 5** (Complete): KIND cluster setup, KServe installation, actual Kubernetes deployment
+- ⏳ **Sprint 6**: End-to-end deployment with real model inference
 
 ## Key Technologies
 
@@ -217,10 +232,11 @@ All data files in `data/` are synthetic for POC purposes:
 |-----------|-----------|
 | Backend | FastAPI, Pydantic |
 | Frontend | Streamlit |
-| LLM | Ollama (llama3.2:3b) |
+| LLM | Ollama (llama3.1:8b) |
 | Data | JSON files (Phase 1), PostgreSQL (Phase 2+) |
 | YAML Generation | Jinja2 templates |
-| Deployment (Simulated) | KIND, KServe, vLLM |
+| Kubernetes | KIND (local), KServe v0.13.0 |
+| Deployment | kubectl, Kubernetes Python client |
 
 ## Configuration
 
@@ -267,13 +283,18 @@ Quick tests:
 ```bash
 # Test end-to-end workflow
 cd backend && source venv/bin/activate
-python test_workflow.py
+cd ..
+python tests/test_sprint2.py
 
 # Test Sprint 4: YAML generation and validation
-python test_deployment.py
+python tests/test_sprint4.py
+
+# Test Sprint 5: Kubernetes deployment
+python tests/test_sprint5.py
 
 # Test FastAPI endpoints
-python -m src.api.routes  # Start server
+scripts/run_api.sh  # Start server in terminal 1
+# In terminal 2:
 curl -X POST http://localhost:8000/api/v1/test
 ```
 
@@ -304,13 +325,128 @@ Sprint 4 is complete! New features:
 4. Go to the **Monitoring** tab to see simulated observability dashboard
 5. Check `generated_configs/` directory for all YAML files
 
+## Sprint 5 Features (NEW!)
+
+Sprint 5 is complete! New Kubernetes deployment capabilities:
+
+### KIND Cluster Setup
+- ✅ Local Kubernetes cluster running in Docker
+- ✅ 3-node cluster with simulated GPU labels (A100-80GB, L4)
+- ✅ KServe v0.13.0 installed and configured
+- ✅ cert-manager v1.14.4 for certificate management
+
+### Actual Kubernetes Deployment
+- ✅ **Deploy to Cluster** button now functional in UI
+- ✅ Auto-detects cluster accessibility
+- ✅ Deploys InferenceService and HPA resources to cluster
+- ✅ Real-time deployment status from Kubernetes
+- ✅ Pod and resource monitoring in UI
+
+### How to Use Sprint 5 Features
+
+#### 1. Set Up KIND Cluster (One-time setup)
+
+**Easy Way (Recommended):**
+```bash
+# Ensure Docker Desktop is running
+
+# Create and configure cluster (installs KIND, cert-manager, KServe)
+scripts/kcluster.sh start
+```
+
+**Manual Way:**
+```bash
+# Ensure Docker Desktop is running
+
+# Install KIND (if not already installed)
+brew install kind
+
+# Create cluster with KServe
+kind create cluster --config config/kind-cluster.yaml
+
+# Install cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+
+# Wait for cert-manager
+kubectl wait --for=condition=available --timeout=300s -n cert-manager deployment/cert-manager
+
+# Install KServe
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve.yaml
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve-cluster-resources.yaml
+
+# Wait for KServe
+kubectl wait --for=condition=available --timeout=300s -n kserve deployment/kserve-controller-manager
+
+# Configure KServe for RawDeployment mode
+kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{"data": {"deploy": "{\"defaultDeploymentMode\": \"RawDeployment\"}"}}'
+```
+
+#### 2. Deploy Models Through UI
+1. Get a deployment recommendation from the chat interface
+2. Click **"Generate Deployment YAML"** in the Actions section
+3. If cluster is accessible, click **"Deploy to Kubernetes"**
+4. Go to **Monitoring** tab to see:
+   - Real Kubernetes deployment status
+   - InferenceService conditions
+   - Pod information
+   - Simulated performance metrics
+
+#### 3. Test End-to-End Deployment
+```bash
+# Run automated test suite
+cd backend
+source venv/bin/activate
+cd ..
+python tests/test_sprint5.py
+```
+
+### Cluster Management
+
+The `kcluster.sh` script provides easy cluster lifecycle management:
+
+**Check cluster status:**
+```bash
+scripts/kcluster.sh status
+```
+
+**Restart cluster (fresh start):**
+```bash
+scripts/kcluster.sh restart
+```
+
+**Stop/delete cluster:**
+```bash
+scripts/kcluster.sh stop
+```
+
+**View help:**
+```bash
+scripts/kcluster.sh help
+```
+
+**Manual kubectl commands:**
+```bash
+# View all resources
+kubectl get pods -A
+
+# View deployments
+kubectl get inferenceservices
+kubectl get pods
+
+# Delete a specific deployment
+kubectl delete inferenceservice <deployment-id>
+
+# Check cluster info
+kubectl cluster-info
+```
+
 ## Next Steps
 
-Sprint 4 complete! Next up (Sprint 5):
-1. KIND cluster setup
-2. KServe installation on KIND
-3. Deploy vLLM model to cluster
-4. End-to-end validation
+Sprint 5 complete! Next up (Sprint 6):
+1. Deploy actual vLLM models to cluster
+2. Real model inference testing
+3. Performance validation
+4. End-to-end observability
 
 ## Contributing
 

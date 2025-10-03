@@ -1,6 +1,7 @@
 """FastAPI routes for the Pre-Deployment Assistant API."""
 
 import logging
+from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from ..knowledge_base.model_catalog import ModelCatalog
 from ..knowledge_base.slo_templates import SLOTemplateRepository
 from ..deployment.generator import DeploymentGenerator
 from ..deployment.validator import YAMLValidator, ValidationError
+from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +41,14 @@ model_catalog = ModelCatalog()
 slo_repo = SLOTemplateRepository()
 deployment_generator = DeploymentGenerator()
 yaml_validator = YAMLValidator()
+
+# Initialize cluster manager (will be None if cluster not accessible)
+try:
+    cluster_manager = KubernetesClusterManager(namespace="default")
+    logger.info("Kubernetes cluster manager initialized successfully")
+except KubernetesDeploymentError as e:
+    logger.warning(f"Kubernetes cluster not accessible: {e}")
+    cluster_manager = None
 
 
 # Request/Response models
@@ -390,6 +400,216 @@ async def get_deployment_status(deployment_id: str):
         raise HTTPException(
             status_code=404,
             detail=f"Deployment not found: {deployment_id}"
+        )
+
+
+@app.post("/api/deploy-to-cluster")
+async def deploy_to_cluster(request: DeploymentRequest):
+    """
+    Deploy model to Kubernetes cluster.
+
+    This endpoint generates YAML files AND applies them to the cluster.
+
+    Args:
+        request: Deployment request with recommendation and namespace
+
+    Returns:
+        Deployment result with status
+
+    Raises:
+        HTTPException: If cluster not accessible or deployment fails
+    """
+    # Try to initialize cluster manager if it wasn't available at startup
+    manager = cluster_manager
+    if manager is None:
+        try:
+            manager = KubernetesClusterManager(namespace=request.namespace)
+        except KubernetesDeploymentError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Kubernetes cluster not accessible: {str(e)}"
+            )
+
+    try:
+        logger.info(f"Deploying model to cluster: {request.recommendation.model_name}")
+
+        # Step 1: Generate YAML files
+        result = deployment_generator.generate_all(
+            recommendation=request.recommendation,
+            namespace=request.namespace
+        )
+
+        deployment_id = result["deployment_id"]
+        files = result["files"]
+
+        # Step 2: Validate generated files
+        try:
+            yaml_validator.validate_all(files)
+            logger.info(f"YAML validation passed for: {deployment_id}")
+        except ValidationError as e:
+            logger.error(f"YAML validation failed: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Generated YAML validation failed: {str(e)}"
+            )
+
+        # Step 3: Deploy to cluster
+        # Note: generator creates keys like "inferenceservice", "vllm-config", "autoscaling", etc.
+        # Skip ServiceMonitor for Sprint 5 (requires Prometheus Operator)
+        yaml_file_paths = [
+            files["inferenceservice"],
+            files["autoscaling"]
+        ]
+
+        deployment_result = manager.deploy_all(yaml_file_paths)
+
+        if not deployment_result["success"]:
+            logger.error(f"Deployment failed: {deployment_result['errors']}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Deployment failed: {deployment_result['errors']}"
+            )
+
+        logger.info(f"Successfully deployed {deployment_id} to cluster")
+
+        return {
+            "success": True,
+            "deployment_id": deployment_id,
+            "namespace": request.namespace,
+            "files": files,
+            "deployment_result": deployment_result,
+            "message": f"Successfully deployed {deployment_id} to Kubernetes cluster"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to deploy to cluster: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to deploy to cluster: {str(e)}"
+        )
+
+
+@app.get("/api/cluster-status")
+async def get_cluster_status():
+    """
+    Get Kubernetes cluster status.
+
+    Returns:
+        Cluster accessibility and basic info
+    """
+    # Always try to check cluster status dynamically, don't rely on cached cluster_manager
+    try:
+        temp_manager = KubernetesClusterManager(namespace="default")
+        # List existing deployments
+        deployments = temp_manager.list_inferenceservices()
+
+        return {
+            "accessible": True,
+            "namespace": temp_manager.namespace,
+            "inference_services": deployments,
+            "count": len(deployments),
+            "message": "Cluster accessible"
+        }
+    except Exception as e:
+        logger.error(f"Failed to query cluster status: {e}")
+        return {
+            "accessible": False,
+            "error": str(e)
+        }
+
+
+@app.get("/api/deployments/{deployment_id}/k8s-status")
+async def get_k8s_deployment_status(deployment_id: str):
+    """
+    Get actual Kubernetes deployment status (not mock data).
+
+    Args:
+        deployment_id: InferenceService name
+
+    Returns:
+        Real deployment status from cluster
+
+    Raises:
+        HTTPException: If cluster not accessible
+    """
+    # Try to initialize cluster manager if it wasn't available at startup
+    manager = cluster_manager
+    if manager is None:
+        try:
+            manager = KubernetesClusterManager(namespace="default")
+        except KubernetesDeploymentError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Kubernetes cluster not accessible: {str(e)}"
+            )
+
+    try:
+        # Get InferenceService status
+        isvc_status = manager.get_inferenceservice_status(deployment_id)
+
+        # Get associated pods
+        pods = manager.get_deployment_pods(deployment_id)
+
+        return {
+            "deployment_id": deployment_id,
+            "inferenceservice": isvc_status,
+            "pods": pods,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get K8s deployment status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get deployment status: {str(e)}"
+        )
+
+
+@app.delete("/api/deployments/{deployment_id}")
+async def delete_deployment(deployment_id: str):
+    """
+    Delete a deployment from the cluster.
+
+    Args:
+        deployment_id: InferenceService name to delete
+
+    Returns:
+        Deletion result
+
+    Raises:
+        HTTPException: If cluster not accessible or deletion fails
+    """
+    # Try to initialize cluster manager if it wasn't available at startup
+    manager = cluster_manager
+    if manager is None:
+        try:
+            manager = KubernetesClusterManager(namespace="default")
+        except KubernetesDeploymentError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Kubernetes cluster not accessible: {str(e)}"
+            )
+
+    try:
+        result = manager.delete_inferenceservice(deployment_id)
+
+        if not result["success"]:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete deployment: {result.get('error', 'Unknown error')}"
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete deployment: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete deployment: {str(e)}"
         )
 
 
