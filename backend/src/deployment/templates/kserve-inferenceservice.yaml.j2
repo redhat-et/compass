@@ -10,12 +10,37 @@ metadata:
   annotations:
     serving.kserve.io/deploymentMode: RawDeployment
     description: "{{ use_case }} deployment - {{ reasoning | truncate(100) }}"
+    {% if simulator_mode %}
+    ai-assistant/simulator-mode: "true"
+    {% endif %}
 spec:
   predictor:
     minReplicas: {{ min_replicas }}
     maxReplicas: {{ max_replicas }}
     containers:
     - name: kserve-container
+      {% if simulator_mode %}
+      # Simulator mode: Use vLLM simulator (no GPU required)
+      image: vllm-simulator:latest
+      imagePullPolicy: Never  # Use local image from KIND
+      env:
+      - name: MODEL_NAME
+        value: "{{ model_id }}"
+      - name: GPU_TYPE
+        value: "{{ gpu_type }}"
+      - name: TENSOR_PARALLEL_SIZE
+        value: "{{ tensor_parallel }}"
+      - name: PORT
+        value: "8080"
+      resources:
+        requests:
+          cpu: "2"
+          memory: "4Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+      {% else %}
+      # Production mode: Use real vLLM with GPUs
       image: vllm/vllm-openai:{{ vllm_version }}
       args:
       - --model={{ model_id }}
@@ -41,6 +66,7 @@ spec:
           cpu: "{{ cpu_limit }}"
           memory: "{{ memory_limit }}"
           nvidia.com/gpu: "{{ gpus_per_replica }}"
+      {% endif %}
       ports:
       - containerPort: 8080
         protocol: TCP
@@ -49,19 +75,29 @@ spec:
         httpGet:
           path: /health
           port: 8080
+        {% if simulator_mode %}
+        initialDelaySeconds: 10
+        {% else %}
         initialDelaySeconds: 120
+        {% endif %}
         periodSeconds: 30
         timeoutSeconds: 10
       readinessProbe:
         httpGet:
           path: /health
           port: 8080
+        {% if simulator_mode %}
+        initialDelaySeconds: 5
+        {% else %}
         initialDelaySeconds: 60
+        {% endif %}
         periodSeconds: 10
         timeoutSeconds: 5
+    {% if not simulator_mode %}
     nodeSelector:
       nvidia.com/gpu.product: {{ gpu_type }}
     tolerations:
     - key: nvidia.com/gpu
       operator: Exists
       effect: NoSchedule
+    {% endif %}

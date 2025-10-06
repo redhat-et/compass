@@ -39,7 +39,8 @@ app.add_middleware(
 workflow = RecommendationWorkflow()
 model_catalog = ModelCatalog()
 slo_repo = SLOTemplateRepository()
-deployment_generator = DeploymentGenerator()
+# Use simulator mode by default for Sprint 6 (no GPU required)
+deployment_generator = DeploymentGenerator(simulator_mode=True)
 yaml_validator = YAMLValidator()
 
 # Initialize cluster manager (will be None if cluster not accessible)
