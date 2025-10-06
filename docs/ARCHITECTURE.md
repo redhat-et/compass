@@ -904,7 +904,7 @@ For the initial iteration, recommended technology choices:
 | **Recommendation Engine** | Rule-based + LLM augmentation | Explainable, no ML training needed |
 | **Simulation** | Analytical formulas | Simple cost/latency estimates |
 | **Deployment Automation** | Jinja2 + Kubernetes Python client | Direct control, no GitOps overhead yet |
-| **Knowledge Base** | JSON files (POC) → PostgreSQL (Production) | Simple for POC, scalable for production |
+| **Knowledge Base** | JSON files (POC) → Database (Production, e.g., PostgreSQL) | Simple for POC, scalable for production |
 | **LLM Backend** | Ollama (llama3.1:8b) | Local development, cost-effective |
 | **Orchestration** | FastAPI + in-memory state | Minimal complexity |
 | **Observability** | Kubernetes API + Streamlit | Direct cluster monitoring |

@@ -205,7 +205,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
   - ✅ Inference testing UI with end-to-end deployment validation
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
-- Use synthetic data in data/ directory for POC; production would use PostgreSQL
+- Use synthetic data in data/ directory for POC; production would use a database (e.g., PostgreSQL)
 - Benchmarks use vLLM default configuration with dynamic batching (no fixed batch_size)
 
 ## Simulator Mode vs Real vLLM
