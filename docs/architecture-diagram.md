@@ -3,7 +3,7 @@
 ```mermaid
 graph TB
     subgraph "User Interface"
-        UI[Conversational Interface Layer<br/>Chainlit/Streamlit/React]
+        UI[Conversational Interface Layer<br/>Streamlit]
         SPEC_UI[Specification Review UI<br/>Editable Deployment Spec]
     end
 
@@ -13,7 +13,7 @@ graph TB
         MRE[Model Recommendation Engine<br/>Filter & Rank Models]
         CPE[Capacity Planning Engine<br/>GPU Count, Tensor Parallelism]
         SIM[Simulation & Exploration<br/>What-if Analysis]
-        LLM[LLM Backend<br/>Llama 3 via vLLM]
+        LLM[LLM Backend<br/>Ollama llama3.1:8b]
     end
 
     subgraph "Deployment Layer"
@@ -22,7 +22,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        KB[(Knowledge Base<br/>PostgreSQL + pgvector)]
+        KB[(Knowledge Base<br/>JSON files POC → PostgreSQL Prod)]
         KB_BENCH[Model Benchmarks<br/>TTFT, TPOT, Throughput]
         KB_SLO[Use Case SLO Templates<br/>Default Targets]
         KB_MODELS[Model Catalog<br/>Curated Models]
@@ -32,9 +32,13 @@ graph TB
     subgraph "External Systems"
         K8S[Kubernetes/OpenShift Cluster]
         KSERVE[KServe API]
-        VLLM[vLLM Runtime]
+        VLLM[vLLM Runtime / Simulator]
         REGISTRY[Model Registry<br/>HuggingFace Hub]
         OBS[Observability Stack<br/>Prometheus + Grafana]
+    end
+
+    subgraph "Development Tools"
+        SIM_VLLM[vLLM Simulator<br/>GPU-free Development]
     end
 
     subgraph "Monitoring"
@@ -414,16 +418,17 @@ erDiagram
 
 | Layer | Component | Technology |
 |-------|-----------|------------|
-| **Presentation** | UI Framework | Chainlit |
-| **Application** | Intent Extraction | LangChain + Pydantic |
+| **Presentation** | UI Framework | Streamlit (POC) |
+| **Application** | Intent Extraction | Ollama (llama3.1:8b) + Pydantic |
 | **Application** | Recommendations | Rule-based + LLM |
 | **Application** | Simulation | Analytical formulas |
 | **Application** | Orchestration | FastAPI |
-| **AI/ML** | LLM Backend | Llama 3 via vLLM |
-| **Data** | Knowledge Base | PostgreSQL + pgvector |
+| **AI/ML** | LLM Backend | Ollama (llama3.1:8b) |
+| **Data** | Knowledge Base | JSON files (POC) → PostgreSQL (Prod) |
 | **Deployment** | Config Generation | Jinja2 |
 | **Deployment** | K8s Integration | Kubernetes Python Client |
-| **Observability** | Metrics | OpenTelemetry + Prometheus |
-| **Observability** | Dashboards | Grafana |
-| **Infrastructure** | Container Platform | OpenShift/Kubernetes |
-| **Infrastructure** | Model Serving | KServe + vLLM |
+| **Deployment** | vLLM Simulator | FastAPI + Docker |
+| **Observability** | Metrics | Kubernetes API |
+| **Observability** | Dashboards | Streamlit |
+| **Infrastructure** | Container Platform | Kubernetes (KIND for POC) |
+| **Infrastructure** | Model Serving | KServe + vLLM / Simulator |

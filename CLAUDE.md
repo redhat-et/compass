@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains the architecture design for the **AI Pre-Deployment Assistant**, an open-source system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
 
-**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. Sprints 1-3 are complete (foundation + core recommendation engine + UI), with subsequent sprints building out the full system.
+**Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. The core functionality is complete and working end-to-end.
 
 ## Repository Structure
 
@@ -28,12 +28,12 @@ This repository contains the architecture design for the **AI Pre-Deployment Ass
   - FastAPI REST endpoints with CORS support
   - Pydantic schemas for type safety
 
-- **ui/**: Streamlit UI (Sprint 3-4 ✅)
+- **ui/**: Streamlit UI
   - Chat interface for conversational requirement gathering
   - Multi-tab recommendation display (Overview, Specifications, Performance, Cost, Monitoring)
   - Editable specifications with review mode
   - Action buttons for YAML generation and deployment
-  - Mock monitoring dashboard with SLO compliance, resource utilization, and cost tracking
+  - Monitoring dashboard with cluster status, SLO compliance, and inference testing
 
 - **data/**: Synthetic benchmark and catalog data for POC
   - benchmarks.json: 24 model+GPU combinations with vLLM performance data
@@ -65,9 +65,9 @@ The system translates high-level user intent into technical specifications:
   - GPU capacity plan (e.g., "2x NVIDIA L4 GPUs, independent replicas")
   - Cost estimate ($800/month)
 
-### The 9 Core Components
+### The 10 Core Components
 
-1. **Conversational Interface Layer** - Chainlit/Streamlit UI
+1. **Conversational Interface Layer** - Streamlit UI
 2. **Context & Intent Engine** - Extract structured specs from conversation
    - Use case → SLO template mapping
    - Auto-generate traffic profiles
@@ -78,9 +78,10 @@ The system translates high-level user intent into technical specifications:
 4. **Simulation & Exploration Layer** - What-if analysis, spec editing
 5. **Deployment Automation Engine** - Generate YAML, deploy to K8s
 6. **Knowledge Base** - Benchmarks, SLO templates, model catalog, outcomes
-7. **LLM Backend** - Powers conversational AI
+7. **LLM Backend** - Powers conversational AI (Ollama with llama3.1:8b)
 8. **Orchestration & Workflow Engine** - Coordinate multi-step flows
 9. **Inference Observability** - Monitor deployed models (TTFT, TPOT, GPU utilization)
+10. **vLLM Simulator** - GPU-free development and testing
 
 ### Critical Data Collections (Knowledge Base)
 - **Model Benchmarks**: TTFT/TPOT/throughput for (model, GPU, tensor_parallel) tuples
@@ -169,7 +170,7 @@ This repository follows standard commit practices:
 **IMPORTANT**: Commit messages must follow this exact format:
 
 ```
-Add YAML generation module for Sprint 4
+Add YAML generation module
 
 Implement DeploymentGenerator with Jinja2 templates for KServe,
 vLLM, HPA, and ServiceMonitor configurations.
@@ -180,7 +181,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 **DO NOT use this format:**
 ```
-Add YAML generation module for Sprint 4
+Add YAML generation module
 
 Implement DeploymentGenerator with Jinja2 templates for KServe,
 vLLM, HPA, and ServiceMonitor configurations.
@@ -192,14 +193,16 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## Important Notes
 
-- **Sprint 1-6 Complete**:
-  - Sprint 1: Project structure, synthetic data, and LLM client implemented
-  - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
-  - Sprint 3: Streamlit UI with chat interface, recommendation display, and editable specifications
-  - Sprint 4: YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard, deployment automation
-  - Sprint 5: KIND cluster setup, KServe installation, Kubernetes deployment automation, real cluster status monitoring
-  - Sprint 6: vLLM simulator for GPU-free development, inference testing UI, end-to-end deployment validation
-- When implementing subsequent sprints, preserve the architectural principles documented in docs/
+- **Current Implementation Status**:
+  - ✅ Project structure with synthetic data and LLM client
+  - ✅ Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning)
+  - ✅ Orchestration workflow and FastAPI backend
+  - ✅ Streamlit UI with chat interface, recommendation display, and editable specifications
+  - ✅ YAML generation (KServe/vLLM/HPA/ServiceMonitor) and deployment automation
+  - ✅ KIND cluster support with KServe installation
+  - ✅ Kubernetes deployment automation and real cluster status monitoring
+  - ✅ vLLM simulator for GPU-free development
+  - ✅ Inference testing UI with end-to-end deployment validation
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
 - Use synthetic data in data/ directory for POC; production would use PostgreSQL

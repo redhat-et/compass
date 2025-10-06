@@ -39,7 +39,7 @@ app.add_middleware(
 workflow = RecommendationWorkflow()
 model_catalog = ModelCatalog()
 slo_repo = SLOTemplateRepository()
-# Use simulator mode by default for Sprint 6 (no GPU required)
+# Use simulator mode by default (no GPU required for development)
 deployment_generator = DeploymentGenerator(simulator_mode=True)
 yaml_validator = YAMLValidator()
 
@@ -456,7 +456,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
 
         # Step 3: Deploy to cluster
         # Note: generator creates keys like "inferenceservice", "vllm-config", "autoscaling", etc.
-        # Skip ServiceMonitor for Sprint 5 (requires Prometheus Operator)
+        # Skip ServiceMonitor for now (requires Prometheus Operator)
         yaml_file_paths = [
             files["inferenceservice"],
             files["autoscaling"]
