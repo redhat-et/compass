@@ -175,8 +175,8 @@ Add YAML generation module
 Implement DeploymentGenerator with Jinja2 templates for KServe,
 vLLM, HPA, and ServiceMonitor configurations.
 
-Signed-off-by: Your Name <your.email@example.com>
 Co-Authored-By: Claude <noreply@anthropic.com>
+Signed-off-by: Your Name <your.email@example.com>
 ```
 
 **DO NOT use this format:**
