@@ -719,8 +719,8 @@ def render_inference_testing():
                 import json
                 import time
 
-                # Get service name (same as deployment_id)
-                service_name = st.session_state.deployment_id
+                # Get service name (KServe appends "-predictor" to deployment_id)
+                service_name = f"{st.session_state.deployment_id}-predictor"
 
                 # Use kubectl port-forward in background, then send request
                 st.info(f"📡 Connecting to service: `{service_name}`")
