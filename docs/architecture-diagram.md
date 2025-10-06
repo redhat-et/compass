@@ -22,7 +22,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        KB[(Knowledge Base<br/>JSON files POC → PostgreSQL Prod)]
+        KB[(Knowledge Base<br/>JSON files POC → Database Prod)]
         KB_BENCH[Model Benchmarks<br/>TTFT, TPOT, Throughput]
         KB_SLO[Use Case SLO Templates<br/>Default Targets]
         KB_MODELS[Model Catalog<br/>Curated Models]
@@ -424,7 +424,7 @@ erDiagram
 | **Application** | Simulation | Analytical formulas |
 | **Application** | Orchestration | FastAPI |
 | **AI/ML** | LLM Backend | Ollama (llama3.1:8b) |
-| **Data** | Knowledge Base | JSON files (POC) → PostgreSQL (Prod) |
+| **Data** | Knowledge Base | JSON files (POC) → Database (Prod) |
 | **Deployment** | Config Generation | Jinja2 |
 | **Deployment** | K8s Integration | Kubernetes Python Client |
 | **Deployment** | vLLM Simulator | FastAPI + Docker |
