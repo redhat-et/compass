@@ -88,8 +88,17 @@ class BenchmarkLoader:
         try:
             with open(self.benchmarks_path, 'r') as f:
                 data = json.load(f)
-                logger.info(f"Loaded {len(data)} benchmark entries")
-                return data
+                # Handle both formats: array at root or under "benchmarks" key
+                if isinstance(data, list):
+                    benchmarks = data
+                elif isinstance(data, dict) and "benchmarks" in data:
+                    benchmarks = data["benchmarks"]
+                else:
+                    logger.warning("Unexpected benchmark data format")
+                    return []
+
+                logger.info(f"Loaded {len(benchmarks)} benchmark entries")
+                return benchmarks
         except FileNotFoundError:
             logger.warning(f"Benchmarks file not found: {self.benchmarks_path}")
             return []
@@ -100,7 +109,9 @@ class BenchmarkLoader:
         model_short = self._normalize_model_name(MODEL_NAME)
 
         for bench in self.benchmarks:
-            bench_model = self._normalize_model_name(bench.get("model", ""))
+            # Support both "model" and "model_id" field names
+            bench_model_id = bench.get("model_id") or bench.get("model", "")
+            bench_model = self._normalize_model_name(bench_model_id)
             bench_gpu = bench.get("gpu_type", "")
             bench_tp = bench.get("tensor_parallel", 1)
 
