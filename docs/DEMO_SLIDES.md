@@ -48,7 +48,7 @@ System: ✅ Recommends: Mistral 7B on 2x NVIDIA L4 GPUs
 
 ## System Architecture
 
-**9 Core Components:**
+**10 Core Components:**
 
 1. **Conversational Interface** - Streamlit chat UI
 2. **Context & Intent Engine** - Extract structured specs from natural language
@@ -56,33 +56,34 @@ System: ✅ Recommends: Mistral 7B on 2x NVIDIA L4 GPUs
 4. **Simulation Layer** - What-if analysis, editable specifications
 5. **Deployment Automation** - Generate KServe/vLLM YAML, deploy to K8s
 6. **Knowledge Base** - Benchmarks, SLO templates, model catalog
-7. **LLM Backend** - Ollama (Llama 3.2 1B) for conversational AI
+7. **LLM Backend** - Ollama (llama3.1:8b) for conversational AI
 8. **Orchestration** - Multi-step workflow coordination
 9. **Observability** - Monitor deployed models (SLO compliance, resource usage)
+10. **vLLM Simulator** - GPU-free development and testing
 
 **Tech Stack:** Python (FastAPI backend), Streamlit UI, Kubernetes/KServe, vLLM
 
 ---
 
-## What's Working Now (Sprint 1-6)
+## What's Working Now (Complete POC)
 
-### ✅ Sprint 1-2: Foundation + Recommendation Engine
+### ✅ Foundation & Core Engine
 - Synthetic benchmark data (24 model+GPU combinations)
 - Core recommendation logic (intent extraction, traffic profiling, capacity planning)
 - FastAPI backend with REST endpoints
 - Ollama LLM integration
 
-### ✅ Sprint 3-4: UI + Deployment Automation
+### ✅ UI & Deployment Automation
 - Chat interface for conversational requirement gathering
 - Multi-tab recommendation display (Overview, Specs, Performance, Cost, Monitoring)
 - Editable specifications with review mode
 - YAML generation (KServe InferenceService, vLLM, HPA, ServiceMonitor)
-- Mock monitoring dashboard
+- Monitoring dashboard with real cluster status
 
-### ✅ Sprint 5-6: Real Kubernetes Deployment
+### ✅ Kubernetes Deployment & Testing
 - KIND cluster setup with KServe installation
 - Kubernetes deployment automation
-- **vLLM Simulator** - GPU-free development (Sprint 6 innovation!)
+- **vLLM Simulator** - GPU-free development!
 - Live inference testing through UI
 - Real cluster status monitoring
 
@@ -113,7 +114,7 @@ System: ✅ Recommends: Mistral 7B on 2x NVIDIA L4 GPUs
 
 ---
 
-## Sprint 6 Innovation: vLLM Simulator
+## Key Innovation: vLLM Simulator
 
 **Problem:** Can't test deployments without expensive GPUs
 

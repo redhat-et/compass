@@ -29,9 +29,10 @@ ai-assistant/
 ├── ui/                         # Component 1: Streamlit conversational UI
 ├── data/                       # Synthetic data for POC (benchmarks, catalog, SLO templates)
 ├── generated_configs/          # Output directory for generated YAML files
+├── simulator/                  # vLLM simulator service for GPU-free development
 ├── config/                     # Configuration files (KIND cluster)
 ├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kcluster.sh)
-├── tests/                      # Test suites (sprint2, sprint4, sprint5)
+├── tests/                      # Test suites
 ├── docs/                       # Architecture documentation and diagrams
 ├── CLAUDE.md                   # AI assistant guidance
 └── README.md                   # This file
@@ -48,7 +49,7 @@ ai-assistant/
   ollama serve  # Start Ollama service
   ```
 
-### Required for Sprint 5+ (Kubernetes Deployment)
+### Required for Kubernetes Deployment
 
 - **Docker Desktop** - Required for KIND
   ```bash
@@ -123,7 +124,7 @@ ollama list  # Should show llama3.1:8b
 
 ## Running the POC
 
-### Option 1: Run Full Stack with UI (Sprint 3 - Recommended)
+### Option 1: Run Full Stack with UI (Recommended)
 
 The easiest way to use the assistant:
 
@@ -217,14 +218,16 @@ All data files in `data/` are synthetic for POC purposes:
 - **model_catalog.json**: 10 approved models with metadata
 - **sample_outcomes.json**: 5 mock deployment outcomes
 
-## Architecture Components (Sprint Roadmap)
+## Implemented Features
 
-- ✅ **Sprint 1** (Complete): Project structure, synthetic data, LLM client
-- ✅ **Sprint 2** (Complete): Intent extraction, recommendation engines, knowledge base, FastAPI backend
-- ✅ **Sprint 3** (Complete): Streamlit UI with chat and spec editor
-- ✅ **Sprint 4** (Complete): YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard
-- ✅ **Sprint 5** (Complete): KIND cluster setup, KServe installation, actual Kubernetes deployment
-- ✅ **Sprint 6** (Complete): vLLM simulator for GPU-free development, inference testing UI
+- ✅ **Foundation**: Project structure, synthetic data, LLM client (Ollama)
+- ✅ **Core Recommendation Engine**: Intent extraction, traffic profiling, model recommendation, capacity planning
+- ✅ **FastAPI Backend**: REST endpoints, orchestration workflow, knowledge base access
+- ✅ **Streamlit UI**: Chat interface, recommendation display, specification editor
+- ✅ **Deployment Automation**: YAML generation (KServe/vLLM/HPA/ServiceMonitor), Kubernetes deployment
+- ✅ **Local Kubernetes**: KIND cluster support, KServe installation, cluster management
+- ✅ **vLLM Simulator**: GPU-free development mode with realistic latency simulation
+- ✅ **Monitoring & Testing**: Real-time deployment status, inference testing UI, cluster observability
 
 ## Key Technologies
 
@@ -284,13 +287,7 @@ Quick tests:
 # Test end-to-end workflow
 cd backend && source venv/bin/activate
 cd ..
-python tests/test_sprint2.py
-
-# Test Sprint 4: YAML generation and validation
-python tests/test_sprint4.py
-
-# Test Sprint 5: Kubernetes deployment
-python tests/test_sprint5.py
+python tests/test_workflow.py
 
 # Test FastAPI endpoints
 scripts/run_api.sh  # Start server in terminal 1
@@ -298,11 +295,10 @@ scripts/run_api.sh  # Start server in terminal 1
 curl -X POST http://localhost:8000/api/v1/test
 ```
 
-## Sprint 4 Features (NEW!)
+## YAML Deployment Generation
 
-Sprint 4 is complete! New features:
+The system automatically generates production-ready Kubernetes configurations:
 
-### YAML Deployment Generation
 - ✅ KServe InferenceService YAML with vLLM configuration
 - ✅ HorizontalPodAutoscaler (HPA) for autoscaling
 - ✅ Prometheus ServiceMonitor for metrics collection
@@ -310,41 +306,27 @@ Sprint 4 is complete! New features:
 - ✅ Full YAML validation before generation
 - ✅ Files written to `generated_configs/` directory
 
-### Mock Monitoring Dashboard
-- ✅ **Monitoring tab** in Streamlit UI showing Component 9 (Inference Observability)
-- ✅ **SLO Compliance** metrics (TTFT, TPOT, E2E latency, throughput, uptime)
-- ✅ **Resource Utilization** (GPU usage, memory, batch size, queue depth)
-- ✅ **Cost Analysis** (actual vs predicted monthly cost, per-token cost)
-- ✅ **Traffic Patterns** (actual vs predicted prompt/generation tokens, QPS)
-- ✅ **Optimization Recommendations** (auto-generated suggestions)
-
-### How to Use Sprint 4 Features
+**How to use:**
 1. Get a deployment recommendation from the chat interface
 2. Go to the **Cost** tab and click **"Generate Deployment YAML"**
 3. View generated YAML file paths
-4. Go to the **Monitoring** tab to see simulated observability dashboard
-5. Check `generated_configs/` directory for all YAML files
+4. Check `generated_configs/` directory for all YAML files
 
-## Sprint 5 Features (NEW!)
+## Kubernetes Deployment
 
-Sprint 5 is complete! New Kubernetes deployment capabilities:
+The system supports deploying to local Kubernetes clusters:
 
-### KIND Cluster Setup
-- ✅ Local Kubernetes cluster running in Docker
+- ✅ Local KIND cluster running in Docker
 - ✅ 3-node cluster with simulated GPU labels (A100-80GB, L4)
 - ✅ KServe v0.13.0 installed and configured
 - ✅ cert-manager v1.14.4 for certificate management
-
-### Actual Kubernetes Deployment
-- ✅ **Deploy to Cluster** button now functional in UI
+- ✅ **Deploy to Cluster** button in UI
 - ✅ Auto-detects cluster accessibility
 - ✅ Deploys InferenceService and HPA resources to cluster
 - ✅ Real-time deployment status from Kubernetes
 - ✅ Pod and resource monitoring in UI
 
-### How to Use Sprint 5 Features
-
-#### 1. Set Up KIND Cluster (One-time setup)
+### Set Up KIND Cluster (One-time setup)
 
 **Easy Way (Recommended):**
 ```bash
@@ -381,7 +363,7 @@ kubectl wait --for=condition=available --timeout=300s -n kserve deployment/kserv
 kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{"data": {"deploy": "{\"defaultDeploymentMode\": \"RawDeployment\"}"}}'
 ```
 
-#### 2. Deploy Models Through UI
+### Deploy Models Through UI
 1. Get a deployment recommendation from the chat interface
 2. Click **"Generate Deployment YAML"** in the Actions section
 3. If cluster is accessible, click **"Deploy to Kubernetes"**
@@ -389,16 +371,7 @@ kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{
    - Real Kubernetes deployment status
    - InferenceService conditions
    - Pod information
-   - Simulated performance metrics
-
-#### 3. Test End-to-End Deployment
-```bash
-# Run automated test suite
-cd backend
-source venv/bin/activate
-cd ..
-python tests/test_sprint5.py
-```
+   - Performance metrics
 
 ### Cluster Management
 
@@ -440,11 +413,11 @@ kubectl delete inferenceservice <deployment-id>
 kubectl cluster-info
 ```
 
-## Sprint 6 Features (NEW!)
+## vLLM Simulator (GPU-Free Development)
 
-Sprint 6 is complete! New vLLM simulator capabilities:
+The system includes a vLLM simulator for development without GPU hardware:
 
-### vLLM Simulator Service
+**Simulator Features:**
 - ✅ **GPU-free development** - Run deployments on any laptop without GPU hardware
 - ✅ **OpenAI-compatible API** - Implements `/v1/completions` and `/v1/chat/completions`
 - ✅ **Realistic performance** - Uses benchmark data to simulate TTFT/TPOT latency
@@ -452,17 +425,15 @@ Sprint 6 is complete! New vLLM simulator capabilities:
 - ✅ **Single Docker image** - Configure model via environment variables
 - ✅ **Prometheus metrics** - Exposes `/metrics` endpoint matching vLLM format
 
-### Inference Testing UI
+**Inference Testing:**
 - ✅ **Test deployed models** directly from the Monitoring tab
 - ✅ **Send custom prompts** and see responses
 - ✅ **View latency metrics** and token usage
 - ✅ **Automatic port-forwarding** to Kubernetes service
 
-### How to Use Sprint 6 Features
+### Deploy a Model in Simulator Mode (default)
 
-#### 1. Deploy a Model in Simulator Mode (default)
-
-The system now uses simulator mode by default for all deployments:
+Simulator mode is enabled by default for all deployments:
 
 ```bash
 # Start the UI
@@ -476,7 +447,7 @@ scripts/run_ui.sh
 # 5. Pod should become Ready in ~10-15 seconds
 ```
 
-#### 2. Test Inference
+### Test Inference
 
 Once deployed:
 1. Go to **Monitoring** tab
@@ -485,7 +456,7 @@ Once deployed:
 4. Click "🚀 Send Test Request"
 5. View the simulated response and metrics
 
-#### 3. Switch to Real vLLM (Future)
+### Switch to Real vLLM (Future)
 
 To use real vLLM with actual GPUs (Phase 2):
 ```python
@@ -506,14 +477,18 @@ Then deploy to a GPU-enabled cluster.
 | Use Case | Development, testing, demos | Production deployment |
 | Cluster | Works on KIND (local) | Requires GPU-enabled cluster |
 
-## Next Steps
+## Future Enhancements
 
-Sprint 6 complete! Future enhancements:
-1. Add streaming response support to simulator
-2. Implement error injection for testing
-3. Add real vLLM deployment mode with GPU validation
+Potential improvements for Phase 2:
+1. Streaming response support in simulator
+2. Error injection for testing resilience
+3. Real vLLM deployment mode with GPU validation
 4. Collect actual performance metrics from real deployments
-5. Build feedback loop: actual metrics → benchmark updates
+5. Feedback loop: actual metrics → benchmark updates
+6. Statistical distributions for traffic (not just point estimates)
+7. Multi-dimensional benchmarks (batch size, sequence length variations)
+8. Security hardening (YAML validation, RBAC)
+9. Multi-tenancy support
 
 ## Contributing
 

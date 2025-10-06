@@ -31,10 +31,9 @@ The assistant follows a **4-stage conversational flow**:
 ### 1. Conversational Interface Layer
 **Purpose**: Natural language dialogue to capture user intent
 
-**Technology Options**:
-- **Chainlit** - Python-first conversational UI framework, good for prototyping
-- **Streamlit + LangChain** - Rapid development with existing LLM orchestration
-- **Custom React + WebSocket backend** - More flexible, production-grade UI control
+**Technology Choices**:
+- **Phase 1 (POC)**: Streamlit - Rapid development with built-in session management
+- **Phase 2 Options**: Chainlit (Python-first conversational UI) or Custom React + WebSocket backend
 
 **Responsibilities**:
 - Render conversational UI
@@ -741,6 +740,78 @@ Understand actual workload vs predictions:
 
 ---
 
+### 10. vLLM Simulator
+**Purpose**: Enable GPU-free development, testing, and demonstrations without requiring expensive GPU hardware
+
+**Technology Choices**:
+- **FastAPI** - Implements OpenAI-compatible API endpoints
+- **Docker** - Single containerized image for all models
+- **Python** - Benchmark-driven latency simulation
+
+**Key Responsibilities**:
+
+#### API Compatibility
+Provide drop-in replacement for vLLM during development:
+- **`/v1/completions`** - Standard OpenAI completions endpoint
+- **`/v1/chat/completions`** - Chat completions endpoint
+- **`/health`** - Health check endpoint
+- **`/metrics`** - Prometheus-compatible metrics endpoint
+
+#### Realistic Performance Simulation
+Use actual benchmark data to simulate production behavior:
+- **TTFT simulation**: Sleep for benchmark-derived time-to-first-token
+- **TPOT simulation**: Sleep per output token based on benchmark data
+- **Token counting**: Accurate prompt and completion token counts
+- **Latency variance**: Add realistic jitter to simulated latencies
+
+#### Response Generation
+Pattern-based canned responses for different use cases:
+- **Code generation**: Return sample Python/JavaScript code snippets
+- **Chat**: Return conversational responses
+- **Summarization**: Return condensed text summaries
+- **Q&A**: Return factual answers
+- **Generic**: Return sensible default text
+
+#### Configuration
+Single Docker image configured via environment variables:
+- **`MODEL_NAME`**: Which model to simulate (e.g., "mistralai/Mistral-7B-Instruct-v0.3")
+- **`GPU_TYPE`**: GPU type for benchmark lookup (e.g., "NVIDIA-L4")
+- **`TENSOR_PARALLEL_SIZE`**: Number of GPUs for benchmark lookup
+- **`BENCHMARKS_PATH`**: Path to benchmark data JSON file
+
+**Deployment Modes**:
+
+The Deployment Automation Engine (Component 5) supports two modes:
+
+1. **Simulator Mode** (default for POC):
+   - Uses `vllm-simulator:latest` Docker image
+   - No GPU resources requested
+   - Fast startup (~10-15 seconds to Ready)
+   - Runs on CPU-only Kubernetes clusters (KIND, minikube)
+   - Controlled via `DeploymentGenerator(simulator_mode=True)`
+
+2. **Real vLLM Mode** (production):
+   - Uses `vllm/vllm-openai:v0.6.2` Docker image
+   - Requests GPU resources (nvidia.com/gpu)
+   - Downloads models from HuggingFace
+   - Actual inference with real GPUs
+   - Controlled via `DeploymentGenerator(simulator_mode=False)`
+
+**Benefits**:
+- **No GPU required**: Developers can test full deployment workflows on laptops
+- **Fast feedback**: Quick iteration without waiting for GPU provisioning
+- **Consistent behavior**: Predictable responses for demos and testing
+- **Cost savings**: No GPU costs during development
+- **CI/CD friendly**: Automated tests without GPU infrastructure
+
+**Integration**:
+- Deployed via same KServe InferenceService YAML as real vLLM
+- Monitored via same Kubernetes API as production deployments
+- Testable via Inference Testing UI in Streamlit
+- Uses actual benchmark data for realistic latency simulation
+
+---
+
 ## Enhanced Data Flow Diagram
 
 ```
@@ -828,15 +899,16 @@ For the initial iteration, recommended technology choices:
 
 | Component | Technology Choice | Rationale |
 |-----------|------------------|-----------|
-| **Conversational UI** | Chainlit | Fastest time-to-value for LLM apps |
-| **Intent Extraction** | LangChain + Pydantic | Structured output with validation |
+| **Conversational UI** | Streamlit (POC) | Fastest time-to-value, built-in session management |
+| **Intent Extraction** | Ollama (llama3.1:8b) + Pydantic | Structured output with validation |
 | **Recommendation Engine** | Rule-based + LLM augmentation | Explainable, no ML training needed |
 | **Simulation** | Analytical formulas | Simple cost/latency estimates |
 | **Deployment Automation** | Jinja2 + Kubernetes Python client | Direct control, no GitOps overhead yet |
-| **Knowledge Base** | PostgreSQL + JSON columns | Familiar, good enough for MVP |
-| **LLM Backend** | Self-hosted Llama 3 via vLLM | Dogfooding, cost-effective |
+| **Knowledge Base** | JSON files (POC) → PostgreSQL (Production) | Simple for POC, scalable for production |
+| **LLM Backend** | Ollama (llama3.1:8b) | Local development, cost-effective |
 | **Orchestration** | FastAPI + in-memory state | Minimal complexity |
-| **Observability** | OpenTelemetry + Prometheus | Standard, well-integrated |
+| **Observability** | Kubernetes API + Streamlit | Direct cluster monitoring |
+| **vLLM Simulator** | FastAPI + Docker | GPU-free development and testing |
 
 ---
 
