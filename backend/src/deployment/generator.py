@@ -31,12 +31,13 @@ class DeploymentGenerator:
     # vLLM version to use
     VLLM_VERSION = "v0.6.2"
 
-    def __init__(self, output_dir: Optional[str] = None):
+    def __init__(self, output_dir: Optional[str] = None, simulator_mode: bool = False):
         """
         Initialize the deployment generator.
 
         Args:
             output_dir: Directory to write generated YAML files (default: generated_configs/)
+            simulator_mode: If True, use vLLM simulator instead of real vLLM (no GPU required)
         """
         # Set up template environment
         template_dir = Path(__file__).parent / "templates"
@@ -57,7 +58,10 @@ class DeploymentGenerator:
         # Create output directory if it doesn't exist
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"DeploymentGenerator initialized with output_dir: {self.output_dir}")
+        # Simulator mode (for development/testing without GPUs)
+        self.simulator_mode = simulator_mode
+
+        logger.info(f"DeploymentGenerator initialized with output_dir: {self.output_dir}, simulator_mode: {simulator_mode}")
 
     def generate_deployment_id(self, recommendation: DeploymentRecommendation) -> str:
         """
@@ -172,6 +176,9 @@ class DeploymentGenerator:
             "use_case": recommendation.intent.use_case,
             "reasoning": recommendation.reasoning,
             "generated_at": datetime.now().isoformat(),
+
+            # Simulator mode
+            "simulator_mode": self.simulator_mode,
 
             # GPU configuration
             "gpu_type": gpu_config.gpu_type,
