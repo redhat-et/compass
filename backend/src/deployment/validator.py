@@ -169,19 +169,27 @@ class YAMLValidator:
                 f"got '{data.get('apiVersion')}'"
             )
 
-        # Verify GPU resources are specified
+        # Check if this is simulator mode (skip GPU validation)
+        annotations = data.get("metadata", {}).get("annotations", {})
+        simulator_mode = annotations.get("ai-assistant/simulator-mode") == "true"
+
+        # Verify GPU resources are specified (unless simulator mode)
         predictor = data.get("spec", {}).get("predictor", {})
         containers = predictor.get("containers", [])
 
         if not containers:
             raise ValidationError("No containers defined in predictor")
 
-        resources = containers[0].get("resources", {})
-        gpu_requests = resources.get("requests", {}).get("nvidia.com/gpu")
-        gpu_limits = resources.get("limits", {}).get("nvidia.com/gpu")
+        if not simulator_mode:
+            # Only validate GPU resources for real vLLM mode
+            resources = containers[0].get("resources", {})
+            gpu_requests = resources.get("requests", {}).get("nvidia.com/gpu")
+            gpu_limits = resources.get("limits", {}).get("nvidia.com/gpu")
 
-        if not gpu_requests or not gpu_limits:
-            raise ValidationError("GPU resources not specified in container")
+            if not gpu_requests or not gpu_limits:
+                raise ValidationError("GPU resources not specified in container")
+        else:
+            logger.info(f"Simulator mode detected - skipping GPU validation")
 
         logger.info(f"KServe YAML validation passed: {file_path}")
         return True
