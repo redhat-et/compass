@@ -224,7 +224,7 @@ All data files in `data/` are synthetic for POC purposes:
 - ✅ **Sprint 3** (Complete): Streamlit UI with chat and spec editor
 - ✅ **Sprint 4** (Complete): YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard
 - ✅ **Sprint 5** (Complete): KIND cluster setup, KServe installation, actual Kubernetes deployment
-- ⏳ **Sprint 6**: End-to-end deployment with real model inference
+- ✅ **Sprint 6** (Complete): vLLM simulator for GPU-free development, inference testing UI
 
 ## Key Technologies
 
@@ -440,13 +440,80 @@ kubectl delete inferenceservice <deployment-id>
 kubectl cluster-info
 ```
 
+## Sprint 6 Features (NEW!)
+
+Sprint 6 is complete! New vLLM simulator capabilities:
+
+### vLLM Simulator Service
+- ✅ **GPU-free development** - Run deployments on any laptop without GPU hardware
+- ✅ **OpenAI-compatible API** - Implements `/v1/completions` and `/v1/chat/completions`
+- ✅ **Realistic performance** - Uses benchmark data to simulate TTFT/TPOT latency
+- ✅ **Pattern-based responses** - Returns appropriate canned responses (code, chat, summarization, etc.)
+- ✅ **Single Docker image** - Configure model via environment variables
+- ✅ **Prometheus metrics** - Exposes `/metrics` endpoint matching vLLM format
+
+### Inference Testing UI
+- ✅ **Test deployed models** directly from the Monitoring tab
+- ✅ **Send custom prompts** and see responses
+- ✅ **View latency metrics** and token usage
+- ✅ **Automatic port-forwarding** to Kubernetes service
+
+### How to Use Sprint 6 Features
+
+#### 1. Deploy a Model in Simulator Mode (default)
+
+The system now uses simulator mode by default for all deployments:
+
+```bash
+# Start the UI
+scripts/run_ui.sh
+
+# In the UI:
+# 1. Get a deployment recommendation
+# 2. Click "Generate Deployment YAML"
+# 3. Click "Deploy to Kubernetes"
+# 4. Go to Monitoring tab
+# 5. Pod should become Ready in ~10-15 seconds
+```
+
+#### 2. Test Inference
+
+Once deployed:
+1. Go to **Monitoring** tab
+2. See "🧪 Inference Testing" section
+3. Enter a test prompt
+4. Click "🚀 Send Test Request"
+5. View the simulated response and metrics
+
+#### 3. Switch to Real vLLM (Future)
+
+To use real vLLM with actual GPUs (Phase 2):
+```python
+# In backend/src/api/routes.py
+deployment_generator = DeploymentGenerator(simulator_mode=False)
+```
+
+Then deploy to a GPU-enabled cluster.
+
+### Simulator vs Real vLLM
+
+| Feature | Simulator Mode | Real vLLM Mode |
+|---------|---------------|----------------|
+| GPU Required | ❌ No | ✅ Yes |
+| Model Download | ❌ No | ✅ Yes (from HuggingFace) |
+| Inference | Canned responses | Real generation |
+| Latency | Simulated (from benchmarks) | Actual GPU performance |
+| Use Case | Development, testing, demos | Production deployment |
+| Cluster | Works on KIND (local) | Requires GPU-enabled cluster |
+
 ## Next Steps
 
-Sprint 5 complete! Next up (Sprint 6):
-1. Deploy actual vLLM models to cluster
-2. Real model inference testing
-3. Performance validation
-4. End-to-end observability
+Sprint 6 complete! Future enhancements:
+1. Add streaming response support to simulator
+2. Implement error injection for testing
+3. Add real vLLM deployment mode with GPU validation
+4. Collect actual performance metrics from real deployments
+5. Build feedback loop: actual metrics → benchmark updates
 
 ## Contributing
 

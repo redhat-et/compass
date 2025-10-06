@@ -192,14 +192,67 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ## Important Notes
 
-- **Sprint 1-5 Complete**:
+- **Sprint 1-6 Complete**:
   - Sprint 1: Project structure, synthetic data, and LLM client implemented
   - Sprint 2: Core recommendation engine (intent extraction, traffic profiling, model recommendation, capacity planning), orchestration workflow, FastAPI backend
   - Sprint 3: Streamlit UI with chat interface, recommendation display, and editable specifications
   - Sprint 4: YAML generation (KServe/vLLM/HPA/ServiceMonitor), mock monitoring dashboard, deployment automation
   - Sprint 5: KIND cluster setup, KServe installation, Kubernetes deployment automation, real cluster status monitoring
+  - Sprint 6: vLLM simulator for GPU-free development, inference testing UI, end-to-end deployment validation
 - When implementing subsequent sprints, preserve the architectural principles documented in docs/
 - The Knowledge Base schemas are critical - any implementation must support all 7 collections
 - SLO-driven capacity planning is the core differentiator - don't simplify this away
 - Use synthetic data in data/ directory for POC; production would use PostgreSQL
 - Benchmarks use vLLM default configuration with dynamic batching (no fixed batch_size)
+
+## Simulator Mode vs Real vLLM
+
+The system now supports two deployment modes:
+
+### Simulator Mode (Default for Development)
+- **Purpose**: GPU-free development and testing on local machines
+- **Location**: `simulator/` directory contains the vLLM simulator service
+- **Docker Image**: `vllm-simulator:latest` (single image for all models)
+- **Configuration**: Set `DeploymentGenerator(simulator_mode=True)` in `backend/src/api/routes.py`
+- **Benefits**:
+  - No GPU hardware required
+  - Fast deployment (~10-15 seconds to Ready)
+  - Predictable behavior for demos
+  - Works on KIND (Kubernetes in Docker)
+  - Uses actual benchmark data for realistic latency simulation
+
+### Real vLLM Mode (Production)
+- **Purpose**: Actual model inference with GPUs
+- **Configuration**: Set `DeploymentGenerator(simulator_mode=False)` in `backend/src/api/routes.py`
+- **Requirements**:
+  - GPU-enabled Kubernetes cluster
+  - NVIDIA GPU Operator installed
+  - HuggingFace token secret for model downloads
+  - Sufficient GPU resources (based on recommendations)
+- **Behavior**:
+  - Downloads actual models from HuggingFace
+  - Real GPU inference
+  - Production-grade performance
+
+### When to Use Each Mode
+
+**Use Simulator Mode for:**
+- Local development and testing
+- UI/UX iteration
+- Workflow validation
+- Demos and presentations
+- CI/CD testing (no GPU required)
+
+**Use Real vLLM Mode for:**
+- Production deployments
+- Performance benchmarking
+- Model quality validation
+- GPU utilization testing
+
+### Technical Details
+
+The deployment template (`backend/src/deployment/templates/kserve-inferenceservice.yaml.j2`) uses Jinja2 conditionals:
+- `{% if simulator_mode %}` - Uses `vllm-simulator:latest`, no GPU resources, fast health checks
+- `{% else %}` - Uses `vllm/vllm-openai:v0.6.2`, requests GPUs, longer health checks
+
+Single codebase supports both modes - just toggle the flag!

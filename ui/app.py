@@ -607,9 +607,11 @@ def render_monitoring_tab(rec: Dict[str, Any]):
         """)
         return
 
-    # If deployed to cluster, show actual K8s status
+    # If deployed to cluster, show actual K8s status and inference testing
     if st.session_state.deployed_to_cluster:
         render_k8s_status()
+        st.markdown("---")
+        render_inference_testing()
         st.markdown("---")
 
     # Fetch mock monitoring data
@@ -683,6 +685,147 @@ def render_k8s_status():
         st.error("❌ Cannot connect to backend API.")
     except Exception as e:
         st.error(f"❌ Error fetching K8s status: {str(e)}")
+
+
+def render_inference_testing():
+    """Render inference testing UI component."""
+    st.markdown("####  🧪 Inference Testing")
+
+    st.markdown("""
+    Test the deployed model by sending inference requests. This validates that the vLLM simulator
+    is running and responding correctly.
+    """)
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        # Test prompt input
+        test_prompt = st.text_area(
+            "Test Prompt",
+            value="Write a Python function to calculate fibonacci numbers",
+            height=100,
+            help="Enter a prompt to test the model"
+        )
+
+    with col2:
+        max_tokens = st.number_input("Max Tokens", value=150, min_value=10, max_value=500)
+        temperature = st.slider("Temperature", 0.0, 2.0, 0.7, 0.1)
+
+    # Test button
+    if st.button("🚀 Send Test Request", use_container_width=True):
+        with st.spinner("Sending inference request..."):
+            try:
+                import subprocess
+                import json
+                import time
+
+                # Get service name (same as deployment_id)
+                service_name = st.session_state.deployment_id
+
+                # Use kubectl port-forward in background, then send request
+                st.info(f"📡 Connecting to service: `{service_name}`")
+
+                # Start port-forward in background
+                port_forward_proc = subprocess.Popen(
+                    ["kubectl", "port-forward", f"svc/{service_name}", "8080:8080"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+
+                # Give it a moment to establish connection
+                time.sleep(2)
+
+                try:
+                    # Send inference request
+                    start_time = time.time()
+
+                    curl_cmd = [
+                        "curl", "-s", "-X", "POST",
+                        "http://localhost:8080/v1/completions",
+                        "-H", "Content-Type: application/json",
+                        "-d", json.dumps({
+                            "prompt": test_prompt,
+                            "max_tokens": max_tokens,
+                            "temperature": temperature
+                        })
+                    ]
+
+                    result = subprocess.run(
+                        curl_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+
+                    elapsed_time = time.time() - start_time
+
+                    if result.returncode == 0 and result.stdout:
+                        response_data = json.loads(result.stdout)
+
+                        # Display response
+                        st.success(f"✅ Response received in {elapsed_time:.2f}s")
+
+                        # Show the generated text
+                        st.markdown("**Generated Response:**")
+                        response_text = response_data.get("choices", [{}])[0].get("text", "")
+                        st.code(response_text, language=None)
+
+                        # Show usage stats
+                        usage = response_data.get("usage", {})
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Prompt Tokens", usage.get("prompt_tokens", 0))
+                        with col2:
+                            st.metric("Completion Tokens", usage.get("completion_tokens", 0))
+                        with col3:
+                            st.metric("Total Tokens", usage.get("total_tokens", 0))
+
+                        # Show timing
+                        st.metric("Total Latency", f"{elapsed_time:.2f}s")
+
+                        # Show raw response in expander
+                        with st.expander("📋 Raw API Response"):
+                            st.json(response_data)
+
+                    else:
+                        st.error(f"❌ Request failed: {result.stderr}")
+
+                finally:
+                    # Clean up port-forward process
+                    port_forward_proc.terminate()
+                    port_forward_proc.wait(timeout=2)
+
+            except subprocess.TimeoutExpired:
+                st.error("❌ Request timed out (30s). The model may still be starting up.")
+                try:
+                    port_forward_proc.terminate()
+                except:
+                    pass
+            except json.JSONDecodeError as e:
+                st.error(f"❌ Failed to parse response: {e}")
+                st.code(result.stdout)
+            except Exception as e:
+                st.error(f"❌ Error testing inference: {str(e)}")
+
+    # Add helpful notes
+    with st.expander("ℹ️ How Inference Testing Works"):
+        st.markdown("""
+        **Process:**
+        1. Creates temporary port-forward to the Kubernetes service
+        2. Sends HTTP POST request to `/v1/completions` endpoint
+        3. Displays the response and metrics
+        4. Closes the port-forward connection
+
+        **Simulator Mode:**
+        - Returns canned responses based on prompt patterns
+        - Simulates realistic latency (TTFT/TPOT from benchmarks)
+        - No actual model inference occurs
+
+        **Production Mode (future):**
+        - Would use real vLLM inference
+        - Actual token generation
+        - Real GPU utilization
+        """)
 
 
 def render_monitoring_dashboard(status: Dict[str, Any], rec: Dict[str, Any]):
