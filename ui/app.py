@@ -726,14 +726,23 @@ def render_inference_testing():
                 st.info(f"📡 Connecting to service: `{service_name}`")
 
                 # Start port-forward in background
+                # KServe services expose port 80 (which maps to container port 8080)
                 port_forward_proc = subprocess.Popen(
-                    ["kubectl", "port-forward", f"svc/{service_name}", "8080:8080"],
+                    ["kubectl", "port-forward", f"svc/{service_name}", "8080:80"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE
                 )
 
                 # Give it a moment to establish connection
-                time.sleep(2)
+                time.sleep(3)
+
+                # Check if port-forward is still running
+                if port_forward_proc.poll() is not None:
+                    # Process exited
+                    pf_stdout, pf_stderr = port_forward_proc.communicate()
+                    st.error("❌ Port-forward failed to start")
+                    st.code(f"stdout: {pf_stdout.decode()}\nstderr: {pf_stderr.decode()}", language="text")
+                    return
 
                 try:
                     # Send inference request
@@ -750,6 +759,10 @@ def render_inference_testing():
                         })
                     ]
 
+                    # Show the command being executed for debugging
+                    with st.expander("🔍 Debug Info"):
+                        st.code(" ".join(curl_cmd), language="bash")
+
                     result = subprocess.run(
                         curl_cmd,
                         capture_output=True,
@@ -760,35 +773,52 @@ def render_inference_testing():
                     elapsed_time = time.time() - start_time
 
                     if result.returncode == 0 and result.stdout:
-                        response_data = json.loads(result.stdout)
+                        try:
+                            response_data = json.loads(result.stdout)
 
-                        # Display response
-                        st.success(f"✅ Response received in {elapsed_time:.2f}s")
+                            # Display response
+                            st.success(f"✅ Response received in {elapsed_time:.2f}s")
 
-                        # Show the generated text
-                        st.markdown("**Generated Response:**")
-                        response_text = response_data.get("choices", [{}])[0].get("text", "")
-                        st.code(response_text, language=None)
+                            # Show the generated text
+                            st.markdown("**Generated Response:**")
+                            response_text = response_data.get("choices", [{}])[0].get("text", "")
+                            st.code(response_text, language=None)
 
-                        # Show usage stats
-                        usage = response_data.get("usage", {})
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric("Prompt Tokens", usage.get("prompt_tokens", 0))
-                        with col2:
-                            st.metric("Completion Tokens", usage.get("completion_tokens", 0))
-                        with col3:
-                            st.metric("Total Tokens", usage.get("total_tokens", 0))
+                            # Show usage stats
+                            usage = response_data.get("usage", {})
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Prompt Tokens", usage.get("prompt_tokens", 0))
+                            with col2:
+                                st.metric("Completion Tokens", usage.get("completion_tokens", 0))
+                            with col3:
+                                st.metric("Total Tokens", usage.get("total_tokens", 0))
 
-                        # Show timing
-                        st.metric("Total Latency", f"{elapsed_time:.2f}s")
+                            # Show timing
+                            st.metric("Total Latency", f"{elapsed_time:.2f}s")
 
-                        # Show raw response in expander
-                        with st.expander("📋 Raw API Response"):
-                            st.json(response_data)
+                            # Show raw response in expander
+                            with st.expander("📋 Raw API Response"):
+                                st.json(response_data)
+
+                        except json.JSONDecodeError as e:
+                            st.error(f"❌ Failed to parse JSON response: {e}")
+                            st.markdown("**Raw stdout:**")
+                            st.code(result.stdout, language="text")
 
                     else:
-                        st.error(f"❌ Request failed: {result.stderr}")
+                        st.error(f"❌ Request failed (return code: {result.returncode})")
+
+                        if result.stdout:
+                            st.markdown("**stdout:**")
+                            st.code(result.stdout, language="text")
+
+                        if result.stderr:
+                            st.markdown("**stderr:**")
+                            st.code(result.stderr, language="text")
+
+                        if not result.stdout and not result.stderr:
+                            st.warning("No output captured from curl command. Port-forward may have failed.")
 
                 finally:
                     # Clean up port-forward process
@@ -801,11 +831,11 @@ def render_inference_testing():
                     port_forward_proc.terminate()
                 except:
                     pass
-            except json.JSONDecodeError as e:
-                st.error(f"❌ Failed to parse response: {e}")
-                st.code(result.stdout)
             except Exception as e:
                 st.error(f"❌ Error testing inference: {str(e)}")
+                import traceback
+                with st.expander("🔍 Full Error Traceback"):
+                    st.code(traceback.format_exc(), language="text")
 
     # Add helpful notes
     with st.expander("ℹ️ How Inference Testing Works"):
