@@ -480,15 +480,21 @@ Then deploy to a GPU-enabled cluster.
 ## Future Enhancements
 
 Potential improvements for Phase 2:
-1. Streaming response support in simulator
-2. Error injection for testing resilience
-3. Real vLLM deployment mode with GPU validation
-4. Collect actual performance metrics from real deployments
-5. Feedback loop: actual metrics → benchmark updates
-6. Statistical distributions for traffic (not just point estimates)
-7. Multi-dimensional benchmarks (batch size, sequence length variations)
-8. Security hardening (YAML validation, RBAC)
-9. Multi-tenancy support
+1. **External Access for Production**:
+   - Generate Ingress/IngressRoute YAML for permanent external access
+   - Support multiple simultaneous services (multi-tenant deployments)
+   - Path-based routing (e.g., `/inference/customer-service`)
+   - Host-based routing (e.g., `customer-service.inference.company.com`)
+   - TLS, authentication, and rate limiting at ingress layer
+2. Streaming response support in simulator
+3. Error injection for testing resilience
+4. Real vLLM deployment mode with GPU validation
+5. Collect actual performance metrics from real deployments
+6. Feedback loop: actual metrics → benchmark updates
+7. Statistical distributions for traffic (not just point estimates)
+8. Multi-dimensional benchmarks (batch size, sequence length variations)
+9. Security hardening (YAML validation, RBAC)
+10. Multi-tenancy support (namespaces, resource quotas, network policies)
 
 ## Contributing
 

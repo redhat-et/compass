@@ -408,6 +408,46 @@ Consider migrating to Go if requirements evolve to include:
 6. Configure observability hooks
 7. Return deployment ID and monitoring links
 
+**External Access Patterns (Phase 2 Production Requirement)**:
+
+The POC uses kubectl port-forward for testing individual deployments. Production deployments require permanent external access to support multiple simultaneous services (e.g., different departments with different use cases).
+
+**Recommended Approaches**:
+
+1. **Ingress (Recommended for Production)**
+   - Single external endpoint with path-based or host-based routing
+   - Centralized TLS, authentication, and rate limiting
+   - Scales to hundreds of services without port conflicts
+   - Example patterns:
+     - Path-based: `https://inference.mycompany.com/customer-service`
+     - Host-based: `https://customer-service.inference.mycompany.com`
+   - Requires: Ingress controller (NGINX, Istio, Kong, etc.)
+   - Phase 2 Enhancement: Generate Ingress/IngressRoute YAML alongside InferenceService
+
+2. **LoadBalancer Services**
+   - Each service gets unique external IP address
+   - Simple direct access with no ingress layer
+   - Drawback: One external IP per service (costly in cloud environments)
+   - Use case: Small number of high-priority services needing dedicated IPs
+
+3. **NodePort Services**
+   - Expose services on static ports (30000-32767) across all nodes
+   - Access via `<node-ip>:<nodeport>`
+   - Drawback: Limited port range, requires exposing node IPs
+   - Use case: On-premise deployments with direct node access
+
+4. **Service Mesh (Advanced)**
+   - Istio/Linkerd for advanced traffic management, mutual TLS, and observability
+   - Supports A/B testing, canary deployments, circuit breaking
+   - Use case: Complex multi-tenant environments with sophisticated routing needs
+
+**Multi-Tenant Considerations**:
+- Each department/team gets dedicated InferenceService with isolated resources
+- Ingress provides unified entry point with path/host routing to appropriate service
+- Authentication/authorization enforced at ingress layer (OAuth, JWT, API keys)
+- Resource quotas and network policies for tenant isolation
+- Separate namespaces per tenant for strong isolation (optional)
+
 ---
 
 ### 6. Knowledge Base & Benchmarking Data Store
