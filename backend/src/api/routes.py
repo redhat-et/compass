@@ -614,6 +614,59 @@ async def delete_deployment(deployment_id: str):
         )
 
 
+@app.get("/api/deployments")
+async def list_all_deployments():
+    """
+    List all InferenceServices in the cluster with their detailed status.
+
+    Returns:
+        List of deployments with status information
+
+    Raises:
+        HTTPException: If cluster not accessible
+    """
+    # Try to initialize cluster manager if it wasn't available at startup
+    manager = cluster_manager
+    if manager is None:
+        try:
+            manager = KubernetesClusterManager(namespace="default")
+        except KubernetesDeploymentError as e:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Kubernetes cluster not accessible: {str(e)}"
+            )
+
+    try:
+        # Get list of all InferenceService names
+        deployment_ids = manager.list_inferenceservices()
+
+        # Get detailed status for each
+        deployments = []
+        for deployment_id in deployment_ids:
+            status = manager.get_inferenceservice_status(deployment_id)
+            pods = manager.get_deployment_pods(deployment_id)
+
+            deployments.append({
+                "deployment_id": deployment_id,
+                "status": status,
+                "pods": pods
+            })
+
+        return {
+            "success": True,
+            "count": len(deployments),
+            "deployments": deployments,
+            "namespace": manager.namespace
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to list deployments: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list deployments: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
