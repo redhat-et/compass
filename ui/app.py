@@ -91,6 +91,18 @@ def main():
     # Sidebar
     render_sidebar()
 
+    # Top-level tabs
+    main_tabs = st.tabs(["🤖 Assistant", "📦 Deployment Management"])
+
+    with main_tabs[0]:
+        render_assistant_tab()
+
+    with main_tabs[1]:
+        render_deployment_management_tab()
+
+
+def render_assistant_tab():
+    """Render the AI assistant tab with chat and recommendations."""
     # Main content area - two columns
     col1, col2 = st.columns([1, 1])
 
@@ -127,17 +139,113 @@ def main():
                         deploy_to_cluster(st.session_state.recommendation)
 
     with col2:
-        # Check if we should show standalone deployments page
-        # (either from sidebar click or if we have selected_deployment but no recommendation)
-        if st.session_state.get("show_monitoring") or (st.session_state.get("selected_deployment") and not st.session_state.recommendation):
-            st.subheader("📡 Deployment Monitoring")
-            # Show monitoring for all deployments (no recommendation needed)
-            render_deployments_page()
-        elif st.session_state.recommendation:
+        if st.session_state.recommendation:
             st.subheader("📊 Recommendation")
             render_recommendation()
         else:
-            st.info("👈 Start a conversation to get deployment recommendations or view existing deployments")
+            st.info("👈 Start a conversation to get deployment recommendations")
+
+
+def render_deployment_management_tab():
+    """Render the deployment management tab with list of services and details."""
+    st.markdown("### 📦 Cluster Deployments")
+
+    # Load all deployments from cluster
+    all_deployments = load_all_deployments()
+
+    if all_deployments is None:
+        st.warning("⚠️ Could not connect to cluster to list deployments")
+        st.info("""
+        **Troubleshooting:**
+        - Ensure Kubernetes cluster is running (e.g., KIND cluster)
+        - Check that kubectl can access the cluster: `kubectl cluster-info`
+        - Verify backend API is running on http://localhost:8000
+        """)
+        return
+
+    if len(all_deployments) == 0:
+        st.info("""
+        📦 **No deployments found in cluster**
+
+        To create a deployment:
+        1. Go to the **Assistant** tab
+        2. Describe your use case in the conversation
+        3. Review the recommendation
+        4. Click "Deploy to Kubernetes"
+        """)
+        return
+
+    # Show deployments table
+    st.markdown(f"**Found {len(all_deployments)} deployment(s)**")
+
+    # Create table data
+    table_data = []
+    for dep in all_deployments:
+        dep_id = dep["deployment_id"]
+        status = dep.get("status", {})
+        pods = dep.get("pods", [])
+
+        # Get service info (cluster IP, ports)
+        ready = status.get("ready", False)
+        ready_icon = "✅" if ready else "⏳"
+
+        # Extract basic info
+        cluster_ip = "N/A"
+        port = "N/A"
+
+        table_data.append({
+            "Status": ready_icon,
+            "Name": dep_id,
+            "Pods": len(pods),
+            "Ready": "Yes" if ready else "No"
+        })
+
+    # Display as table with clickable rows
+    import pandas as pd
+    df = pd.DataFrame(table_data)
+
+    # Use dataframe to display (not editable)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.markdown("---")
+    st.markdown("### 🔍 Select Deployment to Manage")
+
+    # Deployment selector
+    deployment_options = {d["deployment_id"]: d for d in all_deployments}
+    deployment_ids = list(deployment_options.keys())
+
+    # Initialize selected deployment if not set
+    if "selected_deployment" not in st.session_state or st.session_state.selected_deployment not in deployment_ids:
+        st.session_state.selected_deployment = deployment_ids[0] if deployment_ids else None
+
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        selected = st.selectbox(
+            "Choose a deployment:",
+            deployment_ids,
+            index=deployment_ids.index(st.session_state.selected_deployment) if st.session_state.selected_deployment in deployment_ids else 0,
+            key="deployment_selector_mgmt"
+        )
+        st.session_state.selected_deployment = selected
+
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh", use_container_width=True, key="refresh_mgmt"):
+            st.rerun()
+
+    if not st.session_state.selected_deployment:
+        return
+
+    deployment_info = deployment_options[st.session_state.selected_deployment]
+
+    st.markdown("---")
+
+    # Show detailed management for selected deployment
+    render_deployment_management(deployment_info)
+    st.markdown("---")
+    render_k8s_status_for_deployment(deployment_info)
+    st.markdown("---")
+    render_inference_testing_for_deployment(deployment_info)
 
 
 def render_sidebar():
