@@ -3,24 +3,29 @@
 ## Option 1: High-Level Flow (Recommended for slides)
 
 ```mermaid
-graph LR
-    A[💬 Chat UI] --> B[🧠 AI Intent<br/>Extraction]
-    B --> C[📊 Recommendation<br/>Engine]
-    C --> D[✏️ Review &<br/>Edit Specs]
-    D --> E[🚀 Deploy to<br/>Kubernetes]
-    E --> F[📈 Monitor<br/>& Test]
-
-    KB[(Knowledge Base<br/>Benchmarks, SLOs,<br/>Model Catalog)]
-
-    C -.-> KB
-    F -.-> KB
-
+---
+config:
+  layout: fixed
+  look: neo
+---
+flowchart LR
+    A["💬 Chat UI"] --> B["🧠 AI Intent<br>Extraction"]
+    B --> C["📊 Recommendation<br>Engine"]
+    B -.-> LLM["Ollama<br>llama3.1:8b"]
+    C --> D["✏️ Review &amp;<br>Edit Specs"]
+    D --> E["🚀 Deploy to<br>Kubernetes"]
+    E --> F["📈 Monitor<br>&amp; Test"]
+    E -.-> K8S["☸️ Kubernetes Cluster<br><small>KIND + KServe + vLLM Simulator</small>"]
+    C -.-> KB[("Knowledge Base<br>Benchmarks, SLOs,<br>Model Catalog<br>(Synthetic Data)")]
+    F -.-> KB & K8S
     style A fill:#e1f5ff
     style B fill:#fff4e1
     style C fill:#fff4e1
+    style LLM fill:#E1BEE7
     style D fill:#e1f5ff
     style E fill:#e1ffe1
     style F fill:#ffe1e1
+    style K8S fill:#BBDEFB
     style KB fill:#f0f0f0
 ```
 
