@@ -1,285 +1,134 @@
-# AI Pre-Deployment Assistant
-## POC Demo - Sprint 6 Complete
+# AI Pre-Deployment Assistant - Technical Overview
 
 ---
 
-## The Problem
+## Slide 1: Project Goals
 
-**Deploying LLMs in production is hard:**
+**Problem**: LLM production deployments are complex and error-prone
+- Developers struggle to translate business needs into infrastructure choices
+- Trial-and-error wastes time and money on expensive GPU resources
+- No guidance on model selection, GPU sizing, or SLO target setting
 
-- ❌ How do I translate "chatbot for 1000 users" into GPU requirements?
-- ❌ Which model should I use? How many GPUs? What type?
-- ❌ Will it meet my latency and cost requirements?
-- ❌ Trial-and-error wastes time and money on expensive GPU deployments
+**Solution**: Conversational assistant that automates the path from concept to production
+- 4-stage flow: Understand context → Generate recommendations → Enable exploration → One-click deployment
+- SLO-driven capacity planning with benchmark-backed predictions
+- GPU-free development via vLLM simulator
 
-**Result:** Teams either over-provision (waste money) or under-provision (poor performance)
-
----
-
-## Our Solution
-
-**Conversational AI that guides you from concept to production**
-
-```
-User: "I need a customer service chatbot for 1000 concurrent users"
-
-System: ✅ Recommends: Mistral 7B on 2x NVIDIA L4 GPUs
-        ✅ Predicts: p90 latency 180ms, $800/month
-        ✅ Generates: Production-ready Kubernetes YAML
-        ✅ Deploys: One-click to your cluster
-```
+**Current Status**: Phase 1 POC complete - full end-to-end workflow operational
 
 ---
 
-## Core Innovation: SLO-Driven Capacity Planning
+## Slide 2: Core Innovation - SLO-Driven Capacity Planning
 
-**Translates business intent → technical specifications**
+**User input** (natural language):
+> "I need a chatbot for 1000 users, low latency is critical"
 
-| User Input | System Output |
-|-----------|---------------|
-| "Chatbot for 1000 users, low latency critical" | • Traffic profile (QPS, token lengths)<br>• SLO targets (TTFT p90: 200ms, TPOT p90: 50ms)<br>• GPU capacity (2x L4, independent replicas)<br>• Cost estimate ($800/month) |
+**System generates** (structured specs):
+- Traffic profile: avg prompt 150 tokens, generation 200 tokens, peak QPS 100
+- SLO targets: TTFT p90 < 200ms, TPOT p90 < 50ms, E2E p95 < 2000ms
+- GPU recommendation: 2x NVIDIA L4, independent replicas
+- Cost estimate: $800/month
 
-**Powered by:**
-- Benchmark database (24 model+GPU combinations, vLLM performance)
-- Use case SLO templates (7 templates: chatbot, summarization, code-gen...)
-- Intelligent recommendation engine
+**Key differentiator**: Translate high-level intent into production-ready infrastructure specifications
 
 ---
 
-## System Architecture
+## Slide 3: Architecture Overview (10 Components)
 
-**10 Core Components:**
-
-1. **Conversational Interface** - Streamlit chat UI
-2. **Context & Intent Engine** - Extract structured specs from natural language
-3. **Recommendation Engine** - Traffic profiling, model selection, capacity planning
-4. **Simulation Layer** - What-if analysis, editable specifications
+1. **Conversational Interface** - Streamlit UI with chat and multi-tab recommendations
+2. **Context & Intent Engine** - Extract structured specs from conversation, map to SLO templates
+3. **Recommendation Engine** - 3 sub-components:
+   - Traffic Profile Generator
+   - Model Recommendation (filter by task, rank by priority)
+   - Capacity Planning (GPU sizing, SLO compliance prediction)
+4. **Simulation & Exploration** - What-if analysis, editable specifications
 5. **Deployment Automation** - Generate KServe/vLLM YAML, deploy to K8s
-6. **Knowledge Base** - Benchmarks, SLO templates, model catalog
+6. **Knowledge Base** - Benchmarks, SLO templates, model catalog, deployment outcomes
 7. **LLM Backend** - Ollama (llama3.1:8b) for conversational AI
-8. **Orchestration** - Multi-step workflow coordination
-9. **Observability** - Monitor deployed models (SLO compliance, resource usage)
+8. **Orchestration** - FastAPI workflow coordination
+9. **Inference Observability** - Monitor TTFT/TPOT/throughput, validate SLO compliance
 10. **vLLM Simulator** - GPU-free development and testing
 
-**Tech Stack:** Python (FastAPI backend), Streamlit UI, Kubernetes/KServe, vLLM
+---
+
+## Slide 4: Technology Stack (Phase 1)
+
+| Component | Technology | Rationale |
+|-----------|-----------|-----------|
+| **UI** | Streamlit | Rapid prototyping, built-in session management |
+| **Backend** | FastAPI + Python | Stack consistency, mature ecosystem |
+| **Intent Extraction** | Ollama + Pydantic | Structured output with validation |
+| **Recommendations** | Rule-based + LLM | Explainable, no training required |
+| **Deployment** | Jinja2 + K8s Python client | Direct control, native templating |
+| **Knowledge Base** | JSON files (POC) → PostgreSQL (Production) | Simple for POC, scalable for production |
+| **Inference Platform** | KServe + vLLM | Industry standard for LLM serving |
+| **Simulator** | FastAPI + Docker | Benchmark-driven latency simulation |
+
+**Design principle**: Full Python stack for rapid Phase 1 development (may migrate deployment engine to Go in Phase 2+ for advanced K8s integration)
 
 ---
 
-## What's Working Now (Complete POC)
+## Slide 5: Knowledge Base - 7 Critical Data Collections
 
-### ✅ Foundation & Core Engine
-- Synthetic benchmark data (24 model+GPU combinations)
-- Core recommendation logic (intent extraction, traffic profiling, capacity planning)
-- FastAPI backend with REST endpoints
-- Ollama LLM integration
+1. **Model Benchmarks** - TTFT/TPOT/throughput for (model, GPU, tensor_parallel) tuples
+   - 24 model+GPU combinations in POC
+   - Collected using vLLM default config (dynamic batching enabled)
 
-### ✅ UI & Deployment Automation
-- Chat interface for conversational requirement gathering
-- Multi-tab recommendation display (Overview, Specs, Performance, Cost, Monitoring)
-- Editable specifications with review mode
-- YAML generation (KServe InferenceService, vLLM, HPA, ServiceMonitor)
-- Monitoring dashboard with real cluster status
+2. **Use Case SLO Templates** - Default targets for chatbot, summarization, code-gen, etc.
+   - 7 templates with traffic defaults and SLO targets
 
-### ✅ Kubernetes Deployment & Testing
-- KIND cluster setup with KServe installation
-- Kubernetes deployment automation
-- **vLLM Simulator** - GPU-free development!
-- Live inference testing through UI
-- Real cluster status monitoring
+3. **Model Catalog** - Curated, approved models with task/domain metadata
+   - 10 models in POC (Llama-3, Mistral, Qwen, etc.)
 
----
+4. **Hardware Profiles** - GPU specs, availability, pricing
 
-## Live Demo Flow
+5. **Cost Data** - Per-GPU hourly/monthly rates
 
-### 1. Chat Interface - Gather Requirements
-- User describes their use case in natural language
-- System extracts structured specifications
-- Auto-generates traffic profile and SLO targets
+6. **Deployment Templates** - Pre-configured patterns for common scenarios
 
-### 2. Review Recommendations
-- **Overview Tab**: Recommended model + GPU configuration
-- **Specifications Tab**: Editable technical specs
-- **Performance Tab**: Predicted TTFT, TPOT, throughput
-- **Cost Tab**: Infrastructure cost estimates
+7. **Deployment Outcomes** - Actual performance data for feedback loop (Phase 2)
 
-### 3. Deploy to Kubernetes
-- Click "Generate YAML" → See production configs
-- Click "Deploy to Kubernetes" → Deploy to KIND cluster
-- Monitor deployment status (Pending → Ready)
-
-### 4. Test Inference
-- Send real requests to deployed model
-- See actual latency, token counts, responses
-- Verify SLO compliance
+**Current POC**: Synthetic data in JSON files; production requires database with vector search
 
 ---
 
-## Key Innovation: vLLM Simulator
+## Slide 6: Simulator Mode vs Real vLLM
 
-**Problem:** Can't test deployments without expensive GPUs
+**Two deployment modes with single codebase**:
 
-**Solution:** Built a vLLM-compatible simulator
+**Simulator Mode** (default for POC):
+- Docker image: `vllm-simulator:latest`
+- No GPU required, runs on KIND (Kubernetes in Docker)
+- Fast deployment (~10-15 seconds to Ready)
+- Benchmark-driven latency simulation using actual performance data
+- Use case: Local development, testing, demos, CI/CD
 
-- ✅ OpenAI-compatible API (drop-in replacement for vLLM)
-- ✅ Benchmark-driven latency simulation (realistic TTFT/TPOT)
-- ✅ Pattern-based response generation
-- ✅ Runs on CPU (laptops, CI/CD)
-- ✅ Configurable via env vars (single Docker image for all models)
+**Real vLLM Mode** (production):
+- Docker image: `vllm/vllm-openai:v0.6.2`
+- Requires GPU-enabled K8s cluster + NVIDIA GPU Operator
+- Downloads models from HuggingFace, real GPU inference
+- Use case: Production deployments, performance benchmarking
 
-**Benefits:**
-- Developers can test on laptops without GPUs
-- Fast feedback loop during development
-- Easy transition to real vLLM in production
-
----
-
-## Demo Architecture
-
-```
-┌─────────────────┐
-│  Streamlit UI   │
-│  (localhost)    │
-└────────┬────────┘
-         │ HTTP
-         ▼
-┌─────────────────┐
-│  FastAPI Backend│
-│  (localhost)    │
-└────────┬────────┘
-         │ kubectl
-         ▼
-┌─────────────────────────────────┐
-│  KIND Cluster (localhost)       │
-│  ┌───────────────────────────┐  │
-│  │  KServe InferenceService  │  │
-│  │  ┌─────────────────────┐  │  │
-│  │  │  vLLM Simulator     │  │  │
-│  │  │  (FastAPI service)  │  │  │
-│  │  └─────────────────────┘  │  │
-│  └───────────────────────────┘  │
-└─────────────────────────────────┘
-```
+**Toggle**: Single flag in `backend/src/api/routes.py` - `DeploymentGenerator(simulator_mode=True/False)`
 
 ---
 
-## Key Differentiators
+## Slide 7: Implementation Status & Demo Flow
 
-### 1. **SLO-First Approach**
-Not just "pick a model" - comprehensive capacity planning with latency predictions
+**What's complete** (Phase 1 POC):
+- ✅ Conversational UI with chat interface
+- ✅ Intent extraction and traffic profile generation
+- ✅ Model + GPU recommendations with SLO compliance prediction
+- ✅ Editable specifications (user can modify auto-generated specs)
+- ✅ YAML generation (KServe InferenceService, HPA, ServiceMonitor)
+- ✅ Kubernetes deployment automation (KIND cluster tested)
+- ✅ Real cluster monitoring (pod status, resource usage)
+- ✅ Inference testing UI (end-to-end validation via OpenAI API)
+- ✅ vLLM simulator for GPU-free development
 
-### 2. **Conversational + Interactive**
-Natural language input → editable specs → one-click deployment
-
-### 3. **Benchmark-Driven**
-Real vLLM performance data, not guesswork
-
-### 4. **Production-Ready Output**
-Generates actual KServe/vLLM configs, not toy examples
-
-### 5. **End-to-End**
-From "I need a chatbot" to deployed inference endpoint in minutes
-
----
-
-## Current Capabilities
-
-| Feature | Status |
-|---------|--------|
-| Conversational requirement gathering | ✅ Working |
-| Model recommendation (10 curated models) | ✅ Working |
-| GPU capacity planning | ✅ Working |
-| SLO prediction (TTFT, TPOT, E2E latency) | ✅ Working |
-| Cost estimation | ✅ Working |
-| KServe YAML generation | ✅ Working |
-| Kubernetes deployment | ✅ Working |
-| Real inference testing | ✅ Working |
-| Cluster status monitoring | ✅ Working |
-| vLLM simulator mode | ✅ Working |
-
----
-
-## Example: Customer Service Chatbot
-
-**User Input (Chat):**
-> "I need a customer service chatbot. We have about 1000 concurrent users, and response time is critical for customer satisfaction."
-
-**System Recommendations:**
-
-- **Model:** Mistral 7B Instruct v0.3 (7B parameters)
-- **Infrastructure:** 2x NVIDIA L4 GPUs, independent replicas
-- **Performance:**
-  - TTFT p90: 180ms
-  - TPOT p90: 45ms
-  - E2E Latency p95: 1800ms
-- **Cost:** ~$800/month
-- **Deployment:** Auto-generated KServe InferenceService YAML
-
-**One-Click Deploy** → Running in KIND cluster → **Test with real requests**
-
----
-
-## Next Steps (Future Sprints)
-
-### Phase 1 Remaining
-- Real GPU testing (currently using simulator)
-- Feedback loop (actual performance → improve recommendations)
-- Multi-scenario comparison (side-by-side what-if analysis)
-- Enhanced cost models (reserved instances, spot pricing)
-
-### Phase 2 (Production)
-- Statistical distributions for traffic (not just point estimates)
-- Multi-dimensional benchmarks (batch size, sequence length variations)
-- Security hardening (YAML validation, RBAC)
-- Multi-tenancy support
-- Model catalog sync (automated updates)
-
----
-
-## Questions?
-
-**Try it yourself:**
-```bash
-# Backend
-cd backend && uvicorn src.api.main:app --reload
-
-# UI
-cd ui && streamlit run app.py
-
-# Deploy to KIND
-kubectl get inferenceservices
-```
-
-**Repository:** [Your repo URL]
-
-**Contact:** [Your contact info]
-
----
-
-## Appendix: Technical Deep Dive
-
-### Knowledge Base Schema (7 Collections)
-
-1. **Model Benchmarks** - TTFT/TPOT/throughput for (model, GPU, tensor_parallel)
-2. **Use Case SLO Templates** - Default targets for chatbot, summarization, etc.
-3. **Model Catalog** - Curated models with task/domain metadata
-4. **GPU Specifications** - Memory, compute capability, pricing
-5. **Traffic Patterns** - Historical usage data
-6. **Deployment Outcomes** - Actual performance (feedback loop)
-7. **Cost Models** - Cloud provider pricing
-
-### Recommendation Algorithm
-
-```python
-1. Extract intent from conversation → use_case, constraints
-2. Select SLO template based on use_case
-3. Generate traffic profile (QPS, token lengths, peak patterns)
-4. Query benchmarks: filter by SLO compliance
-5. Rank candidates by cost, performance margin
-6. Return top recommendation + alternatives
-```
-
----
-
-## Thank You!
-
-**Demo complete - Questions?**
+**Demo walkthrough**:
+1. Conversational requirement gathering
+2. Auto-generated recommendations with multiple options
+3. Editable specifications review
+4. One-click deployment to KIND cluster
+5. Monitoring dashboard with inference testing
