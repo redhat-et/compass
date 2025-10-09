@@ -152,6 +152,16 @@ start_cluster() {
         -p '{"data": {"deploy": "{\"defaultDeploymentMode\": \"RawDeployment\"}"}}'
     print_success "KServe configured"
 
+    # Load vLLM simulator image into cluster
+    print_step "Loading vLLM simulator image into cluster..."
+    if docker images vllm-simulator:latest --format "{{.Repository}}" | grep -q vllm-simulator; then
+        kind load docker-image vllm-simulator:latest --name "$CLUSTER_NAME"
+        print_success "vLLM simulator image loaded"
+    else
+        print_warning "vLLM simulator image not found locally - skipping"
+        echo "  Build the simulator: cd simulator && docker build -t vllm-simulator:latest ."
+    fi
+
     echo ""
     print_header "Cluster Ready!"
     echo ""
