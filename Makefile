@@ -45,6 +45,9 @@ OLLAMA_PID := $(PID_DIR)/ollama.pid
 BACKEND_PID := $(PID_DIR)/backend.pid
 UI_PID := $(PID_DIR)/ui.pid
 
+# Log directory
+LOG_DIR := logs
+
 # Allow local overrides via .env file
 -include .env
 export
@@ -105,8 +108,8 @@ setup: check-prereqs setup-backend setup-ui setup-ollama ## Run all setup tasks
 	@echo "$(GREEN)✓ Setup complete!$(NC)"
 	@echo ""
 	@echo "$(BLUE)Next steps:$(NC)"
-	@echo "  make dev          # Start all services"
 	@echo "  make cluster-start # Create Kubernetes cluster"
+	@echo "  make dev           # Start all services"
 
 ##@ Development
 
@@ -144,21 +147,23 @@ start-ollama: ## Start Ollama service
 
 start-backend: ## Start FastAPI backend
 	@echo "$(BLUE)Starting backend...$(NC)"
-	@mkdir -p $(PID_DIR)
+	@mkdir -p $(PID_DIR) $(LOG_DIR)
 	@if [ -f $(BACKEND_PID) ] && kill -0 $$(cat $(BACKEND_PID)) 2>/dev/null; then \
 		echo "$(YELLOW)Backend already running (PID: $$(cat $(BACKEND_PID)))$(NC)"; \
 	else \
-		cd $(BACKEND_DIR) && . venv/bin/activate && uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000 > ../$(BACKEND_PID).log 2>&1 & echo $$! > ../$(BACKEND_PID); \
+		cd $(BACKEND_DIR) && . venv/bin/activate && \
+		( uvicorn src.api.routes:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
+		sleep 2; \
 		echo "$(GREEN)✓ Backend started (PID: $$(cat $(BACKEND_PID)))$(NC)"; \
 	fi
 
 start-ui: ## Start Streamlit UI
 	@echo "$(BLUE)Starting UI...$(NC)"
-	@mkdir -p $(PID_DIR)
+	@mkdir -p $(PID_DIR) $(LOG_DIR)
 	@if [ -f $(UI_PID) ] && kill -0 $$(cat $(UI_PID)) 2>/dev/null; then \
 		echo "$(YELLOW)UI already running (PID: $$(cat $(UI_PID)))$(NC)"; \
 	else \
-		. $(BACKEND_DIR)/venv/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(UI_PID).log 2>&1 & echo $$! > $(UI_PID); \
+		. $(BACKEND_DIR)/venv/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
 		sleep 2; \
 		echo "$(GREEN)✓ UI started (PID: $$(cat $(UI_PID)))$(NC)"; \
 	fi
