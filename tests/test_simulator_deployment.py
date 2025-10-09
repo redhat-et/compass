@@ -135,7 +135,7 @@ def test_simulator_deployment():
         print("   ✓ Cluster accessible")
     except KubernetesDeploymentError as e:
         print(f"   ✗ Cluster not accessible: {e}")
-        print("   Run: ./scripts/kcluster.sh start")
+        print("   Run: ./scripts/kind-cluster.sh start")
         return False
 
     # Deploy InferenceService and HPA

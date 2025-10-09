@@ -93,7 +93,7 @@ start_cluster() {
 
     if cluster_exists; then
         print_warning "Cluster '${CLUSTER_NAME}' already exists!"
-        echo "Use 'scripts/kcluster.sh restart' to recreate, or 'scripts/kcluster.sh status' to check status"
+        echo "Use 'scripts/kind-cluster.sh restart' to recreate, or 'scripts/kind-cluster.sh status' to check status"
         exit 1
     fi
 
@@ -172,7 +172,7 @@ start_cluster() {
     echo "Next steps:"
     echo "  1. Start backend: scripts/run_api.sh"
     echo "  2. Start UI: scripts/run_ui.sh"
-    echo "  3. Check cluster: scripts/kcluster.sh status"
+    echo "  3. Check cluster: scripts/kind-cluster.sh status"
     echo ""
 }
 
@@ -190,7 +190,7 @@ stop_cluster() {
     print_success "Cluster deleted"
     echo ""
     echo "Cluster '${CLUSTER_NAME}' has been removed."
-    echo "Run 'scripts/kcluster.sh start' to create a new cluster."
+    echo "Run 'scripts/kind-cluster.sh start' to create a new cluster."
     echo ""
 }
 
@@ -223,7 +223,7 @@ show_status() {
     if ! cluster_exists; then
         print_error "Cluster does not exist"
         echo ""
-        echo "Run 'scripts/kcluster.sh start' to create the cluster."
+        echo "Run 'scripts/kind-cluster.sh start' to create the cluster."
         exit 1
     fi
 
@@ -286,7 +286,7 @@ show_usage() {
     cat << EOF
 AI Pre-Deployment Assistant - Cluster Management
 
-Usage: scripts/kcluster.sh <command>
+Usage: scripts/kind-cluster.sh <command>
 
 Commands:
   start     Create and configure a new KIND cluster with KServe
@@ -296,10 +296,10 @@ Commands:
   help      Show this help message
 
 Examples:
-  scripts/kcluster.sh start      # Create new cluster
-  scripts/kcluster.sh status     # Check cluster status
-  scripts/kcluster.sh restart    # Reset cluster to fresh state
-  scripts/kcluster.sh stop       # Remove cluster
+  scripts/kind-cluster.sh start      # Create new cluster
+  scripts/kind-cluster.sh status     # Check cluster status
+  scripts/kind-cluster.sh restart    # Reset cluster to fresh state
+  scripts/kind-cluster.sh stop       # Remove cluster
 
 Configuration:
   Cluster Name: ${CLUSTER_NAME}
