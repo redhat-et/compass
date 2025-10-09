@@ -241,11 +241,11 @@ def render_deployment_management_tab():
     st.markdown("---")
 
     # Show detailed management for selected deployment
-    render_deployment_management(deployment_info)
+    render_deployment_management(deployment_info, context="mgmt")
     st.markdown("---")
-    render_k8s_status_for_deployment(deployment_info)
+    render_k8s_status_for_deployment(deployment_info, context="mgmt")
     st.markdown("---")
-    render_inference_testing_for_deployment(deployment_info)
+    render_inference_testing_for_deployment(deployment_info, context="mgmt")
 
 
 def render_sidebar():
@@ -792,13 +792,13 @@ def render_deployments_page():
     deployment_info = deployment_options[st.session_state.selected_deployment]
 
     # Show deployment management options
-    render_deployment_management(deployment_info)
+    render_deployment_management(deployment_info, context="standalone")
     st.markdown("---")
 
     # Show K8s status and inference testing
-    render_k8s_status_for_deployment(deployment_info)
+    render_k8s_status_for_deployment(deployment_info, context="standalone")
     st.markdown("---")
-    render_inference_testing_for_deployment(deployment_info)
+    render_inference_testing_for_deployment(deployment_info, context="standalone")
 
 
 def load_all_deployments():
@@ -820,8 +820,13 @@ def load_all_deployments():
         return None
 
 
-def render_deployment_management(deployment_info: Dict[str, Any]):
-    """Render deployment management controls (delete, etc.)."""
+def render_deployment_management(deployment_info: Dict[str, Any], context: str = "default"):
+    """Render deployment management controls (delete, etc.).
+
+    Args:
+        deployment_info: Deployment information dictionary
+        context: Unique context identifier to avoid key collisions (e.g., 'mgmt', 'monitoring', 'assistant')
+    """
     deployment_id = deployment_info["deployment_id"]
     status = deployment_info.get("status", {})
 
@@ -838,7 +843,7 @@ def render_deployment_management(deployment_info: Dict[str, Any]):
         st.metric("Pods", len(pods))
 
     with col3:
-        if st.button("🗑️ Delete Deployment", use_container_width=True, type="secondary"):
+        if st.button("🗑️ Delete Deployment", use_container_width=True, type="secondary", key=f"delete_btn_{context}_{deployment_id}"):
             if st.session_state.get(f"confirm_delete_{deployment_id}"):
                 # Actually delete
                 with st.spinner("Deleting deployment..."):
@@ -867,8 +872,13 @@ def render_deployment_management(deployment_info: Dict[str, Any]):
                 st.warning(f"⚠️ Click again to confirm deletion of {deployment_id}")
 
 
-def render_k8s_status_for_deployment(deployment_info: Dict[str, Any]):
-    """Render Kubernetes status for a specific deployment."""
+def render_k8s_status_for_deployment(deployment_info: Dict[str, Any], context: str = "default"):
+    """Render Kubernetes status for a specific deployment.
+
+    Args:
+        deployment_info: Deployment information dictionary
+        context: Unique context identifier to avoid key collisions
+    """
     deployment_id = deployment_info["deployment_id"]
     status = deployment_info.get("status", {})
     pods = deployment_info.get("pods", [])
@@ -903,8 +913,13 @@ def render_k8s_status_for_deployment(deployment_info: Dict[str, Any]):
         st.info("ℹ️ No pods found yet (may still be creating)")
 
 
-def render_inference_testing_for_deployment(deployment_info: Dict[str, Any]):
-    """Render inference testing for a specific deployment."""
+def render_inference_testing_for_deployment(deployment_info: Dict[str, Any], context: str = "default"):
+    """Render inference testing for a specific deployment.
+
+    Args:
+        deployment_info: Deployment information dictionary
+        context: Unique context identifier to avoid key collisions
+    """
     deployment_id = deployment_info["deployment_id"]
     status = deployment_info.get("status", {})
 
@@ -921,15 +936,15 @@ def render_inference_testing_for_deployment(deployment_info: Dict[str, Any]):
             "Test Prompt",
             value="Write a Python function that calculates the fibonacci sequence.",
             height=100,
-            key=f"test_prompt_{deployment_id}"
+            key=f"test_prompt_{context}_{deployment_id}"
         )
 
     with col2:
-        max_tokens = st.number_input("Max Tokens", value=150, min_value=10, max_value=500, key=f"max_tokens_{deployment_id}")
-        temperature = st.slider("Temperature", 0.0, 2.0, 0.7, 0.1, key=f"temperature_{deployment_id}")
+        max_tokens = st.number_input("Max Tokens", value=150, min_value=10, max_value=500, key=f"max_tokens_{context}_{deployment_id}")
+        temperature = st.slider("Temperature", 0.0, 2.0, 0.7, 0.1, key=f"temperature_{context}_{deployment_id}")
 
     # Test button
-    if st.button("🚀 Send Test Request", use_container_width=True, key=f"test_button_{deployment_id}"):
+    if st.button("🚀 Send Test Request", use_container_width=True, key=f"test_button_{context}_{deployment_id}"):
         with st.spinner("Sending inference request..."):
             try:
                 import subprocess
@@ -1114,7 +1129,7 @@ def render_monitoring_tab(rec: Dict[str, Any]):
 
     with col2:
         st.markdown("<br>", unsafe_allow_html=True)  # Spacer
-        if st.button("🔄 Refresh", use_container_width=True):
+        if st.button("🔄 Refresh", use_container_width=True, key="refresh_monitoring"):
             st.rerun()
 
     if not st.session_state.selected_deployment:
@@ -1123,13 +1138,13 @@ def render_monitoring_tab(rec: Dict[str, Any]):
     deployment_info = deployment_options[st.session_state.selected_deployment]
 
     # Show deployment management options
-    render_deployment_management(deployment_info)
+    render_deployment_management(deployment_info, context="monitoring")
     st.markdown("---")
 
     # Show K8s status and inference testing
-    render_k8s_status_for_deployment(deployment_info)
+    render_k8s_status_for_deployment(deployment_info, context="monitoring")
     st.markdown("---")
-    render_inference_testing_for_deployment(deployment_info)
+    render_inference_testing_for_deployment(deployment_info, context="monitoring")
     st.markdown("---")
 
     # Fetch mock monitoring data (if available)
