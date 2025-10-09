@@ -169,11 +169,6 @@ start_cluster() {
     print_success "KServe Version: ${KSERVE_VERSION}"
     print_success "cert-manager Version: ${CERT_MANAGER_VERSION}"
     echo ""
-    echo "Next steps:"
-    echo "  1. Start backend: scripts/run_api.sh"
-    echo "  2. Start UI: scripts/run_ui.sh"
-    echo "  3. Check cluster: scripts/kind-cluster.sh status"
-    echo ""
 }
 
 # Stop/delete cluster
