@@ -2,6 +2,26 @@
 
 A conversational AI system that guides users from concept to production-ready LLM deployments through intelligent capacity planning and SLO-driven recommendations.
 
+## Quick Start
+
+**Get up and running in 3 commands:**
+
+```bash
+make setup          # Install dependencies, pull Ollama model
+make cluster-start  # Create local KIND cluster with vLLM simulator
+make dev            # Start all services (Ollama + Backend + UI)
+```
+
+Then open http://localhost:8501 in your browser.
+
+**Stop everything:**
+```bash
+make stop           # Stop services
+make cluster-stop   # Delete cluster (optional)
+```
+
+See [Quick Start Guide](#quick-start-guide) below for details.
+
 ## Overview
 
 This is a **Phase 1 POC** demonstrating the core architecture of the Pre-Deployment Assistant. The system uses:
@@ -10,7 +30,7 @@ This is a **Phase 1 POC** demonstrating the core architecture of the Pre-Deploym
 - **What-if analysis** to explore trade-offs between cost, latency, and throughput
 - **YAML generation** for KServe/vLLM deployment configurations
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for development workflows.
 
 ## Project Structure
 
@@ -38,39 +58,127 @@ ai-assistant/
 └── README.md                   # This file
 ```
 
-## Prerequisites
+## Quick Start Guide
 
-### Required for All Features
+### Prerequisites
 
+**Required:**
+- **macOS or Linux** (Windows via WSL2)
 - **Python 3.11+**
-- **Ollama** installed and running
+- **Docker Desktop** (must be running)
+- **Ollama** - LLM inference engine
   ```bash
   brew install ollama
-  ollama serve  # Start Ollama service
   ```
-
-### Required for Kubernetes Deployment
-
-- **Docker Desktop** - Required for KIND
-  ```bash
-  # Download from https://www.docker.com/products/docker-desktop
-  # Or install via Homebrew
-  brew install --cask docker
-  ```
-
 - **kubectl** - Kubernetes CLI
   ```bash
   brew install kubectl
   ```
-
-- **KIND (Kubernetes in Docker)** - Will be installed automatically by setup scripts
+- **KIND** - Kubernetes in Docker
   ```bash
   brew install kind
   ```
 
-## Setup Instructions
+### Step 1: Install Dependencies
 
-**Note:** Backend and frontend have separate virtual environments. Set them up in separate terminal sessions or deactivate between steps.
+Run the one-time setup (creates virtual environments, pulls Ollama model):
+
+```bash
+make setup
+```
+
+This will:
+- Check prerequisites (Docker, kubectl, kind, ollama, Python)
+- Create Python virtual environment with all dependencies
+- Pull the `llama3.1:8b` model for intent extraction
+- Auto-start Ollama if not running
+
+### Step 2: Choose Your Kubernetes Environment
+
+**Option A: Local KIND Cluster with vLLM Simulator (Recommended)**
+
+Best for development, testing, and demos. No GPU required.
+
+```bash
+make cluster-start
+```
+
+This creates a 3-node KIND cluster with:
+- KServe v0.13.0 for model serving
+- cert-manager for certificates
+- vLLM simulator pre-loaded (GPU-free inference)
+- Simulated GPU node labels (A100-80GB, L4)
+
+**Option B: Real Kubernetes Cluster with GPUs**
+
+For production deployments with actual GPU inference:
+
+1. Configure `kubectl` to point to your GPU-enabled cluster
+2. Ensure cluster has:
+   - KServe installed
+   - NVIDIA GPU Operator
+   - GPU nodes with appropriate labels
+3. Set simulator mode to false in `backend/src/api/routes.py`:
+   ```python
+   deployment_generator = DeploymentGenerator(simulator_mode=False)
+   ```
+
+### Step 3: Start the Application
+
+```bash
+make dev
+```
+
+This starts:
+- Ollama service (LLM backend)
+- FastAPI backend (http://localhost:8000)
+- Streamlit UI (http://localhost:8501)
+
+Open http://localhost:8501 in your browser to use the assistant!
+
+### Step 4: Use the Assistant
+
+1. **Describe your use case** in the chat interface
+   - Example: "I need a customer service chatbot for 5000 users with low latency"
+2. **Review recommendations** - Model, GPU configuration, SLO predictions, costs
+3. **Edit specifications** if needed (traffic, SLO targets, constraints)
+4. **Generate deployment YAML** - Click "Generate Deployment YAML"
+5. **Deploy to cluster** - Click "Deploy to Kubernetes"
+6. **Monitor deployment** - Switch to "Deployment Management" tab to see status
+7. **Test inference** - Send test prompts once deployment is Ready
+
+### Step 5: Stop and Clean Up
+
+**Stop services:**
+```bash
+make stop
+```
+
+**Delete cluster (optional):**
+```bash
+make cluster-stop
+```
+
+**Remove all generated files and venvs:**
+```bash
+make clean-all
+```
+
+### Next Steps
+
+- **View logs:** `make logs-backend` or `make logs-ui`
+- **Restart services:** `make restart`
+- **Check cluster status:** `make cluster-status`
+- **Run tests:** `make test`
+- **See all commands:** `make help`
+
+For detailed development workflows, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
+
+---
+
+## Detailed Setup (Alternative to Quick Start)
+
+**Note:** Backend and frontend share a single virtual environment. Use `make setup` instead of manual setup.
 
 ### 1. Install Backend Dependencies
 
