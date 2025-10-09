@@ -204,10 +204,3 @@ curl http://localhost:8000/health
 # Clear Streamlit cache
 streamlit cache clear
 ```
-
-## Next Steps
-
-After Sprint 3 testing is complete:
-- [ ] Document any bugs found
-- [ ] Commit Sprint 3 implementation
-- [ ] Move to Sprint 4: YAML generation and monitoring dashboard
