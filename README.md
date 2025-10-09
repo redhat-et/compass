@@ -31,7 +31,7 @@ ai-assistant/
 ├── generated_configs/          # Output directory for generated YAML files
 ├── simulator/                  # vLLM simulator service for GPU-free development
 ├── config/                     # Configuration files (KIND cluster)
-├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kcluster.sh)
+├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kind-cluster.sh)
 ├── tests/                      # Test suites
 ├── docs/                       # Architecture documentation and diagrams
 ├── CLAUDE.md                   # AI assistant guidance
@@ -333,7 +333,7 @@ The system supports deploying to local Kubernetes clusters:
 # Ensure Docker Desktop is running
 
 # Create and configure cluster (installs KIND, cert-manager, KServe)
-scripts/kcluster.sh start
+scripts/kind-cluster.sh start
 ```
 
 **Manual Way:**
@@ -375,26 +375,26 @@ kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{
 
 ### Cluster Management
 
-The `kcluster.sh` script provides easy cluster lifecycle management:
+The `kind-cluster.sh` script provides easy cluster lifecycle management:
 
 **Check cluster status:**
 ```bash
-scripts/kcluster.sh status
+scripts/kind-cluster.sh status
 ```
 
 **Restart cluster (fresh start):**
 ```bash
-scripts/kcluster.sh restart
+scripts/kind-cluster.sh restart
 ```
 
 **Stop/delete cluster:**
 ```bash
-scripts/kcluster.sh stop
+scripts/kind-cluster.sh stop
 ```
 
 **View help:**
 ```bash
-scripts/kcluster.sh help
+scripts/kind-cluster.sh help
 ```
 
 **Manual kubectl commands:**
