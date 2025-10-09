@@ -669,6 +669,8 @@ def generate_deployment_yaml(rec: Dict[str, Any]):
                 result = response.json()
                 st.session_state.deployment_id = result["deployment_id"]
                 st.session_state.deployment_files = result["files"]
+                # Reset deployment flag when generating new YAML files
+                st.session_state.deployed_to_cluster = False
 
                 st.success(f"✅ Deployment files generated successfully!")
                 st.info(f"**Deployment ID:** `{result['deployment_id']}`")
