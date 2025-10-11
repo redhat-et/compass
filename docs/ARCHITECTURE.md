@@ -235,19 +235,40 @@ def calculate_capacity(
     - expected_throughput_rps: float
     - predicted_slo_compliance: Dict[str, bool]  # TTFT, TPOT, E2E
     - estimated_cost: CostEstimate
+
+    Implementation Details (see backend/src/recommendation/capacity_planner.py):
+
+    1. Query benchmarks: (model, gpu_type, tensor_parallel) -> performance metrics
+
+    2. SLO compliance check:
+       - Filter benchmarks where TTFT_p90 > slo.ttft_target (reject)
+       - Filter benchmarks where TPOT_p90 > slo.tpot_target (reject)
+       - Calculate E2E: TTFT + (min(20, gen_tokens) × TPOT) × 1.2
+         (first 20 tokens represent "perceived latency" for streaming)
+       - Filter benchmarks where E2E_p95 > slo.e2e_target (reject)
+
+    3. Replica calculation:
+       - required_capacity = traffic_qps × 1.2  (20% headroom for safety)
+       - replicas = ceil(required_capacity / benchmark.max_qps)
+
+    4. GPU configuration:
+       - gpu_count = tensor_parallel × replicas
+       - deployment_strategy = "independent" if replicas > 1, else "single"
+
+    5. Cost estimation:
+       - hourly_cost = gpu_count × gpu_hourly_rate
+       - monthly_cost = hourly_cost × 730 hours
+
+    6. Select best configuration:
+       - Sort viable configs by cost
+       - Apply budget constraint (strict → cheapest, flexible → mid-range, none → best performance)
     """
-    # Phase 1: Benchmark data interpolation
-    # 1. Query: (model, gpu_type) -> throughput_per_gpu, latency metrics
-    # 2. Check if model fits on single GPU (memory constraint)
-    # 3. If not, require tensor parallelism
-    # 4. Calculate: num_gpus = ceil(traffic_profile.peak_qps / throughput_per_gpu)
-    # 5. Validate SLO compliance using benchmark latency data
-    # 6. Estimate cost: num_gpus * gpu_hourly_rate
 
     # Phase 2 enhancements:
     # - Optimize batch size for throughput/latency trade-off
     # - Consider auto-scaling (min/max GPU count)
     # - Advanced tensor parallelism optimization
+    # - Queueing theory models for latency under load
 ```
 
 **Benchmark Data Requirements**:
