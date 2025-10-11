@@ -101,17 +101,18 @@ The system translates high-level user intent into technical specifications:
 ### Key Architectural Decisions to Preserve
 
 1. **Phase 1 uses Python** for all components (rapid development, stack consistency)
-   - Phase 2+ may migrate Deployment Automation Engine to Go for K8s integration
+   - Go migration for Deployment Automation Engine is a possible future option (see Possible Future Enhancements in ARCHITECTURE.md)
 
 2. **Phase 1 uses point estimates** for traffic (avg prompt length, avg QPS)
    - Benchmarks collected using vLLM default configuration (dynamic batching enabled)
    - Phase 2 adds full statistical distributions (mean, variance, tail) and multi-dimensional benchmarks
 
 3. **SLO metrics are mandatory**:
-   - TTFT (Time to First Token): p50, p90, p99
-   - TPOT (Time Per Output Token): p50, p90, p99
-   - E2E Latency: p50, p95, p99
+   - TTFT (Time to First Token): p50, p90, p99 - **stored in benchmarks**
+   - TPOT (Time Per Output Token): p50, p90, p99 - **stored in benchmarks**
+   - E2E Latency: p50, p95, p99 - **calculated dynamically** from TTFT + (generation_tokens × TPOT)
    - Throughput: requests/sec and tokens/sec
+   - Rationale: E2E latency varies by workload (generation length, streaming mode, use case), so it's calculated per-request rather than stored as a fixed benchmark value
 
 4. **Editable specifications**: Users must be able to review and modify auto-generated specs before deployment
 
