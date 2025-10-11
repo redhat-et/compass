@@ -325,13 +325,11 @@ erDiagram
         float tpot_p50_ms
         float tpot_p90_ms
         float tpot_p99_ms
-        float e2e_latency_p50_ms
-        float e2e_latency_p95_ms
-        float e2e_latency_p99_ms
         float memory_usage_gb
         float gpu_utilization_pct
         json test_conditions
         timestamp created_at
+        string note "E2E latency calculated dynamically, not stored"
     }
 
     HARDWARE_PROFILES {
