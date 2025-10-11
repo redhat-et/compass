@@ -2,26 +2,26 @@
 
 IMPORTANT LIMITATIONS (Phase 1 POC):
 Current benchmark data uses point estimates assuming typical conditions:
-- Input tokens: ~150
-- Output tokens: ~200
-- Batch size: 1
+- Input tokens: ~150 (average)
+- Output tokens: ~200 (average)
 - Request pattern: steady (non-bursty)
-- KV cache: not utilized
+- Batching: vLLM continuous batching (dynamic, auto-configured)
+- KV cache: enabled (vLLM default)
 
 In reality, performance varies significantly with:
 1. Input/output token lengths (longer → higher latency, lower throughput)
-2. Batch size and concurrency (higher → better throughput, potential latency impact)
-3. Request arrival patterns (bursty traffic degrades tail latencies)
-4. KV cache efficiency (prefix caching can reduce TTFT)
+2. Concurrency levels and request arrival patterns (bursty traffic degrades tail latencies)
+3. KV cache efficiency (prefix caching effectiveness depends on prompt similarity)
+4. vLLM configuration tuning for specific workload patterns
 
 TODO (Phase 2): Implement multi-dimensional benchmark lookups
-- Store benchmarks for varying input/output/batch configurations
+- Store benchmarks for varying input/output token distributions
 - Interpolate between benchmark points for non-exact matches
-- Model batching efficiency and queueing effects
+- Model queueing effects and concurrency impact on latency
 - Account for traffic burstiness and KV cache hit rates
 - Consider parametric models (regression-based) for continuous prediction
 
-See data/benchmarks.json _metadata for detailed assumptions.
+See data/benchmarks.json _metadata for detailed benchmark conditions.
 """
 
 import logging
