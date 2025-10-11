@@ -512,6 +512,13 @@ The system should interpolate between benchmark points or use parametric models 
 #### 6b. Hardware Profiles
 GPU specifications, availability, and pricing.
 
+**Phase 1 Implementation Note**: GPU specifications and pricing are currently embedded in code for rapid prototyping:
+- GPU pricing: `DeploymentGenerator.GPU_PRICING` dict in `backend/src/deployment/generator.py`
+- GPU metadata: `GPUType` class in `backend/src/knowledge_base/model_catalog.py`
+
+This allows quick iteration but requires code changes to update pricing. Future phases should extract to separate data files for easier maintenance and support for external data source integration (see Future Enhancements section).
+
+**Phase 2+ Target Schema**:
 ```json
 {
   "gpu_type": "NVIDIA-A100-80GB",
@@ -529,6 +536,9 @@ GPU specifications, availability, and pricing.
 #### 6c. Cost Data
 Pricing information for different GPU types.
 
+**Phase 1 Implementation Note**: Cost data is embedded in `DeploymentGenerator.GPU_PRICING` for simplicity. Currently assumes cloud rental pricing model only. Future phases should externalize and expand to support multiple deployment models (see Future Enhancements section).
+
+**Phase 2+ Target Schema**:
 ```json
 {
   "gpu_type": "NVIDIA-A100-80GB",
@@ -1052,4 +1062,113 @@ For the initial iteration, recommended technology choices:
 - Fine-tuning pipeline integration
 - Capacity planning for MaaS deployments
 - Continuous learning from deployment outcomes
+
+### Cost Modeling & Deployment Models (Phase 2+)
+
+**Current Limitation**: Phase 1 assumes cloud GPU rental pricing model only.
+
+**Future Support for Multiple Deployment Models**:
+
+1. **Cloud Rental** (current):
+   - GPU hourly/monthly rates from cloud providers
+   - Multi-cloud support (AWS, GCP, Azure, OCI)
+   - Regional pricing variations
+   - Spot vs on-demand vs reserved instance pricing
+
+2. **Owned Hardware**:
+   - User already owns GPUs, only interested in optimal model/GPU combination
+   - Optional operational cost modeling (power, cooling, datacenter space)
+   - If user provides power rates: calculate monthly OpEx (power_watts × hours × $/kWh × PUE)
+   - If user doesn't provide rates: assume costs are already accounted for, focus on minimizing GPU count while meeting SLOs
+   - Recommendation strategy: Prefer configurations with fewest GPUs (maximize utilization of existing hardware)
+
+3. **GPU Purchase + On-Premises**:
+   - Total Cost of Ownership (TCO) analysis over amortization period (e.g., 36 months)
+   - CapEx: GPU purchase price
+   - OpEx: Power, cooling (PUE factor), rack space, maintenance
+   - Break-even analysis vs. cloud rental
+   - Recommendation threshold: Suggest purchase if sustained usage exceeds break-even period
+
+**Required Schema Extensions**:
+```python
+class DeploymentIntent:
+    deployment_model: Literal["cloud_rental", "owned_hardware", "purchase"] = "cloud_rental"
+    datacenter_context: Optional[DatacenterContext] = None
+
+class DatacenterContext:
+    power_cost_per_kwh: Optional[float] = None  # e.g., 0.12 ($/kWh)
+    cooling_overhead_pue: float = 1.3  # Power Usage Effectiveness
+    rack_space_cost_per_month: Optional[float] = None
+    amortization_period_months: int = 36  # For purchase scenarios
+```
+
+**Hardware Profile Extensions**:
+```json
+{
+  "gpu_type": "NVIDIA-A100-80GB",
+  "pricing": {
+    "cloud_rental_per_hour": 4.10,
+    "purchase_price_usd": 15000,
+    "tdp_watts": 400
+  }
+}
+```
+
+**Cost Calculation Examples**:
+- **Owned (4x A100-80GB)**: Power: 400W × 4 × 730hrs × $0.12/kWh × 1.3 PUE = $182/month
+- **Purchase (4x A100-80GB)**: CapEx $60k amortized over 36mo = $1,667/mo + $182 OpEx = $1,849/mo
+- **Cloud Rental (4x A100-80GB)**: $4.10/hr × 4 GPUs × 730hrs = $11,984/month
+- **Break-even**: Purchase pays off after ~41 months of sustained usage
+
+**Implementation Strategy**:
+- Owned hardware: Skip cost display or show operational costs only (power/cooling) if user provides rates
+- Purchase: Show TCO comparison with cloud rental, highlight break-even point
+- Cloud rental: Current implementation (hourly/monthly costs)
+
+### Data Source Management (Phase 2+)
+
+**Current Limitation**: Phase 1 uses manually curated JSON files for all data (benchmarks, model catalog, GPU pricing, SLO templates).
+
+**Future Support for Multiple Data Sources**:
+
+1. **Model Catalog**:
+   - Manual database (current): Curated list in `data/model_catalog.json`
+   - HuggingFace Hub API: Auto-discover available models, metadata, licenses
+   - Private model registries: Custom endpoints for enterprise-approved models
+   - Public MaaS providers: OpenAI, Anthropic, Cohere APIs for pricing/metadata
+   - Private MaaS: Self-hosted model serving platforms
+
+2. **GPU Pricing**:
+   - Manual (current): `DeploymentGenerator.GPU_PRICING` dict
+   - Cloud provider APIs: AWS Pricing API, GCP Cloud Billing API, Azure Retail Prices API
+   - Spot pricing feeds: Real-time spot instance pricing
+   - GPU vendor pricing: Scrape NVIDIA, AMD manufacturer suggested pricing for on-prem purchases
+   - Third-party aggregators: ML infrastructure marketplaces
+
+3. **Benchmarks**:
+   - Manual (current): Curated `data/benchmarks.json`
+   - Automated benchmark pipelines: Continuous benchmarking of new model/GPU combinations
+   - Community-contributed benchmarks: Crowdsourced performance data with validation
+   - Vendor benchmarks: Import official vLLM/HuggingFace/NVIDIA performance data
+
+**Data Validation & Cross-Reference Requirements**:
+- **Consistency Check**: Ensure models exist in catalog, have benchmarks, and have pricing for viable GPUs
+- **Staleness Detection**: Flag outdated pricing (effective_date) or benchmarks (vLLM version mismatch)
+- **Data Health API**: `/api/data/health` endpoint reporting missing cross-references and stale data
+- **Startup Validation**: Log warnings for incomplete data during system initialization
+
+**Example Validation Output**:
+```
+⚠️  Data Consistency Issues:
+- Model "meta-llama/Llama-3.1-405B-Instruct" in catalog but no benchmarks available
+- GPU "NVIDIA-H100" has benchmarks but missing cloud pricing data
+- Benchmark "mistralai/Mistral-7B + NVIDIA-T4" references GPU not in hardware profiles
+- Pricing data for "NVIDIA-L4" is 45 days old (last updated: 2024-11-27)
+```
+
+**Implementation Priority**:
+- Phase 1.5: Add data validation utility and health check endpoint
+- Phase 2: Support cloud provider pricing APIs (AWS, GCP, Azure)
+- Phase 2+: HuggingFace Hub integration for model discovery
+- Phase 3: Automated benchmark pipelines and community contributions
 - Quality metric integration (BLEU scores, accuracy benchmarks)
