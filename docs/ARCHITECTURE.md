@@ -473,7 +473,7 @@ Comprehensive performance metrics for model + GPU combinations.
 
 The system should interpolate between benchmark points or use parametric models (regression-based) for continuous prediction when exact traffic matches aren't available.
 
-**Schema Requirements (Full Version - Phase 2+)**:
+**Benchmark Schema**:
 ```json
 {
   "model_id": "meta-llama/Llama-3-70b",
@@ -494,9 +494,6 @@ The system should interpolate between benchmark points or use parametric models 
     "tpot_p50_ms": 12,
     "tpot_p90_ms": 15,
     "tpot_p99_ms": 22,
-    "e2e_latency_p50_ms": 450,
-    "e2e_latency_p95_ms": 680,
-    "e2e_latency_p99_ms": 920,
     "memory_usage_gb": 280,
     "gpu_utilization_pct": 85
   },
@@ -508,6 +505,35 @@ The system should interpolate between benchmark points or use parametric models 
   "timestamp": "2025-01-15T00:00:00Z"
 }
 ```
+
+**Important Design Decision - E2E Latency Calculation**:
+
+End-to-end (E2E) latency is **NOT stored** in benchmarks because it is a **derived metric** that varies significantly based on workload characteristics:
+
+- **Generation length**: 50 tokens vs 500 tokens can differ by 10x
+- **Streaming vs non-streaming**: User perception of "completion" differs
+- **Use case**: Chatbot users perceive latency from first tokens; summarization requires full completion
+- **Concurrency and queueing**: E2E increases under load due to queueing delays
+
+Instead, the system **calculates E2E dynamically** from atomic metrics:
+```
+E2E_p95 = TTFT_p90 + (generation_tokens × TPOT_p90) + adjustments
+```
+
+See `backend/src/recommendation/capacity_planner.py::_estimate_e2e_latency()` for implementation.
+
+**Why TTFT and TPOT are Stored**:
+- **TTFT (Time to First Token)**: Hardware/model characteristic - prefill latency for given prompt length
+- **TPOT (Time Per Output Token)**: Decode step latency - stable per model/GPU combination
+- These are **atomic performance metrics** that can be composed for any workload
+
+This follows industry best practices - vLLM, HuggingFace, and NVIDIA benchmarks report TTFT/TPOT/throughput but not E2E, as E2E is workload-specific.
+
+**Phase 2+ Enhancement**: Improve calculation model to account for:
+- Queueing delays under high load
+- Concurrency effects on tail latencies
+- Streaming-aware user perception (first chunk vs full completion)
+- Non-linear scaling effects at saturation
 
 #### 6b. Hardware Profiles
 GPU specifications, availability, and pricing.
