@@ -1105,18 +1105,55 @@ For the initial iteration, recommended technology choices:
 
 ---
 
-## Future Enhancements (Post-Phase 1)
+## Possible Future Enhancements (Post-Phase 1)
+
+### Conversational Interface Layer
+- **Alternative UI Frameworks**: Chainlit (Python-first conversational UI) or Custom React + WebSocket backend for production deployments
+- Enhanced session management and multi-user support
+
+### Context & Intent Engine
+- **Full statistical distributions** for traffic profiles (not just point estimates)
+  - Prompt length distributions (mean, variance, percentiles)
+  - Generation length distributions
+  - Concurrency patterns and burstiness modeling
 
 ### Traffic Modeling (Phase 2)
 - Full statistical distributions (not just point estimates)
 - Advanced burstiness pattern recognition
 - Request heterogeneity modeling (mix of short/long requests)
 - Streaming vs non-streaming workload separation
+- Industry benchmark lookup from Knowledge Base for use case templates
+- Pattern learning from historical deployment data
 
 ### Capacity Planning (Phase 2)
-- Advanced tensor parallelism optimization
-- Pipeline parallelism support
-- Auto-scaling policy generation (min/max replicas)
+- **Advanced E2E latency calculation**:
+  - Queueing delays under high load
+  - Concurrency effects on tail latencies
+  - Streaming-aware user perception (first chunk vs full completion)
+  - Non-linear scaling effects at saturation
+- **Optimization algorithms**:
+  - Optimize batch size for throughput/latency trade-off
+  - Advanced tensor parallelism optimization
+  - Pipeline parallelism support
+  - Auto-scaling policy generation (min/max replicas)
+  - Queueing theory models for latency under load
+
+### Simulation & Exploration Layer
+- **Discrete event simulation (SimPy)**: More accurate workload modeling beyond simple what-if scenarios
+- Interactive scenario comparison with side-by-side cost/performance analysis
+- Monte Carlo simulation for uncertainty quantification
+
+### Deployment Automation Engine
+- **Migration to Go** (optional, for advanced K8s integration):
+  - Custom Kubernetes operators for deployment lifecycle management
+  - Advanced watch patterns for real-time cluster state monitoring
+  - Performance optimization for large-scale deployments
+  - Native K8s ecosystem integration (smaller container footprint)
+- **External access patterns** (production requirement):
+  - Ingress controller integration (NGINX, Traefik, Istio)
+  - Generate Ingress/IngressRoute YAML alongside InferenceService
+  - TLS/certificate management automation
+  - Load balancer configuration
 
 ### Day-2 Operations
 - Proactive optimization recommendations for running deployments
