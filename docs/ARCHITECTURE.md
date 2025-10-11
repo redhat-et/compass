@@ -602,31 +602,53 @@ Curated list of approved models with metadata.
 ```
 
 #### 6f. Deployment Templates
-Pre-configured deployment patterns for common scenarios.
+Kubernetes YAML templates for generating deployment configurations.
 
-```json
+Deployment templates are implemented as **Jinja2 YAML templates** (`backend/src/deployment/templates/*.yaml.j2`). This approach provides:
+
+- Direct YAML generation with proper formatting and indentation
+- Conditional logic for simulator mode vs. real vLLM deployments
+- Easy maintenance aligned with Kubernetes ecosystem standards (Helm, KServe)
+- Human-readable templates that operators can review and customize
+
+**Current Templates**:
+- `kserve-inferenceservice.yaml.j2`: KServe InferenceService with vLLM runtime
+- `vllm-config.yaml.j2`: vLLM server configuration (model loading, parallelism)
+- `autoscaling.yaml.j2`: Horizontal Pod Autoscaler based on inference metrics
+- `servicemonitor.yaml.j2`: Prometheus ServiceMonitor for observability
+
+**Template Context** (passed from `DeploymentRecommendation`):
+```python
 {
-  "template_id": "chatbot-low-latency-medium-scale",
-  "use_case": "interactive_chatbot",
+  "deployment_id": "chatbot-llama-3-8b-20251011140322",
   "model_id": "meta-llama/Llama-3-8b-instruct",
   "gpu_type": "NVIDIA-L4",
   "gpu_count": 2,
-  "tensor_parallel_degree": 1,
-  "kserve_config": {
-    "predictor": {
-      "minReplicas": 2,
-      "maxReplicas": 4
-    }
-  },
+  "tensor_parallel": 1,
+  "min_replicas": 1,
+  "max_replicas": 4,
+  "simulator_mode": False,
   "vllm_config": {
     "max_model_len": 4096,
-    "gpu_memory_utilization": 0.9
+    "gpu_memory_utilization": 0.9,
+    "max_num_seqs": 256
   },
-  "autoscaling_config": {
-    "metric": "concurrency",
-    "target": 10
-  }
+  "slo_targets": {...},
+  "cost_estimate": {...}
 }
+```
+
+**Example Template Snippet** (from `kserve-inferenceservice.yaml.j2`):
+```yaml
+{% if simulator_mode %}
+image: vllm-simulator:latest
+resources: {}  # No GPU required
+{% else %}
+image: vllm/vllm-openai:{{ vllm_version }}
+resources:
+  limits:
+    nvidia.com/gpu: {{ gpus_per_replica }}
+{% endif %}
 ```
 
 #### 6g. Deployment Outcomes
