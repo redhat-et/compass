@@ -93,53 +93,53 @@ def main():
     render_sidebar()
 
     # Top-level tabs
-    main_tabs = st.tabs(["🤖 Assistant", "📦 Deployment Management"])
+    main_tabs = st.tabs(["🤖 Assistant", "📊 Recommendation Details", "📦 Deployment Management"])
 
     with main_tabs[0]:
         render_assistant_tab()
 
     with main_tabs[1]:
+        render_recommendation_details_tab()
+
+    with main_tabs[2]:
         render_deployment_management_tab()
 
 
 def render_assistant_tab():
-    """Render the AI assistant tab with chat and recommendations."""
-    # Main content area - two columns
-    col1, col2 = st.columns([1, 1])
+    """Render the AI assistant tab with chat interface."""
+    st.subheader("💬 Conversation")
+    render_chat_interface()
 
-    with col1:
-        st.subheader("💬 Conversation")
-        render_chat_interface()
+    # Action buttons below chat
+    if st.session_state.recommendation:
+        st.markdown("---")
+        st.markdown("### 🚀 Actions")
 
-        # Action buttons below chat
-        if st.session_state.recommendation:
-            st.markdown("---")
-            st.markdown("### 🚀 Actions")
+        # Check cluster status on first render
+        if st.session_state.cluster_accessible is None:
+            check_cluster_status()
 
-            # Check cluster status on first render
-            if st.session_state.cluster_accessible is None:
-                check_cluster_status()
+        # Enable button if cluster is accessible and not already deployed
+        button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+        button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+        button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
+            "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
+            "Kubernetes cluster not accessible"
+        )
 
-            # Enable button if cluster is accessible and not already deployed
-            button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
-            button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
-            button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
-                "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
-                "Kubernetes cluster not accessible"
-            )
+        if st.button(button_label, use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
+            deploy_to_cluster(st.session_state.recommendation)
 
-            if st.button(button_label, use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
-                deploy_to_cluster(st.session_state.recommendation)
+        if st.session_state.recommendation.get("yaml_generated", False):
+            st.caption("💡 YAML files auto-generated. View in the **Recommendation Details** tab.")
 
-            if st.session_state.recommendation.get("yaml_generated", False):
-                st.caption("💡 YAML files auto-generated. View in the **YAML Preview** tab.")
 
-    with col2:
-        if st.session_state.recommendation:
-            st.subheader("📊 Recommendation")
-            render_recommendation()
-        else:
-            st.info("👈 Start a conversation to get deployment recommendations")
+def render_recommendation_details_tab():
+    """Render the recommendation details tab."""
+    if st.session_state.recommendation:
+        render_recommendation()
+    else:
+        st.info("👈 Start a conversation in the **Assistant** tab to get deployment recommendations")
 
 
 def render_deployment_management_tab():
@@ -370,6 +370,10 @@ def render_chat_interface():
                     recommendation = response.json()
                     st.session_state.recommendation = recommendation
 
+                    # Reset deployment state for new recommendation
+                    st.session_state.deployed_to_cluster = False
+                    st.session_state.deployment_id = None
+
                     # Add assistant response
                     assistant_message = format_recommendation_summary(recommendation)
                     st.session_state.messages.append({"role": "assistant", "content": assistant_message})
@@ -407,7 +411,7 @@ I've analyzed your requirements and generated a recommendation:
 
 {rec['reasoning']}
 
-👉 Review the full details in the right panel, or ask me to adjust the configuration!
+👉 Review the full details on the **Recommendation Details** tab above, ask me to adjust the configuration, or deploy to Kubernetes using the button below!
 """
     return summary.strip()
 
