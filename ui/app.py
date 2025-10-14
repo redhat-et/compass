@@ -116,28 +116,23 @@ def render_assistant_tab():
             st.markdown("---")
             st.markdown("### 🚀 Actions")
 
-            action_col1, action_col2 = st.columns(2)
+            # Check cluster status on first render
+            if st.session_state.cluster_accessible is None:
+                check_cluster_status()
 
-            with action_col1:
-                if st.button("📄 Generate Deployment YAML", use_container_width=True, type="primary"):
-                    generate_deployment_yaml(st.session_state.recommendation)
+            # Enable button if cluster is accessible and not already deployed
+            button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+            button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+            button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
+                "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
+                "Kubernetes cluster not accessible"
+            )
 
-            with action_col2:
-                if st.session_state.deployment_files:
-                    # Check cluster status on first render
-                    if st.session_state.cluster_accessible is None:
-                        check_cluster_status()
+            if st.button(button_label, use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
+                deploy_to_cluster(st.session_state.recommendation)
 
-                    # Enable button if cluster is accessible and not already deployed
-                    button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
-                    button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
-                    button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
-                        "Deploy to Kubernetes cluster" if st.session_state.cluster_accessible else
-                        "Kubernetes cluster not accessible"
-                    )
-
-                    if st.button(button_label, use_container_width=True, disabled=button_disabled, help=button_help):
-                        deploy_to_cluster(st.session_state.recommendation)
+            if st.session_state.recommendation.get("yaml_generated", False):
+                st.caption("💡 YAML files auto-generated. View in the **YAML Preview** tab.")
 
     with col2:
         if st.session_state.recommendation:
@@ -423,7 +418,7 @@ def render_recommendation():
     rec = st.session_state.recommendation
 
     # Tabs for different views
-    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📡 Monitoring"])
+    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📄 YAML Preview", "📡 Monitoring"])
 
     with tabs[0]:
         render_overview_tab(rec)
@@ -438,6 +433,9 @@ def render_recommendation():
         render_cost_tab(rec)
 
     with tabs[4]:
+        render_yaml_preview_tab(rec)
+
+    with tabs[5]:
         render_monitoring_tab(rec)
 
 
@@ -1092,6 +1090,57 @@ def render_inference_testing_for_deployment(deployment_info: Dict[str, Any], con
         """)
 
 
+def render_yaml_preview_tab(rec: Dict[str, Any]):
+    """Render YAML preview tab showing generated deployment files."""
+
+    st.markdown("### 📄 Deployment YAML Files")
+
+    # Check if YAML was auto-generated
+    if not rec.get("yaml_generated", False):
+        st.warning("⚠️ YAML files were not generated automatically. This may indicate an error during recommendation creation.")
+        if st.button("🔄 Regenerate YAML", use_container_width=True):
+            generate_deployment_yaml(rec)
+            st.rerun()
+        return
+
+    st.success("✅ YAML files generated automatically")
+
+    # Fetch YAML files from backend
+    try:
+        deployment_id = rec.get("deployment_id")
+        if not deployment_id:
+            deployment_id = f"{rec['intent']['use_case']}-{rec['model_id'].split('/')[-1]}"
+
+        response = requests.get(
+            f"{API_BASE_URL}/api/deployments/{deployment_id}/yaml",
+            timeout=10
+        )
+
+        if response.status_code == 200:
+            yaml_data = response.json()
+
+            # Show each YAML file in an expander
+            st.markdown("#### Generated Files")
+
+            for filename, content in yaml_data.get("files", {}).items():
+                with st.expander(f"📄 {filename}", expanded=False):
+                    st.code(content, language="yaml")
+
+                    # Download button
+                    st.download_button(
+                        label=f"⬇️ Download {filename}",
+                        data=content,
+                        file_name=filename,
+                        mime="text/yaml"
+                    )
+        else:
+            st.error(f"Failed to fetch YAML files: {response.text}")
+
+    except Exception as e:
+        st.error(f"Error fetching YAML preview: {str(e)}")
+        st.info("💡 The YAML files are stored on the backend and ready for deployment.")
+
+
 def render_monitoring_tab(rec: Dict[str, Any]):
     """Render monitoring dashboard."""
 
@@ -1108,7 +1157,7 @@ def render_monitoring_tab(rec: Dict[str, Any]):
         st.info("""
         👈 **No deployments found!**
 
-        Generate deployment YAML files from the **Cost** tab and deploy to the cluster.
+        Click **Deploy to Kubernetes** in the Actions section to deploy to the cluster.
 
         This dashboard will show all InferenceServices deployed to the cluster, allowing you to:
         - Monitor deployment status
