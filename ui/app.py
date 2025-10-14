@@ -11,6 +11,7 @@ import streamlit as st
 import requests
 from typing import Optional, Dict, Any
 import json
+import time
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"
