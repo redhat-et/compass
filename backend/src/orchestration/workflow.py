@@ -115,7 +115,7 @@ class RecommendationWorkflow:
         if not viable_recommendations:
             raise ValueError("No viable deployment configurations found meeting SLO targets")
 
-        # Step 5: Select best recommendation
+        # Step 5: Select best recommendation and populate alternatives
         # Sort by model score (higher is better) then by cost (lower is better)
         viable_recommendations.sort(key=lambda x: (-x[1], x[0].cost_per_month_usd))
         best_recommendation = viable_recommendations[0][0]
@@ -124,6 +124,36 @@ class RecommendationWorkflow:
             f"Selected: {best_recommendation.model_name} on "
             f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type}"
         )
+
+        # Add alternative options from other viable recommendations (different models/configs)
+        if len(viable_recommendations) > 1:
+            # Combine alternatives from capacity planner (same model, different GPU configs)
+            # with alternatives from different models
+            existing_alternatives = best_recommendation.alternative_options or []
+
+            # Add alternatives from different models/configs
+            cross_model_alternatives = [
+                {
+                    "model_name": rec.model_name,
+                    "model_id": rec.model_id,
+                    "gpu_config": rec.gpu_config.dict(),
+                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
+                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_throughput_qps": rec.predicted_throughput_qps,
+                    "cost_per_hour_usd": rec.cost_per_hour_usd,
+                    "cost_per_month_usd": rec.cost_per_month_usd,
+                    "reasoning": rec.reasoning
+                }
+                for rec, _ in viable_recommendations[1:3]  # Up to 2 additional options
+            ]
+
+            # Combine and deduplicate alternatives
+            all_alternatives = existing_alternatives + cross_model_alternatives
+            # Limit to 3 total alternatives
+            best_recommendation.alternative_options = all_alternatives[:3]
+
+            logger.info(f"Added {len(best_recommendation.alternative_options)} alternative options")
 
         return best_recommendation
 
