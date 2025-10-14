@@ -268,13 +268,14 @@ class KubernetesClusterManager:
             for pod in pod_list.get("items", []):
                 metadata = pod.get("metadata", {})
                 status = pod.get("status", {})
+                spec = pod.get("spec", {})
 
                 pods.append({
                     "name": metadata.get("name"),
                     "phase": status.get("phase"),
                     "conditions": status.get("conditions", []),
                     "container_statuses": status.get("containerStatuses", []),
-                    "node_name": status.get("nodeName"),
+                    "node_name": spec.get("nodeName"),
                     "start_time": status.get("startTime")
                 })
 
