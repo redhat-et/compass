@@ -211,7 +211,7 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         request: Simple request with message field
 
     Returns:
-        Recommendation as JSON dict
+        Recommendation as JSON dict with auto-generated YAML
     """
     try:
         logger.info(f"Received UI recommendation request: {request.message[:100]}...")
@@ -221,8 +221,29 @@ async def simple_recommend(request: SimpleRecommendationRequest):
             conversation_history=None
         )
 
-        # Return recommendation as dict for easier UI consumption
-        return recommendation.model_dump()
+        # Auto-generate deployment YAML
+        try:
+            yaml_result = deployment_generator.generate_all(
+                recommendation=recommendation,
+                namespace="default"
+            )
+            deployment_id = yaml_result["deployment_id"]
+            yaml_files = yaml_result["files"]
+            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
+            yaml_generated = True
+        except Exception as yaml_error:
+            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+            deployment_id = None
+            yaml_files = {}
+            yaml_generated = False
+
+        # Return recommendation as dict with YAML info
+        result = recommendation.model_dump()
+        result["deployment_id"] = deployment_id
+        result["yaml_generated"] = yaml_generated
+        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+        return result
 
     except Exception as e:
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
@@ -565,6 +586,55 @@ async def get_k8s_deployment_status(deployment_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get deployment status: {str(e)}"
+        )
+
+
+@app.get("/api/deployments/{deployment_id}/yaml")
+async def get_deployment_yaml(deployment_id: str):
+    """
+    Retrieve generated YAML files for a deployment.
+
+    Args:
+        deployment_id: Deployment identifier
+
+    Returns:
+        Dictionary with YAML file contents
+
+    Raises:
+        HTTPException: If YAML files not found
+    """
+    try:
+        # Get the output directory from deployment generator
+        import os
+        from pathlib import Path
+
+        output_dir = deployment_generator.output_dir
+
+        # Find all YAML files for this deployment
+        yaml_files = {}
+        for file_path in output_dir.glob(f"{deployment_id}*.yaml"):
+            with open(file_path, 'r') as f:
+                yaml_files[file_path.name] = f.read()
+
+        if not yaml_files:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No YAML files found for deployment {deployment_id}"
+            )
+
+        return {
+            "deployment_id": deployment_id,
+            "files": yaml_files,
+            "count": len(yaml_files)
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to retrieve YAML files: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve YAML files: {str(e)}"
         )
 
 
