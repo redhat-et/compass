@@ -596,7 +596,15 @@ def render_performance_tab(rec: Dict[str, Any]):
 
     # Throughput
     st.markdown("#### Throughput")
-    st.metric("Requests/sec", f"{rec['predicted_throughput_qps']:.1f} QPS")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Max Capacity", f"{rec['predicted_throughput_qps']:.1f} QPS")
+    with col2:
+        expected_qps = rec['traffic_profile']['expected_qps']
+        delta_qps = rec['predicted_throughput_qps'] - expected_qps
+        st.metric("Expected Load", f"{expected_qps:.1f} QPS",
+                 delta=f"+{delta_qps:.1f} headroom" if delta_qps > 0 else f"{delta_qps:.1f} over capacity",
+                 delta_color="normal" if delta_qps > 0 else "inverse")
 
 
 def render_cost_tab(rec: Dict[str, Any]):
