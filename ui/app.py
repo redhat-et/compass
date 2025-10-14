@@ -914,7 +914,8 @@ def render_k8s_status_for_deployment(deployment_info: Dict[str, Any], context: s
             for pod in pods:
                 st.markdown(f"**{pod.get('name')}**")
                 st.markdown(f"- Phase: {pod.get('phase')}")
-                st.markdown(f"- Node: {pod.get('node_name')}")
+                node_name = pod.get('node_name') or 'Not assigned'
+                st.markdown(f"- Node: {node_name}")
     else:
         st.info("ℹ️ No pods found yet (may still be creating)")
 
@@ -1261,7 +1262,8 @@ def render_k8s_status():
                     for pod in pods:
                         st.markdown(f"**{pod.get('name')}**")
                         st.markdown(f"- Phase: {pod.get('phase')}")
-                        st.markdown(f"- Node: {pod.get('node_name')}")
+                        node_name = pod.get('node_name') or 'Not assigned'
+                        st.markdown(f"- Node: {node_name}")
             else:
                 st.info("ℹ️ No pods found yet (may still be creating)")
 
