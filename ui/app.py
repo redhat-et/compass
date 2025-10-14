@@ -418,7 +418,7 @@ def render_recommendation():
     rec = st.session_state.recommendation
 
     # Tabs for different views
-    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📄 YAML Preview", "📡 Monitoring"])
+    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📄 YAML Preview"])
 
     with tabs[0]:
         render_overview_tab(rec)
@@ -434,9 +434,6 @@ def render_recommendation():
 
     with tabs[4]:
         render_yaml_preview_tab(rec)
-
-    with tabs[5]:
-        render_monitoring_tab(rec)
 
 
 def render_overview_tab(rec: Dict[str, Any]):
