@@ -486,6 +486,80 @@ def render_overview_tab(rec: Dict[str, Any]):
     st.markdown("### 💡 Reasoning")
     st.info(rec['reasoning'])
 
+    # Alternative Options
+    st.markdown("---")
+    st.markdown("### 🔄 Alternative Options")
+
+    alternatives = rec.get('alternative_options')
+    if alternatives and len(alternatives) > 0:
+        st.caption("Compare tradeoffs between different configurations")
+
+        # Create comparison table
+        for i, alt in enumerate(alternatives, 1):
+            with st.expander(f"Option {i+1}: {alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']} - ${alt['cost_per_month_usd']:,.0f}/mo", expanded=False):
+                st.markdown(f"**Model:** {alt['model_name']}")
+
+                # Performance comparison
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    delta_ttft = alt['predicted_ttft_p90_ms'] - rec['predicted_ttft_p90_ms']
+                    st.metric("TTFT p90", f"{alt['predicted_ttft_p90_ms']}ms",
+                             delta=f"{delta_ttft:+d}ms", delta_color="inverse")
+                with col2:
+                    delta_tpot = alt['predicted_tpot_p90_ms'] - rec['predicted_tpot_p90_ms']
+                    st.metric("TPOT p90", f"{alt['predicted_tpot_p90_ms']}ms",
+                             delta=f"{delta_tpot:+d}ms", delta_color="inverse")
+                with col3:
+                    delta_e2e = alt['predicted_e2e_p95_ms'] - rec['predicted_e2e_p95_ms']
+                    st.metric("E2E p95", f"{alt['predicted_e2e_p95_ms']}ms",
+                             delta=f"{delta_e2e:+d}ms", delta_color="inverse")
+                with col4:
+                    delta_cost = alt['cost_per_month_usd'] - rec['cost_per_month_usd']
+                    st.metric("Cost/Month", f"${alt['cost_per_month_usd']:,.0f}",
+                             delta=f"${delta_cost:+,.0f}", delta_color="inverse")
+
+                st.caption(alt['reasoning'])
+
+                # Button to select this alternative
+                if st.button(f"✓ Select Option {i+1}", key=f"select_alt_{i}", use_container_width=True):
+                    # Swap the alternative with the current recommendation
+                    # Save current recommendation as alternative
+                    current_as_alt = {
+                        "model_name": rec['model_name'],
+                        "model_id": rec['model_id'],
+                        "gpu_config": rec['gpu_config'],
+                        "predicted_ttft_p90_ms": rec['predicted_ttft_p90_ms'],
+                        "predicted_tpot_p90_ms": rec['predicted_tpot_p90_ms'],
+                        "predicted_e2e_p95_ms": rec['predicted_e2e_p95_ms'],
+                        "predicted_throughput_qps": rec['predicted_throughput_qps'],
+                        "cost_per_hour_usd": rec['cost_per_hour_usd'],
+                        "cost_per_month_usd": rec['cost_per_month_usd'],
+                        "reasoning": rec['reasoning']
+                    }
+
+                    # Update recommendation with selected alternative
+                    rec['model_name'] = alt['model_name']
+                    rec['model_id'] = alt['model_id']
+                    rec['gpu_config'] = alt['gpu_config']
+                    rec['predicted_ttft_p90_ms'] = alt['predicted_ttft_p90_ms']
+                    rec['predicted_tpot_p90_ms'] = alt['predicted_tpot_p90_ms']
+                    rec['predicted_e2e_p95_ms'] = alt['predicted_e2e_p95_ms']
+                    rec['predicted_throughput_qps'] = alt['predicted_throughput_qps']
+                    rec['cost_per_hour_usd'] = alt['cost_per_hour_usd']
+                    rec['cost_per_month_usd'] = alt['cost_per_month_usd']
+                    rec['reasoning'] = alt['reasoning']
+
+                    # Replace the selected alternative with the previous recommendation
+                    rec['alternative_options'][i-1] = current_as_alt
+
+                    # Update session state
+                    st.session_state.recommendation = rec
+
+                    st.success(f"✅ Switched to Option {i+1}!")
+                    st.rerun()
+    else:
+        st.info("💡 No alternative options available. This is the only configuration that meets your SLO requirements.")
+
 
 def render_specifications_tab(rec: Dict[str, Any]):
     """Render specifications tab with editable fields."""

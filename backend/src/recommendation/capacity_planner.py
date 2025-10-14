@@ -164,13 +164,20 @@ class CapacityPlanner:
             intent.budget_constraint
         )
 
-        # Add alternative options
+        # Add alternative options with full details for tradeoff comparison
         if len(viable_configs) > 1:
             best_recommendation.alternative_options = [
                 {
+                    "model_name": rec.model_name,
+                    "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
+                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
+                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_throughput_qps": rec.predicted_throughput_qps,
+                    "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
-                    "reasoning": f"Alternative: {rec.gpu_config.replicas}x replicas on {rec.gpu_config.gpu_type}"
+                    "reasoning": rec.reasoning
                 }
                 for rec, _ in viable_configs[1:3]  # Show up to 2 alternatives
             ]
