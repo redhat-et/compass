@@ -19,7 +19,7 @@ API_BASE_URL = "http://localhost:8000"
 # Page configuration
 st.set_page_config(
     page_title="AI Pre-Deployment Assistant",
-    page_icon="docs/ai_assistant_favicon.ico",
+    page_icon="docs/compass-logo.ico",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -84,7 +84,7 @@ def main():
     # Header
     col1, col2 = st.columns([1, 20])
     with col1:
-        st.image("docs/ai_assistant_icon_256.png", width=50)
+        st.image("docs/compass-logo.svg", width=50)
     with col2:
         st.markdown('<div class="main-header">AI Pre-Deployment Assistant</div>', unsafe_allow_html=True)
         st.markdown('<div class="sub-header">From concept to production-ready LLM deployment</div>', unsafe_allow_html=True)
@@ -249,7 +249,7 @@ def render_sidebar():
     with st.sidebar:
         col1, col2 = st.columns([1, 5])
         with col1:
-            st.image("docs/ai_assistant_icon_256.png", width=30)
+            st.image("docs/compass-logo.svg", width=30)
         with col2:
             st.markdown("### AI Pre-Deployment Assistant")
 
