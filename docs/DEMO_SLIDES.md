@@ -1,4 +1,4 @@
-# AI Pre-Deployment Assistant - Technical Overview
+# Compass - Technical Overview
 
 ---
 

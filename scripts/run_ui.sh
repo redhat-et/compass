@@ -1,30 +1,28 @@
 #!/bin/bash
 
-# Start the AI Pre-Deployment Assistant UI
+# Start the Compass UI
 # This script activates the virtual environment and starts the Streamlit UI
 
 set -e
 
-echo "🤖 Starting AI Pre-Deployment Assistant UI..."
+echo "🤖 Starting Compass UI..."
 echo ""
 
 # Check if virtual environment exists
-if [ ! -d "backend/venv" ]; then
+if [ ! -d "venv" ]; then
     echo "❌ Virtual environment not found!"
     echo "Creating virtual environment..."
-    cd backend
     python -m venv venv
-    cd ..
 fi
 
 # Activate virtual environment
-source backend/venv/bin/activate
+source venv/bin/activate
 
 # Check if requirements are installed
 echo "Checking dependencies..."
 if ! python -c "import streamlit" &> /dev/null; then
     echo "⚠️  Dependencies not found. Installing from requirements.txt..."
-    pip install -r backend/requirements.txt
+    pip install -r requirements.txt
     echo "✅ Dependencies installed"
     echo ""
 fi

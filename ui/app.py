@@ -1,6 +1,6 @@
-"""Streamlit UI for AI Pre-Deployment Assistant.
+"""Streamlit UI for Compass.
 
-This module provides the main Streamlit interface for the assistant, featuring:
+This module provides the main Streamlit interface for Compass, featuring:
 1. Chat interface for conversational requirement gathering
 2. Recommendation display with all specification details
 3. Editable specification component for user review/modification
@@ -18,7 +18,7 @@ API_BASE_URL = "http://localhost:8000"
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Pre-Deployment Assistant",
+    page_title="Compass",
     page_icon="docs/compass-logo.ico",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -86,7 +86,7 @@ def main():
     with col1:
         st.image("docs/compass-logo.svg", width=50)
     with col2:
-        st.markdown('<div class="main-header">AI Pre-Deployment Assistant</div>', unsafe_allow_html=True)
+        st.markdown('<div class="main-header">Compass</div>', unsafe_allow_html=True)
         st.markdown('<div class="sub-header">From concept to production-ready LLM deployment</div>', unsafe_allow_html=True)
 
     # Sidebar
@@ -307,7 +307,7 @@ def render_sidebar():
         with col1:
             st.image("docs/compass-logo.svg", width=30)
         with col2:
-            st.markdown("### AI Pre-Deployment Assistant")
+            st.markdown("### Compass")
 
         st.markdown("---")
         st.markdown("### 🎯 Quick Start")

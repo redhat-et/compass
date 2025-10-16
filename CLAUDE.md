@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains the architecture design for the **AI Pre-Deployment Assistant**, an open-source system that guides users from concept to production-ready LLM deployments through conversational AI and intelligent capacity planning.
+This repository contains the architecture design for **Compass**, an open-source system that guides users from concept to production-ready LLM deployments through a conversational AI and intelligent capacity planning.
 
 **Key Principle**: This is a **Phase 1 POC implementation** based on the architecture design. The core functionality is complete and working end-to-end.
 
@@ -120,7 +120,7 @@ The system translates high-level user intent into technical specifications:
 
 ### Terminology Consistency
 
-- Use "**Pre-Deployment Assistant**" (not "Pre-Deployment Assistance")
+- Use "**Compass**" as the project name
 - Use "**TTFT**" for Time to First Token (not "time-to-first-token")
 - Use "**TPOT**" for Time Per Output Token
 - Use "**SLO**" for Service Level Objective

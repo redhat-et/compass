@@ -35,7 +35,7 @@ def build_intent_extraction_prompt(user_message: str, conversation_history: list
             context += f"{role}: {content}\n"
         context += "\n"
 
-    prompt = f"""You are an expert AI assistant helping users deploy Large Language Models (LLMs) for production use cases.
+    prompt = f"""You are an expert AI assistant for Compass helping users deploy Large Language Models (LLMs) for production use cases.
 
 {context}Current user message: {user_message}
 
@@ -63,7 +63,7 @@ Be intelligent about inference:
     return prompt
 
 
-CONVERSATIONAL_RESPONSE_TEMPLATE = """You are a helpful AI assistant for the AI Pre-Deployment Assistant.
+CONVERSATIONAL_RESPONSE_TEMPLATE = """You are a helpful assistant for Compass.
 
 The user is working on deploying a Large Language Model for their use case. You are here to have a natural conversation with them to understand their needs.
 

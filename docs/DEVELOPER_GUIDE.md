@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide provides step-by-step instructions for developing and testing the AI Pre-Deployment Assistant.
+This guide provides step-by-step instructions for developing and testing Compass.
 
 ## Table of Contents
 
@@ -36,7 +36,7 @@ Create virtual environments and install dependencies:
 make setup
 ```
 
-This creates a single shared virtual environment in `backend/venv` used by both the backend and UI.
+This creates a single shared virtual environment in `venv/` (at project root) used by both the backend and UI.
 
 ## Component Startup Sequence
 
@@ -99,7 +99,7 @@ make start-ui
 
 **Manual start:**
 ```bash
-source backend/venv/bin/activate
+source venv/bin/activate
 streamlit run ui/app.py
 ```
 
@@ -424,7 +424,7 @@ make lint
 make format
 ```
 
-**Both use the shared backend venv.**
+**Both use the shared project venv at root.**
 
 ## Simulator Development
 

@@ -1,4 +1,4 @@
-# AI Pre-Deployment Assistant - POC
+# Compass - POC
 
 A conversational AI system that guides users from concept to production-ready LLM deployments through intelligent capacity planning and SLO-driven recommendations.
 
@@ -24,7 +24,7 @@ See [Quick Start Guide](#quick-start-guide) below for details.
 
 ## Overview
 
-This is a **Phase 1 POC** demonstrating the core architecture of the Pre-Deployment Assistant. The system uses:
+This is a **Phase 1 POC** demonstrating the core architecture of Compass. The system uses:
 - **Conversational AI** to extract deployment requirements from natural language
 - **SLO-driven capacity planning** to recommend optimal model + GPU configurations
 - **What-if analysis** to explore trade-offs between cost, latency, and throughput
@@ -35,7 +35,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design and 
 ## Project Structure
 
 ```
-ai-assistant/
+compass/
 ├── backend/                    # FastAPI backend with core recommendation engine
 │   └── src/
 │       ├── context_intent/     # Component 2: Intent extraction
@@ -54,7 +54,7 @@ ai-assistant/
 ├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kind-cluster.sh)
 ├── tests/                      # Test suites
 ├── docs/                       # Architecture documentation and diagrams
-├── CLAUDE.md                   # AI assistant guidance
+├── CLAUDE.md                   # Claude Code guidance
 └── README.md                   # This file
 ```
 
@@ -134,7 +134,7 @@ This starts:
 - FastAPI backend (http://localhost:8000)
 - Streamlit UI (http://localhost:8501)
 
-Open http://localhost:8501 in your browser to use the assistant!
+Open http://localhost:8501 in your browser to use Compass!
 
 ### Step 4: Use the Assistant
 
@@ -184,12 +184,11 @@ For detailed development workflows, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER
 
 **Terminal 1:**
 ```bash
-cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Verify correct venv
-which python  # Should show: .../backend/venv/bin/python
+which python  # Should show: .../venv/bin/python
 
 pip install -r requirements.txt
 ```

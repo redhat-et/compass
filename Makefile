@@ -1,6 +1,6 @@
-# AI Pre-Deployment Assistant - Makefile
+# Compass - Makefile
 #
-# This Makefile provides common development tasks for the AI Pre-Deployment Assistant.
+# This Makefile provides common development tasks for Compass.
 # Supports macOS and Linux.
 
 .PHONY: help
@@ -30,14 +30,14 @@ SIMULATOR_TAG ?= latest
 SIMULATOR_FULL_IMAGE := $(REGISTRY)/$(REGISTRY_ORG)/$(SIMULATOR_IMAGE):$(SIMULATOR_TAG)
 
 OLLAMA_MODEL ?= llama3.1:8b
-KIND_CLUSTER_NAME ?= ai-assistant-poc
+KIND_CLUSTER_NAME ?= compass-poc
 
 BACKEND_DIR := backend
 UI_DIR := ui
 SIMULATOR_DIR := simulator
 
-BACKEND_VENV := $(BACKEND_DIR)/venv
-# UI uses backend's venv (no separate venv)
+VENV := venv
+# Shared venv at project root for both backend and UI
 
 # PID files for background processes
 PID_DIR := .pids
@@ -82,15 +82,15 @@ check-prereqs: ## Check if required tools are installed
 	@echo "$(GREEN)✓ Docker daemon running$(NC)"
 	@echo "$(GREEN)All prerequisites satisfied!$(NC)"
 
-setup-backend: ## Set up backend Python environment (includes UI dependencies)
-	@echo "$(BLUE)Setting up backend environment...$(NC)"
-	cd $(BACKEND_DIR) && $(PYTHON) -m venv venv
-	cd $(BACKEND_DIR) && . venv/bin/activate && pip install --upgrade pip
-	cd $(BACKEND_DIR) && . venv/bin/activate && pip install -r requirements.txt
-	@echo "$(GREEN)✓ Backend environment ready (includes UI dependencies)$(NC)"
+setup-backend: ## Set up Python environment (includes backend and UI dependencies)
+	@echo "$(BLUE)Setting up Python environment...$(NC)"
+	$(PYTHON) -m venv $(VENV)
+	. $(VENV)/bin/activate && pip install --upgrade pip
+	. $(VENV)/bin/activate && pip install -r requirements.txt
+	@echo "$(GREEN)✓ Python environment ready (includes backend and UI dependencies)$(NC)"
 
-setup-ui: setup-backend ## Set up UI (uses backend's venv)
-	@echo "$(GREEN)✓ UI ready (shares backend venv)$(NC)"
+setup-ui: setup-backend ## Set up UI (uses shared venv)
+	@echo "$(GREEN)✓ UI ready (shares project venv)$(NC)"
 
 setup-ollama: ## Pull Ollama model
 	@echo "$(BLUE)Checking if Ollama model $(OLLAMA_MODEL) is available...$(NC)"
@@ -151,7 +151,7 @@ start-backend: ## Start FastAPI backend
 	@if [ -f $(BACKEND_PID) ] && kill -0 $$(cat $(BACKEND_PID)) 2>/dev/null; then \
 		echo "$(YELLOW)Backend already running (PID: $$(cat $(BACKEND_PID)))$(NC)"; \
 	else \
-		cd $(BACKEND_DIR) && . venv/bin/activate && \
+		. $(VENV)/bin/activate && cd $(BACKEND_DIR) && \
 		( uvicorn src.api.routes:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
 		sleep 2; \
 		echo "$(GREEN)✓ Backend started (PID: $$(cat $(BACKEND_PID)))$(NC)"; \
@@ -163,7 +163,7 @@ start-ui: ## Start Streamlit UI
 	@if [ -f $(UI_PID) ] && kill -0 $$(cat $(UI_PID)) 2>/dev/null; then \
 		echo "$(YELLOW)UI already running (PID: $$(cat $(UI_PID)))$(NC)"; \
 	else \
-		. $(BACKEND_DIR)/venv/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
+		. $(VENV)/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
 		sleep 2; \
 		echo "$(GREEN)✓ UI started (PID: $$(cat $(UI_PID)))$(NC)"; \
 	fi
@@ -268,40 +268,40 @@ test: test-unit ## Run all tests
 
 test-unit: ## Run unit tests
 	@echo "$(BLUE)Running unit tests...$(NC)"
-	cd $(BACKEND_DIR) && . venv/bin/activate && pytest tests/ -v -m "not integration and not e2e"
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m "not integration and not e2e"
 
 test-integration: setup-ollama ## Run integration tests (requires Ollama)
 	@echo "$(BLUE)Running integration tests...$(NC)"
-	cd $(BACKEND_DIR) && . venv/bin/activate && pytest tests/ -v -m integration
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m integration
 
 test-e2e: ## Run end-to-end tests (requires cluster)
 	@echo "$(BLUE)Running end-to-end tests...$(NC)"
 	@kubectl cluster-info > /dev/null 2>&1 || (echo "$(RED)✗ Kubernetes cluster not accessible$(NC). Run: make cluster-start" && exit 1)
-	cd $(BACKEND_DIR) && . venv/bin/activate && pytest tests/ -v -m e2e
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m e2e
 
 test-workflow: setup-ollama ## Run workflow integration test
 	@echo "$(BLUE)Running workflow test...$(NC)"
-	cd $(BACKEND_DIR) && . venv/bin/activate && $(PYTHON) test_workflow.py
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && $(PYTHON) test_workflow.py
 
 test-watch: ## Run tests in watch mode
 	@echo "$(BLUE)Running tests in watch mode...$(NC)"
-	cd $(BACKEND_DIR) && . venv/bin/activate && pytest-watch
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest-watch
 
 ##@ Code Quality
 
 lint: ## Run linters
 	@echo "$(BLUE)Running linters...$(NC)"
-	@if [ -d $(BACKEND_VENV) ]; then \
-		cd $(BACKEND_DIR) && . venv/bin/activate && \
-		(command -v ruff >/dev/null 2>&1 && ruff check src/ ../$(UI_DIR)/*.py || echo "$(YELLOW)ruff not installed, skipping$(NC)"); \
+	@if [ -d $(VENV) ]; then \
+		. $(VENV)/bin/activate && \
+		(command -v ruff >/dev/null 2>&1 && ruff check $(BACKEND_DIR)/src/ $(UI_DIR)/*.py || echo "$(YELLOW)ruff not installed, skipping$(NC)"); \
 	fi
 	@echo "$(GREEN)✓ Linting complete$(NC)"
 
 format: ## Auto-format code
 	@echo "$(BLUE)Formatting code...$(NC)"
-	@if [ -d $(BACKEND_VENV) ]; then \
-		cd $(BACKEND_DIR) && . venv/bin/activate && \
-		(command -v black >/dev/null 2>&1 && black src/ ../$(UI_DIR)/*.py || echo "$(YELLOW)black not installed, skipping$(NC)"); \
+	@if [ -d $(VENV) ]; then \
+		. $(VENV)/bin/activate && \
+		(command -v black >/dev/null 2>&1 && black $(BACKEND_DIR)/src/ $(UI_DIR)/*.py || echo "$(YELLOW)black not installed, skipping$(NC)"); \
 	fi
 	@echo "$(GREEN)✓ Formatting complete$(NC)"
 
@@ -319,7 +319,7 @@ clean: ## Clean generated files and caches
 
 clean-all: clean ## Clean everything including virtual environments
 	@echo "$(BLUE)Cleaning virtual environments...$(NC)"
-	rm -rf $(BACKEND_VENV)
+	rm -rf $(VENV)
 	@echo "$(GREEN)✓ Deep cleanup complete$(NC)"
 
 ##@ Utilities
