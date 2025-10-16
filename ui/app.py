@@ -128,16 +128,72 @@ def render_assistant_tab():
         )
 
         if st.button(button_label, use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
-            deploy_to_cluster(st.session_state.recommendation)
+            deploy_to_cluster(get_selected_option())
 
         if st.session_state.recommendation.get("yaml_generated", False):
             st.caption("💡 YAML files auto-generated. View in the **Recommendation Details** tab.")
+
+
+def get_selected_option():
+    """Get the currently selected deployment option (recommended or alternative)."""
+    rec = st.session_state.recommendation
+    selected_idx = st.session_state.get('selected_option_idx', 0)
+
+    if selected_idx == 0:
+        # Return the recommended option (current recommendation)
+        return rec
+    else:
+        # Return the selected alternative
+        alternatives = rec.get('alternative_options', [])
+        if selected_idx - 1 < len(alternatives):
+            alt = alternatives[selected_idx - 1]
+            # Create a recommendation dict from the alternative
+            selected_rec = rec.copy()
+            selected_rec['model_name'] = alt['model_name']
+            selected_rec['model_id'] = alt['model_id']
+            selected_rec['gpu_config'] = alt['gpu_config']
+            selected_rec['predicted_ttft_p90_ms'] = alt['predicted_ttft_p90_ms']
+            selected_rec['predicted_tpot_p90_ms'] = alt['predicted_tpot_p90_ms']
+            selected_rec['predicted_e2e_p95_ms'] = alt['predicted_e2e_p95_ms']
+            selected_rec['predicted_throughput_qps'] = alt['predicted_throughput_qps']
+            selected_rec['cost_per_hour_usd'] = alt['cost_per_hour_usd']
+            selected_rec['cost_per_month_usd'] = alt['cost_per_month_usd']
+            selected_rec['reasoning'] = alt['reasoning']
+            return selected_rec
+        else:
+            # Fallback to recommended if invalid index
+            return rec
 
 
 def render_recommendation_details_tab():
     """Render the recommendation details tab."""
     if st.session_state.recommendation:
         render_recommendation()
+
+        # Add deploy button at bottom
+        st.markdown("---")
+        st.markdown("### 🚀 Deploy")
+
+        # Check cluster status
+        if st.session_state.cluster_accessible is None:
+            check_cluster_status()
+
+        button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+        button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+        button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
+            "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
+            "Kubernetes cluster not accessible"
+        )
+
+        # Show which option will be deployed
+        selected_idx = st.session_state.get('selected_option_idx', 0)
+        if selected_idx == 0:
+            st.caption("📌 **Recommended** option will be deployed")
+        else:
+            st.caption(f"📌 **Option {selected_idx+1}** will be deployed")
+
+        if st.button(button_label, key="deploy_from_details", use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
+            deploy_to_cluster(get_selected_option())
     else:
         st.info("👈 Start a conversation in the **Assistant** tab to get deployment recommendations")
 
@@ -492,75 +548,73 @@ def render_overview_tab(rec: Dict[str, Any]):
 
     # Alternative Options
     st.markdown("---")
-    st.markdown("### 🔄 Alternative Options")
+    st.markdown("### 🔄 Deployment Options Comparison")
 
     alternatives = rec.get('alternative_options')
     if alternatives and len(alternatives) > 0:
-        st.caption("Compare tradeoffs between different configurations")
+        st.caption("Click Select button to choose which option to deploy")
 
-        # Create comparison table
+        # Build table-like layout with buttons
+        import pandas as pd
+
+        # Initialize selected_option_idx in session state if not present
+        # This just tracks which option is selected, doesn't modify the recommendation
+        if 'selected_option_idx' not in st.session_state:
+            st.session_state.selected_option_idx = 0  # 0 = recommended
+
+        # Header row
+        header_cols = st.columns([0.8, 1.5, 2.5, 1.2, 0.8, 1, 1, 1, 1, 1])
+        header_cols[0].markdown("**Select**")
+        header_cols[1].markdown("**Option**")
+        header_cols[2].markdown("**Model**")
+        header_cols[3].markdown("**GPU Config**")
+        header_cols[4].markdown("**Replicas**")
+        header_cols[5].markdown("**TTFT p90**")
+        header_cols[6].markdown("**TPOT p90**")
+        header_cols[7].markdown("**E2E p95**")
+        header_cols[8].markdown("**Max QPS**")
+        header_cols[9].markdown("**Cost/Month**")
+
+        # Recommended option row
+        cols = st.columns([0.8, 1.5, 2.5, 1.2, 0.8, 1, 1, 1, 1, 1])
+        is_selected = st.session_state.selected_option_idx == 0
+        button_label = "✅" if is_selected else "⚫"
+
+        with cols[0]:
+            if st.button(button_label, key="select_rec", use_container_width=True, disabled=is_selected):
+                st.session_state.selected_option_idx = 0
+                st.rerun()
+
+        cols[1].markdown("**Recommended**")
+        cols[2].markdown(rec['model_name'])
+        cols[3].markdown(f"{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}")
+        cols[4].markdown(f"{rec['gpu_config']['replicas']}")
+        cols[5].markdown(f"{rec['predicted_ttft_p90_ms']}")
+        cols[6].markdown(f"{rec['predicted_tpot_p90_ms']}")
+        cols[7].markdown(f"{rec['predicted_e2e_p95_ms']}")
+        cols[8].markdown(f"{rec['predicted_throughput_qps']:.0f}")
+        cols[9].markdown(f"${rec['cost_per_month_usd']:,.0f}")
+
+        # Alternative rows
         for i, alt in enumerate(alternatives, 1):
-            with st.expander(f"Option {i+1}: {alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']} - ${alt['cost_per_month_usd']:,.0f}/mo", expanded=False):
-                st.markdown(f"**Model:** {alt['model_name']}")
+            cols = st.columns([0.8, 1.5, 2.5, 1.2, 0.8, 1, 1, 1, 1, 1])
+            is_selected = st.session_state.selected_option_idx == i
+            button_label = "✅" if is_selected else "⚫"
 
-                # Performance comparison
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    delta_ttft = alt['predicted_ttft_p90_ms'] - rec['predicted_ttft_p90_ms']
-                    st.metric("TTFT p90", f"{alt['predicted_ttft_p90_ms']}ms",
-                             delta=f"{delta_ttft:+d}ms", delta_color="inverse")
-                with col2:
-                    delta_tpot = alt['predicted_tpot_p90_ms'] - rec['predicted_tpot_p90_ms']
-                    st.metric("TPOT p90", f"{alt['predicted_tpot_p90_ms']}ms",
-                             delta=f"{delta_tpot:+d}ms", delta_color="inverse")
-                with col3:
-                    delta_e2e = alt['predicted_e2e_p95_ms'] - rec['predicted_e2e_p95_ms']
-                    st.metric("E2E p95", f"{alt['predicted_e2e_p95_ms']}ms",
-                             delta=f"{delta_e2e:+d}ms", delta_color="inverse")
-                with col4:
-                    delta_cost = alt['cost_per_month_usd'] - rec['cost_per_month_usd']
-                    st.metric("Cost/Month", f"${alt['cost_per_month_usd']:,.0f}",
-                             delta=f"${delta_cost:+,.0f}", delta_color="inverse")
-
-                st.caption(alt['reasoning'])
-
-                # Button to select this alternative
-                if st.button(f"✓ Select Option {i+1}", key=f"select_alt_{i}", use_container_width=True):
-                    # Swap the alternative with the current recommendation
-                    # Save current recommendation as alternative
-                    current_as_alt = {
-                        "model_name": rec['model_name'],
-                        "model_id": rec['model_id'],
-                        "gpu_config": rec['gpu_config'],
-                        "predicted_ttft_p90_ms": rec['predicted_ttft_p90_ms'],
-                        "predicted_tpot_p90_ms": rec['predicted_tpot_p90_ms'],
-                        "predicted_e2e_p95_ms": rec['predicted_e2e_p95_ms'],
-                        "predicted_throughput_qps": rec['predicted_throughput_qps'],
-                        "cost_per_hour_usd": rec['cost_per_hour_usd'],
-                        "cost_per_month_usd": rec['cost_per_month_usd'],
-                        "reasoning": rec['reasoning']
-                    }
-
-                    # Update recommendation with selected alternative
-                    rec['model_name'] = alt['model_name']
-                    rec['model_id'] = alt['model_id']
-                    rec['gpu_config'] = alt['gpu_config']
-                    rec['predicted_ttft_p90_ms'] = alt['predicted_ttft_p90_ms']
-                    rec['predicted_tpot_p90_ms'] = alt['predicted_tpot_p90_ms']
-                    rec['predicted_e2e_p95_ms'] = alt['predicted_e2e_p95_ms']
-                    rec['predicted_throughput_qps'] = alt['predicted_throughput_qps']
-                    rec['cost_per_hour_usd'] = alt['cost_per_hour_usd']
-                    rec['cost_per_month_usd'] = alt['cost_per_month_usd']
-                    rec['reasoning'] = alt['reasoning']
-
-                    # Replace the selected alternative with the previous recommendation
-                    rec['alternative_options'][i-1] = current_as_alt
-
-                    # Update session state
-                    st.session_state.recommendation = rec
-
-                    st.success(f"✅ Switched to Option {i+1}!")
+            with cols[0]:
+                if st.button(button_label, key=f"select_alt_{i}", use_container_width=True, disabled=is_selected):
+                    st.session_state.selected_option_idx = i
                     st.rerun()
+
+            cols[1].markdown(f"**Option {i+1}**")
+            cols[2].markdown(alt['model_name'])
+            cols[3].markdown(f"{alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']}")
+            cols[4].markdown(f"{alt['gpu_config']['replicas']}")
+            cols[5].markdown(f"{alt['predicted_ttft_p90_ms']}")
+            cols[6].markdown(f"{alt['predicted_tpot_p90_ms']}")
+            cols[7].markdown(f"{alt['predicted_e2e_p95_ms']}")
+            cols[8].markdown(f"{alt['predicted_throughput_qps']:.0f}")
+            cols[9].markdown(f"${alt['cost_per_month_usd']:,.0f}")
     else:
         st.info("💡 No alternative options available. This is the only configuration that meets your SLO requirements.")
 
