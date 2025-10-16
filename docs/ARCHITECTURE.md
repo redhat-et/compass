@@ -1,8 +1,8 @@
-# System-Level Architecture for Pre-Deployment Assistant
+# System-Level Architecture for Compass
 
 ## Overview
 
-This document defines the system architecture for the **Pre-Deployment Assistant for LLM Serving** capability, which streamlines the path from concept to production-ready endpoint for LLM deployments on Kubernetes.
+This document defines the system architecture for **Compass**, which streamlines the path from concept to production-ready endpoint for LLM deployments on Kubernetes.
 
 ## Project Context
 

@@ -1,6 +1,6 @@
 # Sprint 3 Testing Guide - Streamlit UI
 
-This guide covers testing the Streamlit UI for the AI Pre-Deployment Assistant.
+This guide covers testing the Streamlit UI for Compass.
 
 ## Prerequisites
 
@@ -46,7 +46,7 @@ The UI will start on http://localhost:8501
 ### 1. UI Loads Successfully
 
 - [ ] Streamlit app starts without errors
-- [ ] Header displays "AI Pre-Deployment Assistant" with app icon
+- [ ] Header displays "Compass" with app icon
 - [ ] Sidebar shows app title and navigation
 - [ ] Two-column layout visible (Conversation | Recommendation)
 - [ ] Chat input field is present

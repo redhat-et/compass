@@ -1,1 +1,1 @@
-"""Backend source package for AI Pre-Deployment Assistant."""
+"""Backend source package for Compass."""

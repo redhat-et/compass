@@ -171,7 +171,7 @@ class YAMLValidator:
 
         # Check if this is simulator mode (skip GPU validation)
         annotations = data.get("metadata", {}).get("annotations", {})
-        simulator_mode = annotations.get("ai-assistant/simulator-mode") == "true"
+        simulator_mode = annotations.get("compass/simulator-mode") == "true"
 
         # Verify GPU resources are specified (unless simulator mode)
         predictor = data.get("spec", {}).get("predictor", {})

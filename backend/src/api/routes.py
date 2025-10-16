@@ -1,4 +1,4 @@
-"""FastAPI routes for the Pre-Deployment Assistant API."""
+"""FastAPI routes for the Compass API."""
 
 import logging
 from datetime import datetime
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # Create FastAPI app
 app = FastAPI(
-    title="AI Pre-Deployment Assistant API",
+    title="Compass API",
     description="API for LLM deployment recommendations",
     version="0.1.0"
 )
@@ -108,7 +108,7 @@ class DeploymentStatusResponse(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "ai-pre-deployment-assistant"}
+    return {"status": "healthy", "service": "compass"}
 
 
 # Main recommendation endpoint

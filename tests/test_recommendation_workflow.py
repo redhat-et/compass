@@ -75,7 +75,7 @@ def test_scenario(workflow: RecommendationWorkflow, scenario: dict):
 def main():
     """Run end-to-end tests with demo scenarios."""
     print("\n" + "="*80)
-    print("AI PRE-DEPLOYMENT ASSISTANT - END-TO-END TEST")
+    print("COMPASS - END-TO-END TEST")
     print("="*80)
 
     # Initialize workflow
