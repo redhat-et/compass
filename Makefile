@@ -315,7 +315,7 @@ format: ## Auto-format code
 	@echo "$(BLUE)Formatting code...$(NC)"
 	@if [ -d $(VENV) ]; then \
 		. $(VENV)/bin/activate && \
-		(command -v black >/dev/null 2>&1 && black $(BACKEND_DIR)/src/ $(UI_DIR)/*.py || echo "$(YELLOW)black not installed, skipping$(NC)"); \
+		(command -v ruff >/dev/null 2>&1 && ruff format $(BACKEND_DIR)/ $(UI_DIR)/ || echo "$(YELLOW)ruff not installed, skipping$(NC)"); \
 	fi
 	@echo "$(GREEN)✓ Formatting complete$(NC)"
 
