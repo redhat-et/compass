@@ -3,18 +3,18 @@
 import logging
 import os
 from datetime import datetime
-from typing import List, Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from ..context_intent.schema import DeploymentRecommendation, ConversationMessage
-from ..orchestration.workflow import RecommendationWorkflow
+from ..context_intent.schema import ConversationMessage, DeploymentRecommendation
+from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
+from ..deployment.generator import DeploymentGenerator
+from ..deployment.validator import ValidationError, YAMLValidator
 from ..knowledge_base.model_catalog import ModelCatalog
 from ..knowledge_base.slo_templates import SLOTemplateRepository
-from ..deployment.generator import DeploymentGenerator
-from ..deployment.validator import YAMLValidator, ValidationError
-from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
+from ..orchestration.workflow import RecommendationWorkflow
 
 # Configure logging - check for DEBUG environment variable
 debug_mode = os.getenv("COMPASS_DEBUG", "false").lower() == "true"
@@ -64,7 +64,7 @@ except KubernetesDeploymentError as e:
 class RecommendationRequest(BaseModel):
     """Request for deployment recommendation."""
     user_message: str
-    conversation_history: Optional[List[ConversationMessage]] = None
+    conversation_history: list[ConversationMessage] | None = None
 
 
 class SimpleRecommendationRequest(BaseModel):
@@ -76,14 +76,14 @@ class RecommendationResponse(BaseModel):
     """Response with deployment recommendation."""
     recommendation: DeploymentRecommendation
     success: bool = True
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class ErrorResponse(BaseModel):
     """Error response."""
     success: bool = False
     error: str
-    details: Optional[str] = None
+    details: str | None = None
 
 
 class DeploymentRequest(BaseModel):
@@ -98,7 +98,7 @@ class DeploymentResponse(BaseModel):
     namespace: str
     files: dict
     success: bool = True
-    message: Optional[str] = None
+    message: str | None = None
 
 
 class DeploymentStatusResponse(BaseModel):
@@ -109,7 +109,7 @@ class DeploymentStatusResponse(BaseModel):
     resource_utilization: dict
     cost_analysis: dict
     traffic_patterns: dict
-    recommendations: Optional[List[str]] = None
+    recommendations: list[str] | None = None
 
 
 # Health check endpoint
@@ -619,15 +619,13 @@ async def get_deployment_yaml(deployment_id: str):
     """
     try:
         # Get the output directory from deployment generator
-        import os
-        from pathlib import Path
 
         output_dir = deployment_generator.output_dir
 
         # Find all YAML files for this deployment
         yaml_files = {}
         for file_path in output_dir.glob(f"{deployment_id}*.yaml"):
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 yaml_files[file_path.name] = f.read()
 
         if not yaml_files:

@@ -1,9 +1,8 @@
 """Traffic profile generation from deployment intent."""
 
 import logging
-from typing import Optional
 
-from ..context_intent.schema import DeploymentIntent, TrafficProfile, SLOTargets
+from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
 from ..knowledge_base.slo_templates import SLOTemplateRepository
 
 logger = logging.getLogger(__name__)
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class TrafficProfileGenerator:
     """Generate traffic profiles and SLO targets from deployment intent."""
 
-    def __init__(self, slo_repo: Optional[SLOTemplateRepository] = None):
+    def __init__(self, slo_repo: SLOTemplateRepository | None = None):
         """
         Initialize traffic profile generator.
 

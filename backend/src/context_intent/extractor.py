@@ -1,13 +1,12 @@
 """Intent extraction from conversational input."""
 
 import logging
-from typing import List, Dict, Optional
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from .schema import DeploymentIntent, ConversationMessage
 from ..llm.ollama_client import OllamaClient
-from ..llm.prompts import build_intent_extraction_prompt, INTENT_EXTRACTION_SCHEMA
+from ..llm.prompts import INTENT_EXTRACTION_SCHEMA, build_intent_extraction_prompt
+from .schema import ConversationMessage, DeploymentIntent
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
 class IntentExtractor:
     """Extract structured deployment intent from natural language conversation."""
 
-    def __init__(self, llm_client: Optional[OllamaClient] = None):
+    def __init__(self, llm_client: OllamaClient | None = None):
         """
         Initialize intent extractor.
 
@@ -31,7 +30,7 @@ class IntentExtractor:
     def extract_intent(
         self,
         user_message: str,
-        conversation_history: Optional[List[ConversationMessage]] = None
+        conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentIntent:
         """
         Extract deployment intent from user message.
@@ -106,7 +105,7 @@ class IntentExtractor:
             logger.error(f"Failed to extract intent: {e}")
             raise ValueError(f"Intent extraction failed: {e}")
 
-    def _parse_extracted_intent(self, raw_data: Dict) -> DeploymentIntent:
+    def _parse_extracted_intent(self, raw_data: dict) -> DeploymentIntent:
         """
         Parse and validate raw LLM output into DeploymentIntent.
 
@@ -128,7 +127,7 @@ class IntentExtractor:
             logger.error(f"Failed to parse intent from: {cleaned_data}")
             raise ValueError(f"Invalid intent data: {e}")
 
-    def _clean_llm_output(self, data: Dict) -> Dict:
+    def _clean_llm_output(self, data: dict) -> dict:
         """
         Clean common LLM output mistakes.
 

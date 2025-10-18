@@ -1,8 +1,8 @@
 """YAML validation module for generated deployment configurations."""
 
 import logging
-from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import Any
+
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class YAMLValidator:
             ValidationError: If YAML syntax is invalid
         """
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 # Use safe_load_all for multi-document YAML files
                 docs = list(yaml.safe_load_all(f))
                 if not docs or all(doc is None for doc in docs):
@@ -73,7 +73,7 @@ class YAMLValidator:
         except yaml.YAMLError as e:
             raise ValidationError(f"Invalid YAML syntax in {file_path}: {e}")
 
-    def _get_nested_field(self, data: Dict[str, Any], field_path: str) -> Optional[Any]:
+    def _get_nested_field(self, data: dict[str, Any], field_path: str) -> Any | None:
         """
         Get nested field from dictionary using dot notation.
 
@@ -98,7 +98,7 @@ class YAMLValidator:
     def validate_required_fields(
         self,
         file_path: str,
-        required_fields: List[str]
+        required_fields: list[str]
     ) -> bool:
         """
         Validate that required fields are present in at least one document.
@@ -113,7 +113,7 @@ class YAMLValidator:
         Raises:
             ValidationError: If required fields are missing
         """
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             docs = list(yaml.safe_load_all(f))
 
         # Check first non-empty document
@@ -154,7 +154,7 @@ class YAMLValidator:
         self.validate_required_fields(file_path, self.KSERVE_REQUIRED_FIELDS)
 
         # Additional KServe-specific checks
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             data = yaml.safe_load(f)
 
         # Verify it's a KServe InferenceService
@@ -189,7 +189,7 @@ class YAMLValidator:
             if not gpu_requests or not gpu_limits:
                 raise ValidationError("GPU resources not specified in container")
         else:
-            logger.info(f"Simulator mode detected - skipping GPU validation")
+            logger.info("Simulator mode detected - skipping GPU validation")
 
         logger.info(f"KServe YAML validation passed: {file_path}")
         return True
@@ -213,7 +213,7 @@ class YAMLValidator:
         # Check required fields on the first document (HPA)
         self.validate_required_fields(file_path, self.HPA_REQUIRED_FIELDS)
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             # Load all documents (in case of multi-document YAML)
             docs = list(yaml.safe_load_all(f))
 
@@ -260,7 +260,7 @@ class YAMLValidator:
         # Check required fields on the first document
         self.validate_required_fields(file_path, self.SERVICEMONITOR_REQUIRED_FIELDS)
 
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             docs = list(yaml.safe_load_all(f))
 
         # Find the ServiceMonitor document
@@ -278,7 +278,7 @@ class YAMLValidator:
         logger.info(f"ServiceMonitor YAML validation passed: {file_path} ({len(docs)} document(s))")
         return True
 
-    def validate_all(self, files: Dict[str, str]) -> Dict[str, bool]:
+    def validate_all(self, files: dict[str, str]) -> dict[str, bool]:
         """
         Validate all generated YAML files.
 

@@ -7,11 +7,11 @@ This module provides the main Streamlit interface for Compass, featuring:
 4. Integration with FastAPI backend
 """
 
-import streamlit as st
-import requests
-from typing import Optional, Dict, Any
-import json
 import time
+from typing import Any
+
+import requests
+import streamlit as st
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"
@@ -444,7 +444,7 @@ def render_chat_interface():
                 st.error(f"❌ Error: {str(e)}")
 
 
-def format_recommendation_summary(rec: Dict[str, Any]) -> str:
+def format_recommendation_summary(rec: dict[str, Any]) -> str:
     """Format recommendation as a chat message."""
 
     meets_slo = rec.get("meets_slo", False)
@@ -496,7 +496,7 @@ def render_recommendation():
         render_yaml_preview_tab(rec)
 
 
-def render_overview_tab(rec: Dict[str, Any]):
+def render_overview_tab(rec: dict[str, Any]):
     """Render overview tab with key information."""
 
     # SLO Status Badge
@@ -555,7 +555,6 @@ def render_overview_tab(rec: Dict[str, Any]):
         st.caption("Click Select button to choose which option to deploy")
 
         # Build table-like layout with buttons
-        import pandas as pd
 
         # Initialize selected_option_idx in session state if not present
         # This just tracks which option is selected, doesn't modify the recommendation
@@ -619,7 +618,7 @@ def render_overview_tab(rec: Dict[str, Any]):
         st.info("💡 No alternative options available. This is the only configuration that meets your SLO requirements.")
 
 
-def render_specifications_tab(rec: Dict[str, Any]):
+def render_specifications_tab(rec: dict[str, Any]):
     """Render specifications tab with editable fields."""
 
     st.markdown("### 🔧 Deployment Specifications")
@@ -684,7 +683,7 @@ def render_specifications_tab(rec: Dict[str, Any]):
                 st.rerun()
 
 
-def render_performance_tab(rec: Dict[str, Any]):
+def render_performance_tab(rec: dict[str, Any]):
     """Render performance tab with detailed metrics."""
 
     st.markdown("### 📊 Predicted Performance")
@@ -734,7 +733,7 @@ def render_performance_tab(rec: Dict[str, Any]):
                  delta_color="normal" if delta_qps > 0 else "inverse")
 
 
-def render_cost_tab(rec: Dict[str, Any]):
+def render_cost_tab(rec: dict[str, Any]):
     """Render cost tab with pricing details."""
 
     st.markdown("### 💰 Cost Breakdown")
@@ -791,7 +790,7 @@ def check_cluster_status():
         return {"accessible": False}
 
 
-def generate_deployment_yaml(rec: Dict[str, Any]):
+def generate_deployment_yaml(rec: dict[str, Any]):
     """Generate deployment YAML files via API."""
     try:
         with st.spinner("Generating deployment YAML files..."):
@@ -808,7 +807,7 @@ def generate_deployment_yaml(rec: Dict[str, Any]):
                 # Reset deployment flag when generating new YAML files
                 st.session_state.deployed_to_cluster = False
 
-                st.success(f"✅ Deployment files generated successfully!")
+                st.success("✅ Deployment files generated successfully!")
                 st.info(f"**Deployment ID:** `{result['deployment_id']}`")
 
                 # Show file paths
@@ -836,7 +835,7 @@ def generate_deployment_yaml(rec: Dict[str, Any]):
         st.error(f"❌ Error generating deployment: {str(e)}")
 
 
-def deploy_to_cluster(rec: Dict[str, Any]):
+def deploy_to_cluster(rec: dict[str, Any]):
     """Deploy model to Kubernetes cluster."""
     try:
         with st.spinner("Deploying to Kubernetes cluster..."):
@@ -852,7 +851,7 @@ def deploy_to_cluster(rec: Dict[str, Any]):
                 st.session_state.deployment_files = result["files"]
                 st.session_state.deployed_to_cluster = True
 
-                st.success(f"✅ Successfully deployed to Kubernetes cluster!")
+                st.success("✅ Successfully deployed to Kubernetes cluster!")
                 st.info(f"**Deployment ID:** `{result['deployment_id']}`")
                 st.info(f"**Namespace:** `{result['namespace']}`")
 
@@ -958,7 +957,7 @@ def load_all_deployments():
         return None
 
 
-def render_deployment_management(deployment_info: Dict[str, Any], context: str = "default"):
+def render_deployment_management(deployment_info: dict[str, Any], context: str = "default"):
     """Render deployment management controls (delete, etc.).
 
     Args:
@@ -1010,7 +1009,7 @@ def render_deployment_management(deployment_info: Dict[str, Any], context: str =
                 st.warning(f"⚠️ Click again to confirm deletion of {deployment_id}")
 
 
-def render_k8s_status_for_deployment(deployment_info: Dict[str, Any], context: str = "default"):
+def render_k8s_status_for_deployment(deployment_info: dict[str, Any], context: str = "default"):
     """Render Kubernetes status for a specific deployment.
 
     Args:
@@ -1052,7 +1051,7 @@ def render_k8s_status_for_deployment(deployment_info: Dict[str, Any], context: s
         st.info("ℹ️ No pods found yet (may still be creating)")
 
 
-def render_inference_testing_for_deployment(deployment_info: Dict[str, Any], context: str = "default"):
+def render_inference_testing_for_deployment(deployment_info: dict[str, Any], context: str = "default"):
     """Render inference testing for a specific deployment.
 
     Args:
@@ -1086,8 +1085,8 @@ def render_inference_testing_for_deployment(deployment_info: Dict[str, Any], con
     if st.button("🚀 Send Test Request", use_container_width=True, key=f"test_button_{context}_{deployment_id}"):
         with st.spinner("Sending inference request..."):
             try:
-                import subprocess
                 import json
+                import subprocess
                 import time
 
                 # Get service name (KServe appends "-predictor" to deployment_id)
@@ -1220,7 +1219,7 @@ def render_inference_testing_for_deployment(deployment_info: Dict[str, Any], con
         """)
 
 
-def render_yaml_preview_tab(rec: Dict[str, Any]):
+def render_yaml_preview_tab(rec: dict[str, Any]):
     """Render YAML preview tab showing generated deployment files."""
 
     st.markdown("### 📄 Deployment YAML Files")
@@ -1271,7 +1270,7 @@ def render_yaml_preview_tab(rec: Dict[str, Any]):
         st.info("💡 The YAML files are stored on the backend and ready for deployment.")
 
 
-def render_monitoring_tab(rec: Dict[str, Any]):
+def render_monitoring_tab(rec: dict[str, Any]):
     """Render monitoring dashboard."""
 
     st.markdown("### 📡 Deployment Monitoring")
@@ -1438,8 +1437,8 @@ def render_inference_testing():
     if st.button("🚀 Send Test Request", use_container_width=True):
         with st.spinner("Sending inference request..."):
             try:
-                import subprocess
                 import json
+                import subprocess
                 import time
 
                 # Get service name (KServe appends "-predictor" to deployment_id)
@@ -1581,7 +1580,7 @@ def render_inference_testing():
         """)
 
 
-def render_monitoring_dashboard(status: Dict[str, Any], rec: Dict[str, Any]):
+def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
     """Render the actual monitoring dashboard with metrics."""
 
     deployment_id = status["deployment_id"]

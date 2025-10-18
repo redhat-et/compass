@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ class GPUType:
 class ModelCatalog:
     """Repository for model and GPU metadata."""
 
-    def __init__(self, data_path: Optional[Path] = None):
+    def __init__(self, data_path: Path | None = None):
         """
         Initialize model catalog.
 
@@ -84,8 +83,8 @@ class ModelCatalog:
             data_path = Path(__file__).parent.parent.parent.parent / "data" / "model_catalog.json"
 
         self.data_path = data_path
-        self._models: Dict[str, ModelInfo] = {}
-        self._gpu_types: Dict[str, GPUType] = {}
+        self._models: dict[str, ModelInfo] = {}
+        self._gpu_types: dict[str, GPUType] = {}
         self._load_data()
 
     def _load_data(self):
@@ -109,15 +108,15 @@ class ModelCatalog:
             logger.error(f"Failed to load model catalog from {self.data_path}: {e}")
             raise
 
-    def get_model(self, model_id: str) -> Optional[ModelInfo]:
+    def get_model(self, model_id: str) -> ModelInfo | None:
         """Get model by ID."""
         return self._models.get(model_id)
 
-    def get_gpu_type(self, gpu_type: str) -> Optional[GPUType]:
+    def get_gpu_type(self, gpu_type: str) -> GPUType | None:
         """Get GPU type metadata."""
         return self._gpu_types.get(gpu_type)
 
-    def find_models_for_use_case(self, use_case: str) -> List[ModelInfo]:
+    def find_models_for_use_case(self, use_case: str) -> list[ModelInfo]:
         """
         Find models recommended for a specific use case.
 
@@ -132,7 +131,7 @@ class ModelCatalog:
             if use_case in model.recommended_for and model.approval_status == "approved"
         ]
 
-    def find_models_by_domain(self, domain: str) -> List[ModelInfo]:
+    def find_models_by_domain(self, domain: str) -> list[ModelInfo]:
         """
         Find models specialized for a domain.
 
@@ -147,7 +146,7 @@ class ModelCatalog:
             if domain in model.domain_specialization and model.approval_status == "approved"
         ]
 
-    def find_models_by_task(self, task: str) -> List[ModelInfo]:
+    def find_models_by_task(self, task: str) -> list[ModelInfo]:
         """
         Find models supporting a specific task.
 
@@ -162,11 +161,11 @@ class ModelCatalog:
             if task in model.supported_tasks and model.approval_status == "approved"
         ]
 
-    def get_all_models(self) -> List[ModelInfo]:
+    def get_all_models(self) -> list[ModelInfo]:
         """Get all approved models."""
         return [m for m in self._models.values() if m.approval_status == "approved"]
 
-    def get_all_gpu_types(self) -> List[GPUType]:
+    def get_all_gpu_types(self) -> list[GPUType]:
         """Get all GPU types."""
         return list(self._gpu_types.values())
 
@@ -175,7 +174,7 @@ class ModelCatalog:
         gpu_type: str,
         gpu_count: int,
         hours_per_month: float = 730  # ~30 days
-    ) -> Optional[float]:
+    ) -> float | None:
         """
         Calculate monthly GPU cost.
 

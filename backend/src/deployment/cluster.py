@@ -4,12 +4,11 @@ This module handles actual deployment to Kubernetes clusters using kubectl
 and the Kubernetes Python client.
 """
 
-import os
 import logging
+import os
 import subprocess
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +86,7 @@ class KubernetesClusterManager:
         except subprocess.TimeoutExpired:
             raise KubernetesDeploymentError("Namespace operation timed out")
 
-    def apply_yaml(self, yaml_path: str) -> Dict[str, Any]:
+    def apply_yaml(self, yaml_path: str) -> dict[str, Any]:
         """
         Apply a YAML file to the cluster.
 
@@ -124,7 +123,7 @@ class KubernetesClusterManager:
         except subprocess.TimeoutExpired:
             raise KubernetesDeploymentError(f"Timeout applying {yaml_path}")
 
-    def deploy_all(self, yaml_files: List[str]) -> Dict[str, Any]:
+    def deploy_all(self, yaml_files: list[str]) -> dict[str, Any]:
         """
         Deploy all YAML files to the cluster.
 
@@ -164,7 +163,7 @@ class KubernetesClusterManager:
             "timestamp": datetime.now().isoformat()
         }
 
-    def get_inferenceservice_status(self, deployment_id: str) -> Dict[str, Any]:
+    def get_inferenceservice_status(self, deployment_id: str) -> dict[str, Any]:
         """
         Get status of an InferenceService.
 
@@ -234,7 +233,7 @@ class KubernetesClusterManager:
                 "error": str(e)
             }
 
-    def get_deployment_pods(self, deployment_id: str) -> List[Dict[str, Any]]:
+    def get_deployment_pods(self, deployment_id: str) -> list[dict[str, Any]]:
         """
         Get pods associated with a deployment.
 
@@ -285,7 +284,7 @@ class KubernetesClusterManager:
             logger.error(f"Error getting pods: {e}")
             return []
 
-    def delete_inferenceservice(self, deployment_id: str) -> Dict[str, Any]:
+    def delete_inferenceservice(self, deployment_id: str) -> dict[str, Any]:
         """
         Delete an InferenceService.
 
@@ -328,7 +327,7 @@ class KubernetesClusterManager:
                 "error": str(e)
             }
 
-    def list_inferenceservices(self) -> List[str]:
+    def list_inferenceservices(self) -> list[str]:
         """
         List all InferenceServices in namespace.
 

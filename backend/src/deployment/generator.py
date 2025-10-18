@@ -4,12 +4,12 @@ This module generates production-ready Kubernetes YAML configurations for
 LLM inference deployments using Jinja2 templates.
 """
 
-import os
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from jinja2 import Environment, FileSystemLoader, Template
+from typing import Any
+
+from jinja2 import Environment, FileSystemLoader
 
 from ..context_intent.schema import DeploymentRecommendation
 
@@ -31,7 +31,7 @@ class DeploymentGenerator:
     # vLLM version to use
     VLLM_VERSION = "v0.6.2"
 
-    def __init__(self, output_dir: Optional[str] = None, simulator_mode: bool = False):
+    def __init__(self, output_dir: str | None = None, simulator_mode: bool = False):
         """
         Initialize the deployment generator.
 
@@ -107,7 +107,7 @@ class DeploymentGenerator:
         recommendation: DeploymentRecommendation,
         deployment_id: str,
         namespace: str = "default"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Prepare context dictionary for Jinja2 templates.
 
@@ -237,7 +237,7 @@ class DeploymentGenerator:
         self,
         recommendation: DeploymentRecommendation,
         namespace: str = "default"
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Generate all deployment YAML files.
 
@@ -299,7 +299,7 @@ class DeploymentGenerator:
     def generate_kserve_yaml(
         self,
         recommendation: DeploymentRecommendation,
-        deployment_id: Optional[str] = None,
+        deployment_id: str | None = None,
         namespace: str = "default"
     ) -> str:
         """

@@ -12,6 +12,7 @@ This guide provides step-by-step instructions for developing and testing Compass
 - [Making Changes](#making-changes)
 - [Simulator Development](#simulator-development)
 - [Clean Up](#clean-up)
+- [Code Quality](#code-quality)
 - [Useful Commands](#useful-commands)
 - [Alternative Setup Methods](#alternative-setup-methods)
 - [Running Services Manually](#running-services-manually)
@@ -485,6 +486,46 @@ make clean-all
 ```bash
 make cluster-stop
 ```
+
+## Code Quality
+
+### Linting and Formatting
+
+Compass uses [Ruff](https://docs.astral.sh/ruff/) for linting and code formatting.
+
+**Run linter:**
+```bash
+make lint
+```
+
+Or manually:
+```bash
+source venv/bin/activate
+ruff check backend/ ui/
+```
+
+**Auto-fix issues:**
+```bash
+source venv/bin/activate
+ruff check backend/ ui/ --fix
+```
+
+**Format code:**
+```bash
+source venv/bin/activate
+ruff format backend/ ui/
+```
+
+**Configuration:**
+Ruff is configured in `pyproject.toml` with:
+- Line length: 100 characters
+- Python 3.11+ syntax
+- Import sorting (isort)
+- Modern Python upgrades
+- Common bug detection
+
+**Before committing:**
+Always run `make lint` to catch issues early. Most issues can be auto-fixed with `ruff check --fix`.
 
 ## Useful Commands
 

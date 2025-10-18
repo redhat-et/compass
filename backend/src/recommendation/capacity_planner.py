@@ -26,16 +26,15 @@ See data/benchmarks.json _metadata for detailed benchmark conditions.
 
 import logging
 import math
-from typing import Optional, List, Tuple
 
 from ..context_intent.schema import (
     DeploymentIntent,
-    TrafficProfile,
-    SLOTargets,
+    DeploymentRecommendation,
     GPUConfig,
-    DeploymentRecommendation
+    SLOTargets,
+    TrafficProfile,
 )
-from ..knowledge_base.benchmarks import BenchmarkRepository, BenchmarkData
+from ..knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
 
 logger = logging.getLogger(__name__)
@@ -46,8 +45,8 @@ class CapacityPlanner:
 
     def __init__(
         self,
-        benchmark_repo: Optional[BenchmarkRepository] = None,
-        catalog: Optional[ModelCatalog] = None
+        benchmark_repo: BenchmarkRepository | None = None,
+        catalog: ModelCatalog | None = None
     ):
         """
         Initialize capacity planner.
@@ -65,7 +64,7 @@ class CapacityPlanner:
         traffic_profile: TrafficProfile,
         slo_targets: SLOTargets,
         intent: DeploymentIntent
-    ) -> Optional[DeploymentRecommendation]:
+    ) -> DeploymentRecommendation | None:
         """
         Plan GPU capacity for a model to meet requirements.
 
@@ -281,7 +280,7 @@ class CapacityPlanner:
 
     def _select_best_config(
         self,
-        configs: List[Tuple[DeploymentRecommendation, float]],
+        configs: list[tuple[DeploymentRecommendation, float]],
         budget_constraint: str
     ) -> DeploymentRecommendation:
         """
