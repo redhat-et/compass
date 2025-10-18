@@ -92,11 +92,11 @@ class DeploymentGenerator:
 
         # KServe creates names like "{deployment_id}-predictor-default" (adds 19 chars)
         # So deployment_id must be max 44 chars to stay under 63 char DNS limit
-        MAX_DEPLOYMENT_ID_LEN = 44
+        max_deployment_id_len = 44
 
-        if len(deployment_id) > MAX_DEPLOYMENT_ID_LEN:
+        if len(deployment_id) > max_deployment_id_len:
             # Truncate model name to fit
-            max_model_len = MAX_DEPLOYMENT_ID_LEN - len(use_case) - len(timestamp) - 2  # 2 for hyphens
+            max_model_len = max_deployment_id_len - len(use_case) - len(timestamp) - 2  # 2 for hyphens
             model_name = model_name[:max_model_len].rstrip('-')
             deployment_id = f"{use_case}-{model_name}-{timestamp}"
 

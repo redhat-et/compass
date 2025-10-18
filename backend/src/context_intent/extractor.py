@@ -103,7 +103,7 @@ class IntentExtractor:
 
         except Exception as e:
             logger.error(f"Failed to extract intent: {e}")
-            raise ValueError(f"Intent extraction failed: {e}")
+            raise ValueError(f"Intent extraction failed: {e}") from e
 
     def _parse_extracted_intent(self, raw_data: dict) -> DeploymentIntent:
         """
@@ -125,7 +125,7 @@ class IntentExtractor:
             return DeploymentIntent(**cleaned_data)
         except Exception as e:
             logger.error(f"Failed to parse intent from: {cleaned_data}")
-            raise ValueError(f"Invalid intent data: {e}")
+            raise ValueError(f"Invalid intent data: {e}") from e
 
     def _clean_llm_output(self, data: dict) -> dict:
         """
