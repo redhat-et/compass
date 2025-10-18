@@ -170,26 +170,40 @@ start-ui: ## Start Streamlit UI
 
 stop: ## Stop all services
 	@echo "$(BLUE)Stopping services...$(NC)"
+	@# Stop by PID files first
 	@if [ -f $(UI_PID) ]; then \
 		kill $$(cat $(UI_PID)) 2>/dev/null || true; \
 		rm -f $(UI_PID); \
-		echo "$(GREEN)✓ UI stopped$(NC)"; \
 	fi
 	@if [ -f $(BACKEND_PID) ]; then \
 		kill $$(cat $(BACKEND_PID)) 2>/dev/null || true; \
 		rm -f $(BACKEND_PID); \
-		echo "$(GREEN)✓ Backend stopped$(NC)"; \
 	fi
+	@# Kill any remaining Compass processes by pattern matching
+	@pkill -f "streamlit run ui/app.py" 2>/dev/null || true
+	@pkill -f "uvicorn src.api.routes:app" 2>/dev/null || true
+	@# Give processes time to exit gracefully
+	@sleep 1
+	@# Force kill if still running
+	@pkill -9 -f "streamlit run ui/app.py" 2>/dev/null || true
+	@pkill -9 -f "uvicorn src.api.routes:app" 2>/dev/null || true
+	@echo "$(GREEN)✓ All Compass services stopped$(NC)"
 	@# Don't stop Ollama as it might be used by other apps
 	@echo "$(YELLOW)Note: Ollama left running (use 'pkill ollama' to stop manually)$(NC)"
 
 restart: stop dev ## Restart all services
 
-logs-backend: ## Tail backend logs
-	@tail -f $(BACKEND_PID).log
+logs-backend: ## Show backend logs (dump current log)
+	@cat $(LOG_DIR)/backend.log
 
-logs-ui: ## Tail UI logs
-	@tail -f $(UI_PID).log
+logs-backend-f: ## Follow backend logs (tail -f)
+	@tail -f $(LOG_DIR)/backend.log
+
+logs-ui: ## Show UI logs (dump current log)
+	@cat $(LOG_DIR)/ui.log
+
+logs-ui-f: ## Follow UI logs (tail -f)
+	@tail -f $(LOG_DIR)/ui.log
 
 health: ## Check if all services are running
 	@echo "$(BLUE)Checking service health...$(NC)"
@@ -315,6 +329,7 @@ clean: ## Clean generated files and caches
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf generated_configs/*.yaml 2>/dev/null || true
+	rm -rf logs/prompts/*.txt 2>/dev/null || true
 	@echo "$(GREEN)✓ Cleanup complete$(NC)"
 
 clean-all: clean ## Clean everything including virtual environments

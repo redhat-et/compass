@@ -1,6 +1,7 @@
 """FastAPI routes for the Compass API."""
 
 import logging
+import os
 from datetime import datetime
 from typing import List, Optional
 from fastapi import FastAPI, HTTPException
@@ -15,9 +16,16 @@ from ..deployment.generator import DeploymentGenerator
 from ..deployment.validator import YAMLValidator, ValidationError
 from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging - check for DEBUG environment variable
+debug_mode = os.getenv("COMPASS_DEBUG", "false").lower() == "true"
+log_level = logging.DEBUG if debug_mode else logging.INFO
+logging.basicConfig(
+    level=log_level,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 logger = logging.getLogger(__name__)
+logger.info(f"Compass API starting with log level: {logging.getLevelName(log_level)}")
 
 # Create FastAPI app
 app = FastAPI(
@@ -127,7 +135,13 @@ async def get_recommendation(request: RecommendationRequest):
         HTTPException: If recommendation fails
     """
     try:
-        logger.info(f"Received recommendation request: {request.user_message[:100]}...")
+        # Log user request with clear delimiters
+        logger.info("=" * 80)
+        logger.info("[USER REQUEST] New recommendation request")
+        logger.info(f"[USER MESSAGE] {request.user_message}")
+        if request.conversation_history:
+            logger.info(f"[CONVERSATION HISTORY] {len(request.conversation_history)} previous messages")
+        logger.info("=" * 80)
 
         recommendation = workflow.generate_recommendation(
             user_message=request.user_message,

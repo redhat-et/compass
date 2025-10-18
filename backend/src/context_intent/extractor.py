@@ -2,12 +2,18 @@
 
 import logging
 from typing import List, Dict, Optional
+from pathlib import Path
+from datetime import datetime
 
 from .schema import DeploymentIntent, ConversationMessage
 from ..llm.ollama_client import OllamaClient
 from ..llm.prompts import build_intent_extraction_prompt, INTENT_EXTRACTION_SCHEMA
 
 logger = logging.getLogger(__name__)
+
+# Create prompts directory for easy copy-paste access
+PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "logs" / "prompts"
+PROMPTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class IntentExtractor:
@@ -51,6 +57,33 @@ class IntentExtractor:
         # Build extraction prompt
         prompt = build_intent_extraction_prompt(user_message, history_dicts)
 
+        # Save prompt to file for easy copy-paste testing
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        prompt_file = PROMPTS_DIR / f"intent_extraction_{timestamp}.txt"
+
+        full_prompt_with_schema = f"{prompt}\n\n{INTENT_EXTRACTION_SCHEMA}"
+
+        with open(prompt_file, "w") as f:
+            f.write("=" * 80 + "\n")
+            f.write("INTENT EXTRACTION PROMPT\n")
+            f.write(f"Generated: {datetime.now().isoformat()}\n")
+            f.write(f"User Message: {user_message}\n")
+            f.write("=" * 80 + "\n\n")
+            f.write(full_prompt_with_schema)
+            f.write("\n\n" + "=" * 80 + "\n")
+            f.write("Copy everything above this line to test in other LLMs\n")
+            f.write("=" * 80 + "\n")
+
+        # Log the complete prompt being sent to LLM (always show at INFO level)
+        logger.info("=" * 80)
+        logger.info("[FULL INTENT EXTRACTION PROMPT - START]")
+        logger.info(prompt)
+        logger.info("[SCHEMA BEING USED]")
+        logger.info(INTENT_EXTRACTION_SCHEMA)
+        logger.info("[FULL INTENT EXTRACTION PROMPT - END]")
+        logger.info(f"💾 Prompt saved to: {prompt_file}")
+        logger.info("=" * 80)
+
         try:
             # Extract structured data from LLM
             extracted = self.llm_client.extract_structured_data(
@@ -58,6 +91,10 @@ class IntentExtractor:
                 INTENT_EXTRACTION_SCHEMA,
                 temperature=0.3  # Lower temperature for more consistent extraction
             )
+
+            # Log extracted intent
+            logger.info(f"[EXTRACTED INTENT] {extracted}")
+
 
             # Validate and parse into Pydantic model
             intent = self._parse_extracted_intent(extracted)
