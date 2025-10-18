@@ -28,9 +28,7 @@ class IntentExtractor:
         self.llm_client = llm_client or OllamaClient()
 
     def extract_intent(
-        self,
-        user_message: str,
-        conversation_history: list[ConversationMessage] | None = None
+        self, user_message: str, conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentIntent:
         """
         Extract deployment intent from user message.
@@ -49,8 +47,7 @@ class IntentExtractor:
         history_dicts = None
         if conversation_history:
             history_dicts = [
-                {"role": msg.role, "content": msg.content}
-                for msg in conversation_history
+                {"role": msg.role, "content": msg.content} for msg in conversation_history
             ]
 
         # Build extraction prompt
@@ -88,12 +85,11 @@ class IntentExtractor:
             extracted = self.llm_client.extract_structured_data(
                 prompt,
                 INTENT_EXTRACTION_SCHEMA,
-                temperature=0.3  # Lower temperature for more consistent extraction
+                temperature=0.3,  # Lower temperature for more consistent extraction
             )
 
             # Log extracted intent
             logger.info(f"[EXTRACTED INTENT] {extracted}")
-
 
             # Validate and parse into Pydantic model
             intent = self._parse_extracted_intent(extracted)
@@ -180,7 +176,7 @@ class IntentExtractor:
             "code_generation": "medium",
             "chatbot": "medium",
             "customer_service": "medium",
-            "content_creation": "low"
+            "content_creation": "low",
         }
 
         if intent.throughput_priority == "medium":  # default value
@@ -191,7 +187,11 @@ class IntentExtractor:
         if intent.domain_specialization == ["general"]:
             if intent.use_case == "code_generation":
                 intent.domain_specialization = ["general", "code"]
-            elif "multilingual" in intent.additional_context.lower() if intent.additional_context else False:
+            elif (
+                "multilingual" in intent.additional_context.lower()
+                if intent.additional_context
+                else False
+            ):
                 intent.domain_specialization = ["general", "multilingual"]
 
         return intent

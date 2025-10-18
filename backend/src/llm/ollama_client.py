@@ -6,6 +6,7 @@ from typing import Any
 
 try:
     import ollama
+
     OLLAMA_AVAILABLE = True
 except ImportError:
     OLLAMA_AVAILABLE = False
@@ -56,27 +57,33 @@ class OllamaClient:
             # Log the request (last message is typically the user prompt)
             if messages:
                 last_msg = messages[-1]
-                logger.info(f"[LLM REQUEST] Role: {last_msg.get('role')}, Content length: {len(last_msg.get('content', ''))} chars")
-                logger.debug(f"[LLM PROMPT] {last_msg.get('content', '')[:500]}...")  # Log first 500 chars at debug level
+                logger.info(
+                    f"[LLM REQUEST] Role: {last_msg.get('role')}, Content length: {len(last_msg.get('content', ''))} chars"
+                )
+                logger.debug(
+                    f"[LLM PROMPT] {last_msg.get('content', '')[:500]}..."
+                )  # Log first 500 chars at debug level
 
             kwargs = {
-                'model': self.model,
-                'messages': messages,
-                'options': {'temperature': temperature}
+                "model": self.model,
+                "messages": messages,
+                "options": {"temperature": temperature},
             }
 
             if format_json:
-                kwargs['format'] = 'json'
+                kwargs["format"] = "json"
 
             if self.host:
-                kwargs['host'] = self.host
+                kwargs["host"] = self.host
 
             response = ollama.chat(**kwargs)
 
             # Log the full response
-            response_content = response.get('message', {}).get('content', '')
+            response_content = response.get("message", {}).get("content", "")
             logger.info("=" * 80)
-            logger.info(f"[LLM RESPONSE] Model: {self.model}, Response length: {len(response_content)} chars")
+            logger.info(
+                f"[LLM RESPONSE] Model: {self.model}, Response length: {len(response_content)} chars"
+            )
             logger.info("[LLM RESPONSE CONTENT - START]")
             logger.info(response_content)
             logger.info("[LLM RESPONSE CONTENT - END]")
@@ -105,11 +112,13 @@ class OllamaClient:
         Returns:
             Generated text response
         """
-        logger.info(f"[LLM GENERATE] Prompt length: {len(prompt)} chars, JSON format: {format_json}, Temperature: {temperature}")
+        logger.info(
+            f"[LLM GENERATE] Prompt length: {len(prompt)} chars, JSON format: {format_json}, Temperature: {temperature}"
+        )
 
-        messages = [{'role': 'user', 'content': prompt}]
+        messages = [{"role": "user", "content": prompt}]
         response = self.chat(messages, format_json=format_json, temperature=temperature)
-        return response['message']['content']
+        return response["message"]["content"]
 
     def extract_structured_data(
         self,
@@ -135,9 +144,7 @@ class OllamaClient:
 Return ONLY valid JSON matching the schema above. Do not include any explanation or additional text."""
 
         response_text = self.generate_completion(
-            full_prompt,
-            format_json=True,
-            temperature=temperature
+            full_prompt, format_json=True, temperature=temperature
         )
 
         try:
@@ -172,7 +179,7 @@ Return ONLY valid JSON matching the schema above. Do not include any explanation
 
         try:
             models = ollama.list()
-            model_names = [m['name'] for m in models.get('models', [])]
+            model_names = [m["name"] for m in models.get("models", [])]
 
             if self.model not in model_names:
                 logger.info(f"Pulling model {self.model}...")

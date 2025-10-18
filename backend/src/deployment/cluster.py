@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class KubernetesDeploymentError(Exception):
     """Raised when deployment to Kubernetes fails."""
+
     pass
 
 
@@ -37,10 +38,7 @@ class KubernetesClusterManager:
         """Verify we can access the Kubernetes cluster."""
         try:
             result = subprocess.run(
-                ["kubectl", "cluster-info"],
-                capture_output=True,
-                text=True,
-                timeout=10
+                ["kubectl", "cluster-info"], capture_output=True, text=True, timeout=10
             )
             if result.returncode != 0:
                 raise KubernetesDeploymentError(
@@ -60,7 +58,7 @@ class KubernetesClusterManager:
                 ["kubectl", "get", "namespace", self.namespace],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode == 0:
@@ -72,13 +70,11 @@ class KubernetesClusterManager:
                 ["kubectl", "create", "namespace", self.namespace],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
-                raise KubernetesDeploymentError(
-                    f"Failed to create namespace: {result.stderr}"
-                )
+                raise KubernetesDeploymentError(f"Failed to create namespace: {result.stderr}")
 
             logger.info(f"Created namespace: {self.namespace}")
             return True
@@ -104,20 +100,18 @@ class KubernetesClusterManager:
                 ["kubectl", "apply", "-f", yaml_path, "-n", self.namespace],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             if result.returncode != 0:
-                raise KubernetesDeploymentError(
-                    f"Failed to apply {yaml_path}: {result.stderr}"
-                )
+                raise KubernetesDeploymentError(f"Failed to apply {yaml_path}: {result.stderr}")
 
             logger.info(f"Applied {yaml_path} to namespace {self.namespace}")
             return {
                 "success": True,
                 "file": yaml_path,
                 "output": result.stdout,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except subprocess.TimeoutExpired as e:
@@ -147,7 +141,7 @@ class KubernetesClusterManager:
                 error_info = {
                     "file": yaml_file,
                     "error": str(e),
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
                 errors.append(error_info)
                 logger.error(f"Failed to apply {yaml_file}: {e}")
@@ -160,7 +154,7 @@ class KubernetesClusterManager:
             "namespace": self.namespace,
             "applied_files": results,
             "errors": errors,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def get_inferenceservice_status(self, deployment_id: str) -> dict[str, Any]:
@@ -177,24 +171,30 @@ class KubernetesClusterManager:
             # Get InferenceService resource
             result = subprocess.run(
                 [
-                    "kubectl", "get", "inferenceservice", deployment_id,
-                    "-n", self.namespace,
-                    "-o", "json"
+                    "kubectl",
+                    "get",
+                    "inferenceservice",
+                    deployment_id,
+                    "-n",
+                    self.namespace,
+                    "-o",
+                    "json",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
                 return {
                     "exists": False,
                     "deployment_id": deployment_id,
-                    "error": result.stderr.strip()
+                    "error": result.stderr.strip(),
                 }
 
             # Parse JSON output
             import json
+
             isvc = json.loads(result.stdout)
 
             # Extract status information
@@ -202,10 +202,7 @@ class KubernetesClusterManager:
             conditions = status.get("conditions", [])
 
             # Determine overall status
-            ready_condition = next(
-                (c for c in conditions if c.get("type") == "Ready"),
-                None
-            )
+            ready_condition = next((c for c in conditions if c.get("type") == "Ready"), None)
 
             is_ready = ready_condition.get("status") == "True" if ready_condition else False
 
@@ -217,21 +214,17 @@ class KubernetesClusterManager:
                 "url": status.get("url"),
                 "address": status.get("address", {}).get("url"),
                 "components": status.get("components", {}),
-                "raw_status": status
+                "raw_status": status,
             }
 
         except subprocess.TimeoutExpired:
             return {
                 "exists": False,
                 "deployment_id": deployment_id,
-                "error": "Timeout querying InferenceService"
+                "error": "Timeout querying InferenceService",
             }
         except Exception as e:
-            return {
-                "exists": False,
-                "deployment_id": deployment_id,
-                "error": str(e)
-            }
+            return {"exists": False, "deployment_id": deployment_id, "error": str(e)}
 
     def get_deployment_pods(self, deployment_id: str) -> list[dict[str, Any]]:
         """
@@ -246,14 +239,19 @@ class KubernetesClusterManager:
         try:
             result = subprocess.run(
                 [
-                    "kubectl", "get", "pods",
-                    "-n", self.namespace,
-                    "-l", f"serving.kserve.io/inferenceservice={deployment_id}",
-                    "-o", "json"
+                    "kubectl",
+                    "get",
+                    "pods",
+                    "-n",
+                    self.namespace,
+                    "-l",
+                    f"serving.kserve.io/inferenceservice={deployment_id}",
+                    "-o",
+                    "json",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:
@@ -261,6 +259,7 @@ class KubernetesClusterManager:
                 return []
 
             import json
+
             pod_list = json.loads(result.stdout)
 
             pods = []
@@ -269,14 +268,16 @@ class KubernetesClusterManager:
                 status = pod.get("status", {})
                 spec = pod.get("spec", {})
 
-                pods.append({
-                    "name": metadata.get("name"),
-                    "phase": status.get("phase"),
-                    "conditions": status.get("conditions", []),
-                    "container_statuses": status.get("containerStatuses", []),
-                    "node_name": spec.get("nodeName"),
-                    "start_time": status.get("startTime")
-                })
+                pods.append(
+                    {
+                        "name": metadata.get("name"),
+                        "phase": status.get("phase"),
+                        "conditions": status.get("conditions", []),
+                        "container_statuses": status.get("containerStatuses", []),
+                        "node_name": spec.get("nodeName"),
+                        "start_time": status.get("startTime"),
+                    }
+                )
 
             return pods
 
@@ -296,13 +297,10 @@ class KubernetesClusterManager:
         """
         try:
             result = subprocess.run(
-                [
-                    "kubectl", "delete", "inferenceservice", deployment_id,
-                    "-n", self.namespace
-                ],
+                ["kubectl", "delete", "inferenceservice", deployment_id, "-n", self.namespace],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
             )
 
             success = result.returncode == 0
@@ -311,21 +309,17 @@ class KubernetesClusterManager:
                 "success": success,
                 "deployment_id": deployment_id,
                 "output": result.stdout if success else result.stderr,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except subprocess.TimeoutExpired:
             return {
                 "success": False,
                 "deployment_id": deployment_id,
-                "error": "Timeout deleting InferenceService"
+                "error": "Timeout deleting InferenceService",
             }
         except Exception as e:
-            return {
-                "success": False,
-                "deployment_id": deployment_id,
-                "error": str(e)
-            }
+            return {"success": False, "deployment_id": deployment_id, "error": str(e)}
 
     def list_inferenceservices(self) -> list[str]:
         """
@@ -337,13 +331,17 @@ class KubernetesClusterManager:
         try:
             result = subprocess.run(
                 [
-                    "kubectl", "get", "inferenceservices",
-                    "-n", self.namespace,
-                    "-o", "jsonpath={.items[*].metadata.name}"
+                    "kubectl",
+                    "get",
+                    "inferenceservices",
+                    "-n",
+                    self.namespace,
+                    "-o",
+                    "jsonpath={.items[*].metadata.name}",
                 ],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode != 0:

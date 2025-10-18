@@ -21,7 +21,7 @@ class RecommendationWorkflow:
         intent_extractor: IntentExtractor | None = None,
         traffic_generator: TrafficProfileGenerator | None = None,
         model_recommender: ModelRecommender | None = None,
-        capacity_planner: CapacityPlanner | None = None
+        capacity_planner: CapacityPlanner | None = None,
     ):
         """
         Initialize workflow orchestrator.
@@ -40,9 +40,7 @@ class RecommendationWorkflow:
         self.capacity_planner = capacity_planner or CapacityPlanner()
 
     def generate_recommendation(
-        self,
-        user_message: str,
-        conversation_history: list[ConversationMessage] | None = None
+        self, user_message: str, conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentRecommendation:
         """
         Generate deployment recommendation from user message.
@@ -70,14 +68,18 @@ class RecommendationWorkflow:
         logger.info("Step 1: Extracting deployment intent")
         intent = self.intent_extractor.extract_intent(user_message, conversation_history)
         intent = self.intent_extractor.infer_missing_fields(intent)
-        logger.info(f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency")
+        logger.info(
+            f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency"
+        )
 
         # Step 2: Generate traffic profile and SLO targets
         logger.info("Step 2: Generating traffic profile and SLO targets")
         traffic_profile = self.traffic_generator.generate_profile(intent)
         slo_targets = self.traffic_generator.generate_slo_targets(intent)
         logger.info(f"Traffic profile: {traffic_profile.expected_qps} QPS")
-        logger.info(f"SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, TPOT={slo_targets.tpot_p90_target_ms}ms")
+        logger.info(
+            f"SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, TPOT={slo_targets.tpot_p90_target_ms}ms"
+        )
 
         # Step 3: Recommend models
         logger.info("Step 3: Recommending models")
@@ -96,10 +98,7 @@ class RecommendationWorkflow:
             logger.info(f"Planning capacity for {model.name} (score: {score:.1f})")
 
             recommendation = self.capacity_planner.plan_capacity(
-                model,
-                traffic_profile,
-                slo_targets,
-                intent
+                model, traffic_profile, slo_targets, intent
             )
 
             if recommendation:
@@ -142,7 +141,7 @@ class RecommendationWorkflow:
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
-                    "reasoning": rec.reasoning
+                    "reasoning": rec.reasoning,
                 }
                 for rec, _ in viable_recommendations[1:3]  # Up to 2 additional options
             ]

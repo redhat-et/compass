@@ -11,7 +11,9 @@ class TrafficProfile(BaseModel):
     prompt_tokens_mean: int = Field(..., description="Average prompt length in tokens")
     prompt_tokens_variance: int | None = Field(None, description="Variance in prompt length")
     generation_tokens_mean: int = Field(..., description="Average generation length in tokens")
-    generation_tokens_variance: int | None = Field(None, description="Variance in generation length")
+    generation_tokens_variance: int | None = Field(
+        None, description="Variance in generation length"
+    )
     expected_qps: float = Field(..., description="Expected queries per second")
     requests_per_user_per_day: int | None = Field(None, description="User request frequency")
 
@@ -43,34 +45,31 @@ class DeploymentIntent(BaseModel):
         "code_generation",
         "content_creation",
         "qa_retrieval",
-        "batch_analytics"
+        "batch_analytics",
     ] = Field(..., description="Primary use case type")
 
     user_count: int = Field(..., description="Number of users or scale")
 
     latency_requirement: Literal["very_high", "high", "medium", "low"] = Field(
         ...,
-        description="Latency sensitivity (very_high=sub-500ms, high=sub-2s, medium=2-5s, low=>5s)"
+        description="Latency sensitivity (very_high=sub-500ms, high=sub-2s, medium=2-5s, low=>5s)",
     )
 
     throughput_priority: Literal["very_high", "high", "medium", "low"] = Field(
-        default="medium",
-        description="Importance of high request volume"
+        default="medium", description="Importance of high request volume"
     )
 
     budget_constraint: Literal["strict", "moderate", "flexible", "none"] = Field(
-        default="moderate",
-        description="Cost sensitivity"
+        default="moderate", description="Cost sensitivity"
     )
 
     domain_specialization: list[str] = Field(
         default_factory=lambda: ["general"],
-        description="Domain requirements (general, code, multilingual, enterprise)"
+        description="Domain requirements (general, code, multilingual, enterprise)",
     )
 
     additional_context: str | None = Field(
-        None,
-        description="Any other relevant details from conversation"
+        None, description="Any other relevant details from conversation"
     )
 
 
@@ -105,8 +104,7 @@ class DeploymentRecommendation(BaseModel):
     meets_slo: bool = Field(..., description="Whether configuration meets SLO targets")
     reasoning: str = Field(..., description="Explanation of recommendation choice")
     alternative_options: list[dict] | None = Field(
-        default=None,
-        description="Alternative configurations with trade-offs"
+        default=None, description="Alternative configurations with trade-offs"
     )
 
 

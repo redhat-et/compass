@@ -42,7 +42,7 @@ class ModelInfo:
             "min_gpu_memory_gb": self.min_gpu_memory_gb,
             "recommended_for": self.recommended_for,
             "approval_status": self.approval_status,
-            "notes": self.notes
+            "notes": self.notes,
         }
 
 
@@ -65,7 +65,7 @@ class GPUType:
             "compute_capability": self.compute_capability,
             "typical_use_cases": self.typical_use_cases,
             "cost_per_hour_usd": self.cost_per_hour_usd,
-            "availability": self.availability
+            "availability": self.availability,
         }
 
 
@@ -103,7 +103,9 @@ class ModelCatalog:
                     gpu = GPUType(gpu_data)
                     self._gpu_types[gpu.gpu_type] = gpu
 
-                logger.info(f"Loaded {len(self._models)} models and {len(self._gpu_types)} GPU types")
+                logger.info(
+                    f"Loaded {len(self._models)} models and {len(self._gpu_types)} GPU types"
+                )
         except Exception as e:
             logger.error(f"Failed to load model catalog from {self.data_path}: {e}")
             raise
@@ -127,7 +129,8 @@ class ModelCatalog:
             List of recommended models
         """
         return [
-            model for model in self._models.values()
+            model
+            for model in self._models.values()
             if use_case in model.recommended_for and model.approval_status == "approved"
         ]
 
@@ -142,7 +145,8 @@ class ModelCatalog:
             List of models with domain specialization
         """
         return [
-            model for model in self._models.values()
+            model
+            for model in self._models.values()
             if domain in model.domain_specialization and model.approval_status == "approved"
         ]
 
@@ -157,7 +161,8 @@ class ModelCatalog:
             List of models supporting this task
         """
         return [
-            model for model in self._models.values()
+            model
+            for model in self._models.values()
             if task in model.supported_tasks and model.approval_status == "approved"
         ]
 
@@ -173,7 +178,7 @@ class ModelCatalog:
         self,
         gpu_type: str,
         gpu_count: int,
-        hours_per_month: float = 730  # ~30 days
+        hours_per_month: float = 730,  # ~30 days
     ) -> float | None:
         """
         Calculate monthly GPU cost.

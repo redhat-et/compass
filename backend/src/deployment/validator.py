@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 class ValidationError(Exception):
     """Custom exception for YAML validation errors."""
+
     pass
 
 
@@ -95,11 +96,7 @@ class YAMLValidator:
 
         return current
 
-    def validate_required_fields(
-        self,
-        file_path: str,
-        required_fields: list[str]
-    ) -> bool:
+    def validate_required_fields(self, file_path: str, required_fields: list[str]) -> bool:
         """
         Validate that required fields are present in at least one document.
 
@@ -159,9 +156,7 @@ class YAMLValidator:
 
         # Verify it's a KServe InferenceService
         if data.get("kind") != "InferenceService":
-            raise ValidationError(
-                f"Expected kind 'InferenceService', got '{data.get('kind')}'"
-            )
+            raise ValidationError(f"Expected kind 'InferenceService', got '{data.get('kind')}'")
 
         if not data.get("apiVersion", "").startswith("serving.kserve.io"):
             raise ValidationError(
@@ -225,18 +220,14 @@ class YAMLValidator:
                 break
 
         if not hpa_doc:
-            raise ValidationError(
-                f"No HorizontalPodAutoscaler document found in {file_path}"
-            )
+            raise ValidationError(f"No HorizontalPodAutoscaler document found in {file_path}")
 
         # Verify min <= max replicas
         min_replicas = hpa_doc.get("spec", {}).get("minReplicas", 0)
         max_replicas = hpa_doc.get("spec", {}).get("maxReplicas", 0)
 
         if min_replicas > max_replicas:
-            raise ValidationError(
-                f"minReplicas ({min_replicas}) > maxReplicas ({max_replicas})"
-            )
+            raise ValidationError(f"minReplicas ({min_replicas}) > maxReplicas ({max_replicas})")
 
         logger.info(f"HPA YAML validation passed: {file_path}")
         return True
@@ -271,9 +262,7 @@ class YAMLValidator:
                 break
 
         if not servicemonitor_doc:
-            raise ValidationError(
-                f"No ServiceMonitor document found in {file_path}"
-            )
+            raise ValidationError(f"No ServiceMonitor document found in {file_path}")
 
         logger.info(f"ServiceMonitor YAML validation passed: {file_path} ({len(docs)} document(s))")
         return True

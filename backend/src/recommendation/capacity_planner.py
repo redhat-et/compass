@@ -44,9 +44,7 @@ class CapacityPlanner:
     """Plan GPU capacity to meet SLO targets and traffic requirements."""
 
     def __init__(
-        self,
-        benchmark_repo: BenchmarkRepository | None = None,
-        catalog: ModelCatalog | None = None
+        self, benchmark_repo: BenchmarkRepository | None = None, catalog: ModelCatalog | None = None
     ):
         """
         Initialize capacity planner.
@@ -63,7 +61,7 @@ class CapacityPlanner:
         model: ModelInfo,
         traffic_profile: TrafficProfile,
         slo_targets: SLOTargets,
-        intent: DeploymentIntent
+        intent: DeploymentIntent,
     ) -> DeploymentRecommendation | None:
         """
         Plan GPU capacity for a model to meet requirements.
@@ -105,8 +103,7 @@ class CapacityPlanner:
 
             # Calculate required replicas to handle traffic
             replicas = self._calculate_required_replicas(
-                bench.max_qps,
-                traffic_profile.expected_qps
+                bench.max_qps, traffic_profile.expected_qps
             )
 
             # Create GPU config
@@ -114,14 +111,12 @@ class CapacityPlanner:
                 gpu_type=bench.gpu_type,
                 gpu_count=bench.tensor_parallel * replicas,
                 tensor_parallel=bench.tensor_parallel,
-                replicas=replicas
+                replicas=replicas,
             )
 
             # Calculate cost
             cost_per_hour = self.catalog.calculate_gpu_cost(
-                bench.gpu_type,
-                gpu_config.gpu_count,
-                hours_per_month=1
+                bench.gpu_type, gpu_config.gpu_count, hours_per_month=1
             )
 
             if cost_per_hour is None:
@@ -145,7 +140,7 @@ class CapacityPlanner:
                 cost_per_hour_usd=cost_per_hour,
                 cost_per_month_usd=cost_per_month,
                 meets_slo=True,
-                reasoning=self._generate_reasoning(model, bench, gpu_config, intent)
+                reasoning=self._generate_reasoning(model, bench, gpu_config, intent),
             )
 
             viable_configs.append((recommendation, cost_per_month))
@@ -158,10 +153,7 @@ class CapacityPlanner:
         viable_configs.sort(key=lambda x: x[1])
 
         # Return best configuration based on budget constraint
-        best_recommendation = self._select_best_config(
-            viable_configs,
-            intent.budget_constraint
-        )
+        best_recommendation = self._select_best_config(viable_configs, intent.budget_constraint)
 
         # Add alternative options with full details for tradeoff comparison
         if len(viable_configs) > 1:
@@ -176,7 +168,7 @@ class CapacityPlanner:
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
-                    "reasoning": rec.reasoning
+                    "reasoning": rec.reasoning,
                 }
                 for rec, _ in viable_configs[1:3]  # Show up to 2 alternatives
             ]
@@ -186,8 +178,8 @@ class CapacityPlanner:
     def _meets_slo_targets(self, bench: BenchmarkData, slo: SLOTargets) -> bool:
         """Check if benchmark meets SLO targets."""
         return (
-            bench.ttft_p90_ms <= slo.ttft_p90_target_ms and
-            bench.tpot_p90_ms <= slo.tpot_p90_target_ms
+            bench.ttft_p90_ms <= slo.ttft_p90_target_ms
+            and bench.tpot_p90_ms <= slo.tpot_p90_target_ms
         )
 
     def _calculate_required_replicas(self, qps_per_replica: float, required_qps: float) -> int:
@@ -208,11 +200,7 @@ class CapacityPlanner:
         replicas = math.ceil(required_capacity / qps_per_replica)
         return max(1, replicas)
 
-    def _estimate_e2e_latency(
-        self,
-        bench: BenchmarkData,
-        traffic_profile: TrafficProfile
-    ) -> int:
+    def _estimate_e2e_latency(self, bench: BenchmarkData, traffic_profile: TrafficProfile) -> int:
         """
         Estimate end-to-end latency for streaming inference.
 
@@ -248,13 +236,15 @@ class CapacityPlanner:
         model: ModelInfo,
         bench: BenchmarkData,
         gpu_config: GPUConfig,
-        intent: DeploymentIntent
+        intent: DeploymentIntent,
     ) -> str:
         """Generate explanation for recommendation."""
         reasons = []
 
         # Model selection
-        reasons.append(f"Selected {model.name} ({model.size_parameters}) for {intent.use_case} use case")
+        reasons.append(
+            f"Selected {model.name} ({model.size_parameters}) for {intent.use_case} use case"
+        )
 
         # GPU configuration
         if gpu_config.tensor_parallel > 1:
@@ -279,9 +269,7 @@ class CapacityPlanner:
         return ". ".join(reasons)
 
     def _select_best_config(
-        self,
-        configs: list[tuple[DeploymentRecommendation, float]],
-        budget_constraint: str
+        self, configs: list[tuple[DeploymentRecommendation, float]], budget_constraint: str
     ) -> DeploymentRecommendation:
         """
         Select best configuration based on budget constraint.
@@ -304,7 +292,6 @@ class CapacityPlanner:
             # Return most performant (likely most expensive)
             # Sort by predicted latency instead of cost
             configs_by_perf = sorted(
-                configs,
-                key=lambda x: (x[0].predicted_ttft_p90_ms + x[0].predicted_tpot_p90_ms)
+                configs, key=lambda x: (x[0].predicted_ttft_p90_ms + x[0].predicted_tpot_p90_ms)
             )
             return configs_by_perf[0][0]

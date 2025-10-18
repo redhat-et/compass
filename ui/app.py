@@ -22,11 +22,12 @@ st.set_page_config(
     page_title="Compass",
     page_icon="docs/compass-logo.ico",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # Custom CSS for better styling
-st.markdown("""
+st.markdown(
+    """
 <style>
     .main-header {
         font-size: 2.5rem;
@@ -60,7 +61,9 @@ st.markdown("""
         font-weight: bold;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -88,7 +91,10 @@ def main():
         st.image("docs/compass-logo.svg", width=50)
     with col2:
         st.markdown('<div class="main-header">Compass</div>', unsafe_allow_html=True)
-        st.markdown('<div class="sub-header">From concept to production-ready LLM deployment</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="sub-header">From concept to production-ready LLM deployment</div>',
+            unsafe_allow_html=True,
+        )
 
     # Sidebar
     render_sidebar()
@@ -121,14 +127,29 @@ def render_assistant_tab():
             check_cluster_status()
 
         # Enable button if cluster is accessible and not already deployed
-        button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
-        button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
-        button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
-            "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
-            "Kubernetes cluster not accessible"
+        button_disabled = (
+            not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+        )
+        button_label = (
+            "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+        )
+        button_help = (
+            "Already deployed to cluster"
+            if st.session_state.deployed_to_cluster
+            else (
+                "Deploy to Kubernetes cluster (YAML auto-generated)"
+                if st.session_state.cluster_accessible
+                else "Kubernetes cluster not accessible"
+            )
         )
 
-        if st.button(button_label, use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
+        if st.button(
+            button_label,
+            use_container_width=True,
+            type="primary",
+            disabled=button_disabled,
+            help=button_help,
+        ):
             deploy_to_cluster(get_selected_option())
 
         if st.session_state.recommendation.get("yaml_generated", False):
@@ -138,28 +159,28 @@ def render_assistant_tab():
 def get_selected_option():
     """Get the currently selected deployment option (recommended or alternative)."""
     rec = st.session_state.recommendation
-    selected_idx = st.session_state.get('selected_option_idx', 0)
+    selected_idx = st.session_state.get("selected_option_idx", 0)
 
     if selected_idx == 0:
         # Return the recommended option (current recommendation)
         return rec
     else:
         # Return the selected alternative
-        alternatives = rec.get('alternative_options', [])
+        alternatives = rec.get("alternative_options", [])
         if selected_idx - 1 < len(alternatives):
             alt = alternatives[selected_idx - 1]
             # Create a recommendation dict from the alternative
             selected_rec = rec.copy()
-            selected_rec['model_name'] = alt['model_name']
-            selected_rec['model_id'] = alt['model_id']
-            selected_rec['gpu_config'] = alt['gpu_config']
-            selected_rec['predicted_ttft_p90_ms'] = alt['predicted_ttft_p90_ms']
-            selected_rec['predicted_tpot_p90_ms'] = alt['predicted_tpot_p90_ms']
-            selected_rec['predicted_e2e_p95_ms'] = alt['predicted_e2e_p95_ms']
-            selected_rec['predicted_throughput_qps'] = alt['predicted_throughput_qps']
-            selected_rec['cost_per_hour_usd'] = alt['cost_per_hour_usd']
-            selected_rec['cost_per_month_usd'] = alt['cost_per_month_usd']
-            selected_rec['reasoning'] = alt['reasoning']
+            selected_rec["model_name"] = alt["model_name"]
+            selected_rec["model_id"] = alt["model_id"]
+            selected_rec["gpu_config"] = alt["gpu_config"]
+            selected_rec["predicted_ttft_p90_ms"] = alt["predicted_ttft_p90_ms"]
+            selected_rec["predicted_tpot_p90_ms"] = alt["predicted_tpot_p90_ms"]
+            selected_rec["predicted_e2e_p95_ms"] = alt["predicted_e2e_p95_ms"]
+            selected_rec["predicted_throughput_qps"] = alt["predicted_throughput_qps"]
+            selected_rec["cost_per_hour_usd"] = alt["cost_per_hour_usd"]
+            selected_rec["cost_per_month_usd"] = alt["cost_per_month_usd"]
+            selected_rec["reasoning"] = alt["reasoning"]
             return selected_rec
         else:
             # Fallback to recommended if invalid index
@@ -179,24 +200,42 @@ def render_recommendation_details_tab():
         if st.session_state.cluster_accessible is None:
             check_cluster_status()
 
-        button_disabled = not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
-        button_label = "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
-        button_help = "Already deployed to cluster" if st.session_state.deployed_to_cluster else (
-            "Deploy to Kubernetes cluster (YAML auto-generated)" if st.session_state.cluster_accessible else
-            "Kubernetes cluster not accessible"
+        button_disabled = (
+            not st.session_state.cluster_accessible or st.session_state.deployed_to_cluster
+        )
+        button_label = (
+            "✅ Deployed" if st.session_state.deployed_to_cluster else "🚢 Deploy to Kubernetes"
+        )
+        button_help = (
+            "Already deployed to cluster"
+            if st.session_state.deployed_to_cluster
+            else (
+                "Deploy to Kubernetes cluster (YAML auto-generated)"
+                if st.session_state.cluster_accessible
+                else "Kubernetes cluster not accessible"
+            )
         )
 
         # Show which option will be deployed
-        selected_idx = st.session_state.get('selected_option_idx', 0)
+        selected_idx = st.session_state.get("selected_option_idx", 0)
         if selected_idx == 0:
             st.caption("📌 **Recommended** option will be deployed")
         else:
             st.caption(f"📌 **Option {selected_idx+1}** will be deployed")
 
-        if st.button(button_label, key="deploy_from_details", use_container_width=True, type="primary", disabled=button_disabled, help=button_help):
+        if st.button(
+            button_label,
+            key="deploy_from_details",
+            use_container_width=True,
+            type="primary",
+            disabled=button_disabled,
+            help=button_help,
+        ):
             deploy_to_cluster(get_selected_option())
     else:
-        st.info("👈 Start a conversation in the **Assistant** tab to get deployment recommendations")
+        st.info(
+            "👈 Start a conversation in the **Assistant** tab to get deployment recommendations"
+        )
 
 
 def render_deployment_management_tab():
@@ -242,15 +281,18 @@ def render_deployment_management_tab():
         ready = status.get("ready", False)
         ready_icon = "✅" if ready else "⏳"
 
-        table_data.append({
-            "Status": ready_icon,
-            "Name": dep_id,
-            "Pods": len(pods),
-            "Ready": "Yes" if ready else "No"
-        })
+        table_data.append(
+            {
+                "Status": ready_icon,
+                "Name": dep_id,
+                "Pods": len(pods),
+                "Ready": "Yes" if ready else "No",
+            }
+        )
 
     # Display as table with clickable rows
     import pandas as pd
+
     df = pd.DataFrame(table_data)
 
     # Use dataframe to display (not editable)
@@ -264,7 +306,10 @@ def render_deployment_management_tab():
     deployment_ids = list(deployment_options.keys())
 
     # Initialize selected deployment if not set
-    if "selected_deployment" not in st.session_state or st.session_state.selected_deployment not in deployment_ids:
+    if (
+        "selected_deployment" not in st.session_state
+        or st.session_state.selected_deployment not in deployment_ids
+    ):
         st.session_state.selected_deployment = deployment_ids[0] if deployment_ids else None
 
     col1, col2 = st.columns([3, 1])
@@ -272,8 +317,10 @@ def render_deployment_management_tab():
         selected = st.selectbox(
             "Choose a deployment:",
             deployment_ids,
-            index=deployment_ids.index(st.session_state.selected_deployment) if st.session_state.selected_deployment in deployment_ids else 0,
-            key="deployment_selector_mgmt"
+            index=deployment_ids.index(st.session_state.selected_deployment)
+            if st.session_state.selected_deployment in deployment_ids
+            else 0,
+            key="deployment_selector_mgmt",
         )
         st.session_state.selected_deployment = selected
 
@@ -321,7 +368,7 @@ def render_sidebar():
         example_prompts = [
             "Customer service chatbot for 5000 users, low latency critical",
             "Code generation assistant for 500 developers, quality over speed",
-            "Document summarization pipeline, high throughput, cost efficient"
+            "Document summarization pipeline, high throughput, cost efficient",
         ]
 
         for i, prompt in enumerate(example_prompts, 1):
@@ -362,7 +409,7 @@ def render_sidebar():
                     f"{status_icon} {dep_id}",
                     key=f"sidebar_dep_{dep_id}",
                     use_container_width=True,
-                    help=dep_id  # Tooltip shows full deployment ID
+                    help=dep_id,  # Tooltip shows full deployment ID
                 ):
                     st.session_state.selected_deployment = dep_id
                     st.session_state.show_monitoring = True
@@ -413,9 +460,7 @@ def render_chat_interface():
         with st.spinner("Analyzing requirements and generating recommendation..."):
             try:
                 response = requests.post(
-                    f"{API_BASE_URL}/api/recommend",
-                    json={"message": prompt},
-                    timeout=30
+                    f"{API_BASE_URL}/api/recommend", json={"message": prompt}, timeout=30
                 )
 
                 if response.status_code == 200:
@@ -428,14 +473,18 @@ def render_chat_interface():
 
                     # Add assistant response
                     assistant_message = format_recommendation_summary(recommendation)
-                    st.session_state.messages.append({"role": "assistant", "content": assistant_message})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": assistant_message}
+                    )
 
                     st.rerun()
                 else:
                     st.error(f"API Error: {response.status_code} - {response.text}")
 
             except requests.exceptions.ConnectionError:
-                st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running on http://localhost:8000")
+                st.error(
+                    "❌ Cannot connect to backend API. Make sure the FastAPI server is running on http://localhost:8000"
+                )
             except Exception as e:
                 st.error(f"❌ Error: {str(e)}")
 
@@ -474,7 +523,9 @@ def render_recommendation():
     rec = st.session_state.recommendation
 
     # Tabs for different views
-    tabs = st.tabs(["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📄 YAML Preview"])
+    tabs = st.tabs(
+        ["📋 Overview", "⚙️ Specifications", "📊 Performance", "💰 Cost", "📄 YAML Preview"]
+    )
 
     with tabs[0]:
         render_overview_tab(rec)
@@ -500,7 +551,9 @@ def render_overview_tab(rec: dict[str, Any]):
     if meets_slo:
         st.markdown('<span class="success-badge">✅ MEETS SLO</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="warning-badge">⚠️ DOES NOT MEET SLO</span>', unsafe_allow_html=True)
+        st.markdown(
+            '<span class="warning-badge">⚠️ DOES NOT MEET SLO</span>', unsafe_allow_html=True
+        )
 
     st.markdown("---")
 
@@ -513,9 +566,11 @@ def render_overview_tab(rec: dict[str, Any]):
 
     with col2:
         st.markdown("### 🖥️ GPU Configuration")
-        gpu_config = rec['gpu_config']
+        gpu_config = rec["gpu_config"]
         st.markdown(f"**{gpu_config['gpu_count']}x {gpu_config['gpu_type']}**")
-        st.caption(f"Tensor Parallel: {gpu_config['tensor_parallel']}, Replicas: {gpu_config['replicas']}")
+        st.caption(
+            f"Tensor Parallel: {gpu_config['tensor_parallel']}, Replicas: {gpu_config['replicas']}"
+        )
 
     st.markdown("---")
 
@@ -540,13 +595,13 @@ def render_overview_tab(rec: dict[str, Any]):
 
     # Reasoning
     st.markdown("### 💡 Reasoning")
-    st.info(rec['reasoning'])
+    st.info(rec["reasoning"])
 
     # Alternative Options
     st.markdown("---")
     st.markdown("### 🔄 Deployment Options Comparison")
 
-    alternatives = rec.get('alternative_options')
+    alternatives = rec.get("alternative_options")
     if alternatives and len(alternatives) > 0:
         st.caption("Click Select button to choose which option to deploy")
 
@@ -554,7 +609,7 @@ def render_overview_tab(rec: dict[str, Any]):
 
         # Initialize selected_option_idx in session state if not present
         # This just tracks which option is selected, doesn't modify the recommendation
-        if 'selected_option_idx' not in st.session_state:
+        if "selected_option_idx" not in st.session_state:
             st.session_state.selected_option_idx = 0  # 0 = recommended
 
         # Header row
@@ -576,12 +631,14 @@ def render_overview_tab(rec: dict[str, Any]):
         button_label = "✅" if is_selected else "⚫"
 
         with cols[0]:
-            if st.button(button_label, key="select_rec", use_container_width=True, disabled=is_selected):
+            if st.button(
+                button_label, key="select_rec", use_container_width=True, disabled=is_selected
+            ):
                 st.session_state.selected_option_idx = 0
                 st.rerun()
 
         cols[1].markdown("**Recommended**")
-        cols[2].markdown(rec['model_name'])
+        cols[2].markdown(rec["model_name"])
         cols[3].markdown(f"{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}")
         cols[4].markdown(f"{rec['gpu_config']['replicas']}")
         cols[5].markdown(f"{rec['predicted_ttft_p90_ms']}")
@@ -597,12 +654,17 @@ def render_overview_tab(rec: dict[str, Any]):
             button_label = "✅" if is_selected else "⚫"
 
             with cols[0]:
-                if st.button(button_label, key=f"select_alt_{i}", use_container_width=True, disabled=is_selected):
+                if st.button(
+                    button_label,
+                    key=f"select_alt_{i}",
+                    use_container_width=True,
+                    disabled=is_selected,
+                ):
                     st.session_state.selected_option_idx = i
                     st.rerun()
 
             cols[1].markdown(f"**Option {i+1}**")
-            cols[2].markdown(alt['model_name'])
+            cols[2].markdown(alt["model_name"])
             cols[3].markdown(f"{alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']}")
             cols[4].markdown(f"{alt['gpu_config']['replicas']}")
             cols[5].markdown(f"{alt['predicted_ttft_p90_ms']}")
@@ -611,7 +673,9 @@ def render_overview_tab(rec: dict[str, Any]):
             cols[8].markdown(f"{alt['predicted_throughput_qps']:.0f}")
             cols[9].markdown(f"${alt['cost_per_month_usd']:,.0f}")
     else:
-        st.info("💡 No alternative options available. This is the only configuration that meets your SLO requirements.")
+        st.info(
+            "💡 No alternative options available. This is the only configuration that meets your SLO requirements."
+        )
 
 
 def render_specifications_tab(rec: dict[str, Any]):
@@ -622,44 +686,69 @@ def render_specifications_tab(rec: dict[str, Any]):
 
     # Intent
     st.markdown("#### Use Case & Requirements")
-    intent = rec['intent']
+    intent = rec["intent"]
 
     col1, col2 = st.columns(2)
     with col1:
-        st.text_input("Use Case", value=intent['use_case'], disabled=True)
-        st.number_input("Users", value=intent['user_count'], disabled=True)
+        st.text_input("Use Case", value=intent["use_case"], disabled=True)
+        st.number_input("Users", value=intent["user_count"], disabled=True)
 
     with col2:
-        st.text_input("Latency Requirement", value=intent['latency_requirement'], disabled=True)
-        st.text_input("Budget Constraint", value=intent['budget_constraint'], disabled=True)
+        st.text_input("Latency Requirement", value=intent["latency_requirement"], disabled=True)
+        st.text_input("Budget Constraint", value=intent["budget_constraint"], disabled=True)
 
     # Traffic Profile
     st.markdown("#### Traffic Profile")
-    traffic = rec['traffic_profile']
+    traffic = rec["traffic_profile"]
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.number_input("Expected QPS", value=traffic['expected_qps'], format="%.2f", disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "Expected QPS",
+            value=traffic["expected_qps"],
+            format="%.2f",
+            disabled=not st.session_state.editing_mode,
+        )
 
     with col2:
-        st.number_input("Avg Prompt Tokens", value=traffic['prompt_tokens_mean'], disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "Avg Prompt Tokens",
+            value=traffic["prompt_tokens_mean"],
+            disabled=not st.session_state.editing_mode,
+        )
 
     with col3:
-        st.number_input("Avg Generation Tokens", value=traffic['generation_tokens_mean'], disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "Avg Generation Tokens",
+            value=traffic["generation_tokens_mean"],
+            disabled=not st.session_state.editing_mode,
+        )
 
     # SLO Targets
     st.markdown("#### SLO Targets")
-    slo = rec['slo_targets']
+    slo = rec["slo_targets"]
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.number_input("TTFT p90 (ms)", value=slo['ttft_p90_target_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "TTFT p90 (ms)",
+            value=slo["ttft_p90_target_ms"],
+            disabled=not st.session_state.editing_mode,
+        )
 
     with col2:
-        st.number_input("TPOT p90 (ms)", value=slo['tpot_p90_target_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "TPOT p90 (ms)",
+            value=slo["tpot_p90_target_ms"],
+            disabled=not st.session_state.editing_mode,
+        )
 
     with col3:
-        st.number_input("E2E p95 (ms)", value=slo['e2e_p95_target_ms'], disabled=not st.session_state.editing_mode)
+        st.number_input(
+            "E2E p95 (ms)",
+            value=slo["e2e_p95_target_ms"],
+            disabled=not st.session_state.editing_mode,
+        )
 
     # Edit mode toggle
     st.markdown("---")
@@ -684,7 +773,7 @@ def render_performance_tab(rec: dict[str, Any]):
 
     st.markdown("### 📊 Predicted Performance")
 
-    slo = rec['slo_targets']
+    slo = rec["slo_targets"]
 
     # TTFT
     st.markdown("#### Time to First Token (TTFT)")
@@ -692,9 +781,13 @@ def render_performance_tab(rec: dict[str, Any]):
     with col1:
         st.metric("Predicted p90", f"{rec['predicted_ttft_p90_ms']}ms")
     with col2:
-        delta_ms = rec['predicted_ttft_p90_ms'] - slo['ttft_p90_target_ms']
-        st.metric("Target p90", f"{slo['ttft_p90_target_ms']}ms",
-                 delta=f"{delta_ms}ms", delta_color="inverse")
+        delta_ms = rec["predicted_ttft_p90_ms"] - slo["ttft_p90_target_ms"]
+        st.metric(
+            "Target p90",
+            f"{slo['ttft_p90_target_ms']}ms",
+            delta=f"{delta_ms}ms",
+            delta_color="inverse",
+        )
 
     # TPOT
     st.markdown("#### Time Per Output Token (TPOT)")
@@ -702,9 +795,13 @@ def render_performance_tab(rec: dict[str, Any]):
     with col1:
         st.metric("Predicted p90", f"{rec['predicted_tpot_p90_ms']}ms")
     with col2:
-        delta_ms = rec['predicted_tpot_p90_ms'] - slo['tpot_p90_target_ms']
-        st.metric("Target p90", f"{slo['tpot_p90_target_ms']}ms",
-                 delta=f"{delta_ms}ms", delta_color="inverse")
+        delta_ms = rec["predicted_tpot_p90_ms"] - slo["tpot_p90_target_ms"]
+        st.metric(
+            "Target p90",
+            f"{slo['tpot_p90_target_ms']}ms",
+            delta=f"{delta_ms}ms",
+            delta_color="inverse",
+        )
 
     # E2E Latency
     st.markdown("#### End-to-End Latency")
@@ -712,9 +809,13 @@ def render_performance_tab(rec: dict[str, Any]):
     with col1:
         st.metric("Predicted p95", f"{rec['predicted_e2e_p95_ms']}ms")
     with col2:
-        delta_ms = rec['predicted_e2e_p95_ms'] - slo['e2e_p95_target_ms']
-        st.metric("Target p95", f"{slo['e2e_p95_target_ms']}ms",
-                 delta=f"{delta_ms}ms", delta_color="inverse")
+        delta_ms = rec["predicted_e2e_p95_ms"] - slo["e2e_p95_target_ms"]
+        st.metric(
+            "Target p95",
+            f"{slo['e2e_p95_target_ms']}ms",
+            delta=f"{delta_ms}ms",
+            delta_color="inverse",
+        )
 
     # Throughput
     st.markdown("#### Throughput")
@@ -722,11 +823,16 @@ def render_performance_tab(rec: dict[str, Any]):
     with col1:
         st.metric("Max Capacity", f"{rec['predicted_throughput_qps']:.1f} QPS")
     with col2:
-        expected_qps = rec['traffic_profile']['expected_qps']
-        delta_qps = rec['predicted_throughput_qps'] - expected_qps
-        st.metric("Expected Load", f"{expected_qps:.1f} QPS",
-                 delta=f"+{delta_qps:.1f} headroom" if delta_qps > 0 else f"{delta_qps:.1f} over capacity",
-                 delta_color="normal" if delta_qps > 0 else "inverse")
+        expected_qps = rec["traffic_profile"]["expected_qps"]
+        delta_qps = rec["predicted_throughput_qps"] - expected_qps
+        st.metric(
+            "Expected Load",
+            f"{expected_qps:.1f} QPS",
+            delta=f"+{delta_qps:.1f} headroom"
+            if delta_qps > 0
+            else f"{delta_qps:.1f} over capacity",
+            delta_color="normal" if delta_qps > 0 else "inverse",
+        )
 
 
 def render_cost_tab(rec: dict[str, Any]):
@@ -740,18 +846,18 @@ def render_cost_tab(rec: dict[str, Any]):
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown("#### Hourly Cost")
         st.markdown(f"## ${rec['cost_per_hour_usd']:.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
         st.markdown("#### Monthly Cost")
         st.markdown(f"## ${rec['cost_per_month_usd']:,.2f}")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("---")
 
     # GPU details
-    gpu_config = rec['gpu_config']
+    gpu_config = rec["gpu_config"]
     st.markdown("#### GPU Configuration")
     st.markdown(f"""
     - **GPU Type:** {gpu_config['gpu_type']}
@@ -793,7 +899,7 @@ def generate_deployment_yaml(rec: dict[str, Any]):
             response = requests.post(
                 f"{API_BASE_URL}/api/deploy",
                 json={"recommendation": rec, "namespace": "default"},
-                timeout=30
+                timeout=30,
             )
 
             if response.status_code == 200:
@@ -816,11 +922,17 @@ def generate_deployment_yaml(rec: dict[str, Any]):
                 if cluster_status.get("accessible"):
                     st.markdown("---")
                     st.success("✅ Kubernetes cluster is accessible!")
-                    st.markdown("**Next:** Click **Deploy to Kubernetes** to deploy to the cluster!")
+                    st.markdown(
+                        "**Next:** Click **Deploy to Kubernetes** to deploy to the cluster!"
+                    )
                 else:
                     st.markdown("---")
-                    st.warning("⚠️ Kubernetes cluster not accessible. YAML files generated but not deployed.")
-                    st.markdown("**Next:** Go to the **Monitoring** tab to see simulated observability metrics!")
+                    st.warning(
+                        "⚠️ Kubernetes cluster not accessible. YAML files generated but not deployed."
+                    )
+                    st.markdown(
+                        "**Next:** Go to the **Monitoring** tab to see simulated observability metrics!"
+                    )
 
             else:
                 st.error(f"Failed to generate YAML: {response.text}")
@@ -838,7 +950,7 @@ def deploy_to_cluster(rec: dict[str, Any]):
             response = requests.post(
                 f"{API_BASE_URL}/api/deploy-to-cluster",
                 json={"recommendation": rec, "namespace": "default"},
-                timeout=60
+                timeout=60,
             )
 
             if response.status_code == 200:
@@ -858,7 +970,9 @@ def deploy_to_cluster(rec: dict[str, Any]):
                     st.markdown(f"- ✅ {applied_file['file']}")
 
                 st.markdown("---")
-                st.markdown("**Next:** Go to the **Monitoring** tab to see actual deployment status!")
+                st.markdown(
+                    "**Next:** Go to the **Monitoring** tab to see actual deployment status!"
+                )
 
             elif response.status_code == 503:
                 st.error("❌ Kubernetes cluster not accessible. Ensure KIND cluster is running.")
@@ -900,7 +1014,10 @@ def render_deployments_page():
     deployment_ids = list(deployment_options.keys())
 
     # Initialize selected deployment if not set
-    if "selected_deployment" not in st.session_state or st.session_state.selected_deployment not in deployment_ids:
+    if (
+        "selected_deployment" not in st.session_state
+        or st.session_state.selected_deployment not in deployment_ids
+    ):
         st.session_state.selected_deployment = deployment_ids[0] if deployment_ids else None
 
     # Deployment selector
@@ -909,8 +1026,10 @@ def render_deployments_page():
         selected = st.selectbox(
             "Select deployment to monitor:",
             deployment_ids,
-            index=deployment_ids.index(st.session_state.selected_deployment) if st.session_state.selected_deployment in deployment_ids else 0,
-            key="deployment_selector_standalone"
+            index=deployment_ids.index(st.session_state.selected_deployment)
+            if st.session_state.selected_deployment in deployment_ids
+            else 0,
+            key="deployment_selector_standalone",
         )
         st.session_state.selected_deployment = selected
 
@@ -976,14 +1095,18 @@ def render_deployment_management(deployment_info: dict[str, Any], context: str =
         st.metric("Pods", len(pods))
 
     with col3:
-        if st.button("🗑️ Delete Deployment", use_container_width=True, type="secondary", key=f"delete_btn_{context}_{deployment_id}"):
+        if st.button(
+            "🗑️ Delete Deployment",
+            use_container_width=True,
+            type="secondary",
+            key=f"delete_btn_{context}_{deployment_id}",
+        ):
             if st.session_state.get(f"confirm_delete_{deployment_id}"):
                 # Actually delete
                 with st.spinner("Deleting deployment..."):
                     try:
                         response = requests.delete(
-                            f"{API_BASE_URL}/api/deployments/{deployment_id}",
-                            timeout=30
+                            f"{API_BASE_URL}/api/deployments/{deployment_id}", timeout=30
                         )
                         if response.status_code == 200:
                             st.success(f"✅ Deleted {deployment_id}")
@@ -1030,7 +1153,9 @@ def render_k8s_status_for_deployment(deployment_info: dict[str, Any], context: s
         with st.expander("📋 Resource Conditions"):
             for condition in status.get("conditions", []):
                 status_icon = "✅" if condition.get("status") == "True" else "⏳"
-                st.markdown(f"{status_icon} **{condition.get('type')}**: {condition.get('message', 'N/A')}")
+                st.markdown(
+                    f"{status_icon} **{condition.get('type')}**: {condition.get('message', 'N/A')}"
+                )
     else:
         st.warning(f"⚠️ InferenceService not found: {status.get('error', 'Unknown error')}")
 
@@ -1041,13 +1166,15 @@ def render_k8s_status_for_deployment(deployment_info: dict[str, Any], context: s
             for pod in pods:
                 st.markdown(f"**{pod.get('name')}**")
                 st.markdown(f"- Phase: {pod.get('phase')}")
-                node_name = pod.get('node_name') or 'Not assigned'
+                node_name = pod.get("node_name") or "Not assigned"
                 st.markdown(f"- Node: {node_name}")
     else:
         st.info("ℹ️ No pods found yet (may still be creating)")
 
 
-def render_inference_testing_for_deployment(deployment_info: dict[str, Any], context: str = "default"):
+def render_inference_testing_for_deployment(
+    deployment_info: dict[str, Any], context: str = "default"
+):
     """Render inference testing for a specific deployment.
 
     Args:
@@ -1060,7 +1187,9 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
     st.markdown("#### 🧪 Inference Testing")
 
     if not status.get("ready"):
-        st.info("⏳ Deployment not ready yet. Inference testing will be available once the service is ready.")
+        st.info(
+            "⏳ Deployment not ready yet. Inference testing will be available once the service is ready."
+        )
         return
 
     # Test prompt input
@@ -1070,15 +1199,27 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
             "Test Prompt",
             value="Write a Python function that calculates the fibonacci sequence.",
             height=100,
-            key=f"test_prompt_{context}_{deployment_id}"
+            key=f"test_prompt_{context}_{deployment_id}",
         )
 
     with col2:
-        max_tokens = st.number_input("Max Tokens", value=150, min_value=10, max_value=500, key=f"max_tokens_{context}_{deployment_id}")
-        temperature = st.slider("Temperature", 0.0, 2.0, 0.7, 0.1, key=f"temperature_{context}_{deployment_id}")
+        max_tokens = st.number_input(
+            "Max Tokens",
+            value=150,
+            min_value=10,
+            max_value=500,
+            key=f"max_tokens_{context}_{deployment_id}",
+        )
+        temperature = st.slider(
+            "Temperature", 0.0, 2.0, 0.7, 0.1, key=f"temperature_{context}_{deployment_id}"
+        )
 
     # Test button
-    if st.button("🚀 Send Test Request", use_container_width=True, key=f"test_button_{context}_{deployment_id}"):
+    if st.button(
+        "🚀 Send Test Request",
+        use_container_width=True,
+        key=f"test_button_{context}_{deployment_id}",
+    ):
         with st.spinner("Sending inference request..."):
             try:
                 import json
@@ -1096,7 +1237,7 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
                 port_forward_proc = subprocess.Popen(
                     ["kubectl", "port-forward", f"svc/{service_name}", "8080:80"],
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
+                    stderr=subprocess.PIPE,
                 )
 
                 # Give it a moment to establish connection
@@ -1107,7 +1248,10 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
                     # Process exited
                     pf_stdout, pf_stderr = port_forward_proc.communicate()
                     st.error("❌ Port-forward failed to start")
-                    st.code(f"stdout: {pf_stdout.decode()}\nstderr: {pf_stderr.decode()}", language="text")
+                    st.code(
+                        f"stdout: {pf_stdout.decode()}\nstderr: {pf_stderr.decode()}",
+                        language="text",
+                    )
                     return
 
                 try:
@@ -1115,26 +1259,28 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
                     start_time = time.time()
 
                     curl_cmd = [
-                        "curl", "-s", "-X", "POST",
+                        "curl",
+                        "-s",
+                        "-X",
+                        "POST",
                         "http://localhost:8080/v1/completions",
-                        "-H", "Content-Type: application/json",
-                        "-d", json.dumps({
-                            "prompt": test_prompt,
-                            "max_tokens": max_tokens,
-                            "temperature": temperature
-                        })
+                        "-H",
+                        "Content-Type: application/json",
+                        "-d",
+                        json.dumps(
+                            {
+                                "prompt": test_prompt,
+                                "max_tokens": max_tokens,
+                                "temperature": temperature,
+                            }
+                        ),
                     ]
 
                     # Show the command being executed for debugging
                     with st.expander("🔍 Debug Info"):
                         st.code(" ".join(curl_cmd), language="bash")
 
-                    result = subprocess.run(
-                        curl_cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=30
-                    )
+                    result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=30)
 
                     elapsed_time = time.time() - start_time
 
@@ -1184,7 +1330,9 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
                             st.code(result.stderr, language="text")
 
                         if not result.stdout and not result.stderr:
-                            st.warning("No output captured from curl command. Port-forward may have failed.")
+                            st.warning(
+                                "No output captured from curl command. Port-forward may have failed."
+                            )
 
                 finally:
                     # Clean up port-forward process
@@ -1198,6 +1346,7 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
             except Exception as e:
                 st.error(f"❌ Error testing inference: {str(e)}")
                 import traceback
+
                 with st.expander("🔍 Full Error Traceback"):
                     st.code(traceback.format_exc(), language="text")
 
@@ -1220,7 +1369,9 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
 
     # Check if YAML was auto-generated
     if not rec.get("yaml_generated", False):
-        st.warning("⚠️ YAML files were not generated automatically. This may indicate an error during recommendation creation.")
+        st.warning(
+            "⚠️ YAML files were not generated automatically. This may indicate an error during recommendation creation."
+        )
         if st.button("🔄 Regenerate YAML", use_container_width=True):
             generate_deployment_yaml(rec)
             st.rerun()
@@ -1234,10 +1385,7 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
         if not deployment_id:
             deployment_id = f"{rec['intent']['use_case']}-{rec['model_id'].split('/')[-1]}"
 
-        response = requests.get(
-            f"{API_BASE_URL}/api/deployments/{deployment_id}/yaml",
-            timeout=10
-        )
+        response = requests.get(f"{API_BASE_URL}/api/deployments/{deployment_id}/yaml", timeout=10)
 
         if response.status_code == 200:
             yaml_data = response.json()
@@ -1254,7 +1402,7 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
                         label=f"⬇️ Download {filename}",
                         data=content,
                         file_name=filename,
-                        mime="text/yaml"
+                        mime="text/yaml",
                     )
         else:
             st.error(f"Failed to fetch YAML files: {response.text}")
@@ -1296,7 +1444,10 @@ def render_monitoring_tab(rec: dict[str, Any]):
     deployment_ids = list(deployment_options.keys())
 
     # Initialize selected deployment if not set
-    if "selected_deployment" not in st.session_state or st.session_state.selected_deployment not in deployment_ids:
+    if (
+        "selected_deployment" not in st.session_state
+        or st.session_state.selected_deployment not in deployment_ids
+    ):
         st.session_state.selected_deployment = deployment_ids[0] if deployment_ids else None
 
     # Deployment selector
@@ -1305,8 +1456,10 @@ def render_monitoring_tab(rec: dict[str, Any]):
         selected = st.selectbox(
             "Select deployment to monitor:",
             deployment_ids,
-            index=deployment_ids.index(st.session_state.selected_deployment) if st.session_state.selected_deployment in deployment_ids else 0,
-            key="deployment_selector"
+            index=deployment_ids.index(st.session_state.selected_deployment)
+            if st.session_state.selected_deployment in deployment_ids
+            else 0,
+            key="deployment_selector",
         )
         st.session_state.selected_deployment = selected
 
@@ -1336,7 +1489,7 @@ def render_monitoring_tab(rec: dict[str, Any]):
             with st.spinner("Loading deployment metrics..."):
                 response = requests.get(
                     f"{API_BASE_URL}/api/deployments/{st.session_state.selected_deployment}/status",
-                    timeout=10
+                    timeout=10,
                 )
 
                 if response.status_code == 200:
@@ -1356,7 +1509,7 @@ def render_k8s_status():
     try:
         response = requests.get(
             f"{API_BASE_URL}/api/deployments/{st.session_state.deployment_id}/k8s-status",
-            timeout=10
+            timeout=10,
         )
 
         if response.status_code == 200:
@@ -1376,7 +1529,9 @@ def render_k8s_status():
                 with st.expander("📋 Resource Conditions"):
                     for condition in isvc.get("conditions", []):
                         status_icon = "✅" if condition.get("status") == "True" else "⏳"
-                        st.markdown(f"{status_icon} **{condition.get('type')}**: {condition.get('message', 'N/A')}")
+                        st.markdown(
+                            f"{status_icon} **{condition.get('type')}**: {condition.get('message', 'N/A')}"
+                        )
             else:
                 st.warning(f"⚠️ InferenceService not found: {isvc.get('error', 'Unknown error')}")
 
@@ -1387,7 +1542,7 @@ def render_k8s_status():
                     for pod in pods:
                         st.markdown(f"**{pod.get('name')}**")
                         st.markdown(f"- Phase: {pod.get('phase')}")
-                        node_name = pod.get('node_name') or 'Not assigned'
+                        node_name = pod.get("node_name") or "Not assigned"
                         st.markdown(f"- Node: {node_name}")
             else:
                 st.info("ℹ️ No pods found yet (may still be creating)")
@@ -1420,7 +1575,7 @@ def render_inference_testing():
             "Test Prompt",
             value="Write a Python function to calculate fibonacci numbers",
             height=100,
-            help="Enter a prompt to test the model"
+            help="Enter a prompt to test the model",
         )
 
     with col2:
@@ -1446,7 +1601,7 @@ def render_inference_testing():
                 port_forward_proc = subprocess.Popen(
                     ["kubectl", "port-forward", f"svc/{service_name}", "8080:80"],
                     stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
+                    stderr=subprocess.PIPE,
                 )
 
                 # Give it a moment to establish connection
@@ -1457,7 +1612,10 @@ def render_inference_testing():
                     # Process exited
                     pf_stdout, pf_stderr = port_forward_proc.communicate()
                     st.error("❌ Port-forward failed to start")
-                    st.code(f"stdout: {pf_stdout.decode()}\nstderr: {pf_stderr.decode()}", language="text")
+                    st.code(
+                        f"stdout: {pf_stdout.decode()}\nstderr: {pf_stderr.decode()}",
+                        language="text",
+                    )
                     return
 
                 try:
@@ -1465,26 +1623,28 @@ def render_inference_testing():
                     start_time = time.time()
 
                     curl_cmd = [
-                        "curl", "-s", "-X", "POST",
+                        "curl",
+                        "-s",
+                        "-X",
+                        "POST",
                         "http://localhost:8080/v1/completions",
-                        "-H", "Content-Type: application/json",
-                        "-d", json.dumps({
-                            "prompt": test_prompt,
-                            "max_tokens": max_tokens,
-                            "temperature": temperature
-                        })
+                        "-H",
+                        "Content-Type: application/json",
+                        "-d",
+                        json.dumps(
+                            {
+                                "prompt": test_prompt,
+                                "max_tokens": max_tokens,
+                                "temperature": temperature,
+                            }
+                        ),
                     ]
 
                     # Show the command being executed for debugging
                     with st.expander("🔍 Debug Info"):
                         st.code(" ".join(curl_cmd), language="bash")
 
-                    result = subprocess.run(
-                        curl_cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=30
-                    )
+                    result = subprocess.run(curl_cmd, capture_output=True, text=True, timeout=30)
 
                     elapsed_time = time.time() - start_time
 
@@ -1534,7 +1694,9 @@ def render_inference_testing():
                             st.code(result.stderr, language="text")
 
                         if not result.stdout and not result.stderr:
-                            st.warning("No output captured from curl command. Port-forward may have failed.")
+                            st.warning(
+                                "No output captured from curl command. Port-forward may have failed."
+                            )
 
                 finally:
                     # Clean up port-forward process
@@ -1548,6 +1710,7 @@ def render_inference_testing():
             except Exception as e:
                 st.error(f"❌ Error testing inference: {str(e)}")
                 import traceback
+
                 with st.expander("🔍 Full Error Traceback"):
                     st.code(traceback.format_exc(), language="text")
 
@@ -1595,7 +1758,7 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
             "TTFT p90",
             f"{slo['ttft_p90_ms']}ms",
             delta=f"{ttft_delta}ms vs target",
-            delta_color="inverse"
+            delta_color="inverse",
         )
         st.caption(f"Target: {slo['ttft_target_ms']}ms {'✓' if slo['ttft_compliant'] else '⚠️'}")
 
@@ -1605,7 +1768,7 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
             "TPOT p90",
             f"{slo['tpot_p90_ms']}ms",
             delta=f"{tpot_delta}ms vs target",
-            delta_color="inverse"
+            delta_color="inverse",
         )
         st.caption(f"Target: {slo['tpot_target_ms']}ms {'✓' if slo['tpot_compliant'] else '⚠️'}")
 
@@ -1615,29 +1778,23 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
             "E2E p95",
             f"{slo['e2e_p95_ms']}ms",
             delta=f"{e2e_delta}ms vs target",
-            delta_color="inverse"
+            delta_color="inverse",
         )
         st.caption(f"Target: {slo['e2e_target_ms']}ms {'✓' if slo['e2e_compliant'] else '⚠️'}")
 
     with col4:
         qps_delta = slo["throughput_qps"] - slo["throughput_target_qps"]
-        st.metric(
-            "Throughput",
-            f"{slo['throughput_qps']} QPS",
-            delta=f"{qps_delta:+.0f} vs target"
+        st.metric("Throughput", f"{slo['throughput_qps']} QPS", delta=f"{qps_delta:+.0f} vs target")
+        st.caption(
+            f"Target: {slo['throughput_target_qps']} QPS {'✓' if slo['throughput_compliant'] else '⚠️'}"
         )
-        st.caption(f"Target: {slo['throughput_target_qps']} QPS {'✓' if slo['throughput_compliant'] else '⚠️'}")
 
     # Uptime
     st.markdown("---")
     col1, col2 = st.columns([1, 3])
     with col1:
         uptime_delta = slo["uptime_pct"] - slo["uptime_target_pct"]
-        st.metric(
-            "Uptime",
-            f"{slo['uptime_pct']:.2f}%",
-            delta=f"{uptime_delta:+.2f}% vs target"
-        )
+        st.metric("Uptime", f"{slo['uptime_pct']:.2f}%", delta=f"{uptime_delta:+.2f}% vs target")
         st.caption(f"Target: {slo['uptime_target_pct']}% {'✓' if slo['uptime_compliant'] else '⚠️'}")
 
     # Resource Utilization
@@ -1651,18 +1808,18 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
     with col1:
         st.metric("GPU Utilization", f"{util['gpu_utilization_pct']}%")
         st.caption("Target: >80% for cost efficiency")
-        if util['gpu_utilization_pct'] < 80:
+        if util["gpu_utilization_pct"] < 80:
             st.warning("⚠️ Below efficiency target")
 
     with col2:
         st.metric(
             "GPU Memory",
             f"{util['gpu_memory_used_gb']:.1f} GB",
-            delta=f"of {util['gpu_memory_total_gb']} GB"
+            delta=f"of {util['gpu_memory_total_gb']} GB",
         )
 
     with col3:
-        st.metric("Avg Batch Size", util['avg_batch_size'])
+        st.metric("Avg Batch Size", util["avg_batch_size"])
         st.caption(f"Queue depth: {util['queue_depth']}")
 
     # Cost Analysis
@@ -1678,15 +1835,12 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
         st.metric(
             "Monthly Cost",
             f"${cost['actual_cost_per_month_usd']:.0f}",
-            delta=f"${cost_diff_month:+.0f} vs predicted"
+            delta=f"${cost_diff_month:+.0f} vs predicted",
         )
         st.caption(f"Predicted: ${cost['predicted_cost_per_month_usd']:.0f}")
 
     with col2:
-        st.metric(
-            "Cost per 1k Tokens",
-            f"${cost['cost_per_1k_tokens_usd']:.3f}"
-        )
+        st.metric("Cost per 1k Tokens", f"${cost['cost_per_1k_tokens_usd']:.3f}")
         st.caption(f"Predicted: ${cost['predicted_cost_per_1k_tokens_usd']:.3f}")
 
     # Traffic Patterns
@@ -1702,7 +1856,7 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
         st.metric(
             "Avg Prompt Tokens",
             traffic["avg_prompt_tokens"],
-            delta=f"{prompt_diff:+d} vs predicted"
+            delta=f"{prompt_diff:+d} vs predicted",
         )
         st.caption(f"Predicted: {traffic['predicted_prompt_tokens']}")
 
@@ -1711,17 +1865,13 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
         st.metric(
             "Avg Generation Tokens",
             traffic["avg_generation_tokens"],
-            delta=f"{gen_diff:+d} vs predicted"
+            delta=f"{gen_diff:+d} vs predicted",
         )
         st.caption(f"Predicted: {traffic['predicted_generation_tokens']}")
 
     with col3:
         qps_diff = traffic["peak_qps"] - traffic["predicted_peak_qps"]
-        st.metric(
-            "Peak QPS",
-            traffic["peak_qps"],
-            delta=f"{qps_diff:+d} vs predicted"
-        )
+        st.metric("Peak QPS", traffic["peak_qps"], delta=f"{qps_diff:+d} vs predicted")
         st.caption(f"Predicted: {traffic['predicted_peak_qps']}")
 
     # Request volume
@@ -1739,7 +1889,9 @@ def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
         st.info(recommendation)
 
     st.markdown("---")
-    st.caption("**Note:** This is simulated monitoring data for POC purposes. In production, this would connect to Prometheus/Grafana.")
+    st.caption(
+        "**Note:** This is simulated monitoring data for POC purposes. In production, this would connect to Prometheus/Grafana."
+    )
 
 
 if __name__ == "__main__":

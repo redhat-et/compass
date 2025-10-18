@@ -41,7 +41,7 @@ class TrafficProfileGenerator:
         expected_qps = self._estimate_qps(
             user_count=intent.user_count,
             requests_per_user_per_day=template.requests_per_user_per_day or 10,
-            latency_requirement=intent.latency_requirement
+            latency_requirement=intent.latency_requirement,
         )
 
         return TrafficProfile(
@@ -50,7 +50,7 @@ class TrafficProfileGenerator:
             generation_tokens_mean=template.generation_tokens_mean,
             generation_tokens_variance=template.generation_tokens_variance,
             expected_qps=expected_qps,
-            requests_per_user_per_day=template.requests_per_user_per_day
+            requests_per_user_per_day=template.requests_per_user_per_day,
         )
 
     def generate_slo_targets(self, intent: DeploymentIntent) -> SLOTargets:
@@ -72,29 +72,23 @@ class TrafficProfileGenerator:
 
         # Adjust SLO targets based on latency requirement
         ttft_target = self._adjust_slo_for_latency(
-            template.ttft_p90_target_ms,
-            intent.latency_requirement
+            template.ttft_p90_target_ms, intent.latency_requirement
         )
         tpot_target = self._adjust_slo_for_latency(
-            template.tpot_p90_target_ms,
-            intent.latency_requirement
+            template.tpot_p90_target_ms, intent.latency_requirement
         )
         e2e_target = self._adjust_slo_for_latency(
-            template.e2e_p95_target_ms,
-            intent.latency_requirement
+            template.e2e_p95_target_ms, intent.latency_requirement
         )
 
         return SLOTargets(
             ttft_p90_target_ms=ttft_target,
             tpot_p90_target_ms=tpot_target,
-            e2e_p95_target_ms=e2e_target
+            e2e_p95_target_ms=e2e_target,
         )
 
     def _estimate_qps(
-        self,
-        user_count: int,
-        requests_per_user_per_day: int,
-        latency_requirement: str
+        self, user_count: int, requests_per_user_per_day: int, latency_requirement: str
     ) -> float:
         """
         Estimate peak QPS based on user count and usage patterns.
@@ -117,7 +111,7 @@ class TrafficProfileGenerator:
             "very_high": 3.0,  # High variability, need headroom
             "high": 2.5,
             "medium": 2.0,
-            "low": 1.5
+            "low": 1.5,
         }
         peak_ratio = peak_ratio_map.get(latency_requirement, 2.0)
 
@@ -129,11 +123,7 @@ class TrafficProfileGenerator:
 
         return round(peak_qps, 2)
 
-    def _adjust_slo_for_latency(
-        self,
-        base_target_ms: int,
-        latency_requirement: str
-    ) -> int:
+    def _adjust_slo_for_latency(self, base_target_ms: int, latency_requirement: str) -> int:
         """
         Adjust SLO target based on user's latency requirement.
 
@@ -146,9 +136,9 @@ class TrafficProfileGenerator:
         """
         adjustment_factors = {
             "very_high": 0.9,  # 10% tighter than template (more realistic)
-            "high": 0.95,      # 5% tighter
-            "medium": 1.0,     # Use template as-is
-            "low": 1.2         # 20% more relaxed
+            "high": 0.95,  # 5% tighter
+            "medium": 1.0,  # Use template as-is
+            "low": 1.2,  # 20% more relaxed
         }
 
         factor = adjustment_factors.get(latency_requirement, 1.0)
@@ -165,7 +155,7 @@ class TrafficProfileGenerator:
             generation_tokens_mean=200,
             generation_tokens_variance=100,
             expected_qps=default_qps,
-            requests_per_user_per_day=10
+            requests_per_user_per_day=10,
         )
 
     def _generate_default_slo(self, intent: DeploymentIntent) -> SLOTargets:
@@ -174,13 +164,9 @@ class TrafficProfileGenerator:
             "very_high": (150, 40, 1500),
             "high": (250, 60, 3000),
             "medium": (500, 80, 5000),
-            "low": (1000, 100, 10000)
+            "low": (1000, 100, 10000),
         }
 
         ttft, tpot, e2e = slo_map.get(intent.latency_requirement, (500, 80, 5000))
 
-        return SLOTargets(
-            ttft_p90_target_ms=ttft,
-            tpot_p90_target_ms=tpot,
-            e2e_p95_target_ms=e2e
-        )
+        return SLOTargets(ttft_p90_target_ms=ttft, tpot_p90_target_ms=tpot, e2e_p95_target_ms=e2e)
