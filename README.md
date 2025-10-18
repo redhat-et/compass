@@ -30,7 +30,7 @@ This is a **Phase 1 POC** demonstrating the core architecture of Compass. The sy
 - **What-if analysis** to explore trade-offs between cost, latency, and throughput
 - **YAML generation** for KServe/vLLM deployment configurations
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design and [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for development workflows.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design, [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for development workflows, and [docs/LOGGING.md](docs/LOGGING.md) for logging and debugging.
 
 ## Project Structure
 

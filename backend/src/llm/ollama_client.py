@@ -53,6 +53,12 @@ class OllamaClient:
             raise RuntimeError("Ollama library not available")
 
         try:
+            # Log the request (last message is typically the user prompt)
+            if messages:
+                last_msg = messages[-1]
+                logger.info(f"[LLM REQUEST] Role: {last_msg.get('role')}, Content length: {len(last_msg.get('content', ''))} chars")
+                logger.debug(f"[LLM PROMPT] {last_msg.get('content', '')[:500]}...")  # Log first 500 chars at debug level
+
             kwargs = {
                 'model': self.model,
                 'messages': messages,
@@ -66,6 +72,16 @@ class OllamaClient:
                 kwargs['host'] = self.host
 
             response = ollama.chat(**kwargs)
+
+            # Log the full response
+            response_content = response.get('message', {}).get('content', '')
+            logger.info("=" * 80)
+            logger.info(f"[LLM RESPONSE] Model: {self.model}, Response length: {len(response_content)} chars")
+            logger.info("[LLM RESPONSE CONTENT - START]")
+            logger.info(response_content)
+            logger.info("[LLM RESPONSE CONTENT - END]")
+            logger.info("=" * 80)
+
             return response
 
         except Exception as e:
@@ -89,6 +105,8 @@ class OllamaClient:
         Returns:
             Generated text response
         """
+        logger.info(f"[LLM GENERATE] Prompt length: {len(prompt)} chars, JSON format: {format_json}, Temperature: {temperature}")
+
         messages = [{'role': 'user', 'content': prompt}]
         response = self.chat(messages, format_json=format_json, temperature=temperature)
         return response['message']['content']

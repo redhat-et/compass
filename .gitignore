@@ -49,6 +49,7 @@ generated_configs/*.yml
 # Logs
 *.log
 logs/
+!logs/prompts/.gitkeep
 
 # Ollama
 .ollama/
