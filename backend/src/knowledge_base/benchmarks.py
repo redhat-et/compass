@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +43,7 @@ class BenchmarkData:
 class BenchmarkRepository:
     """Repository for querying model benchmark data."""
 
-    def __init__(self, data_path: Optional[Path] = None):
+    def __init__(self, data_path: Path | None = None):
         """
         Initialize benchmark repository.
 
@@ -56,7 +55,7 @@ class BenchmarkRepository:
             data_path = Path(__file__).parent.parent.parent.parent / "data" / "benchmarks.json"
 
         self.data_path = data_path
-        self._benchmarks: List[BenchmarkData] = []
+        self._benchmarks: list[BenchmarkData] = []
         self._load_data()
 
     def _load_data(self):
@@ -75,7 +74,7 @@ class BenchmarkRepository:
         model_id: str,
         gpu_type: str,
         tensor_parallel: int = 1
-    ) -> Optional[BenchmarkData]:
+    ) -> BenchmarkData | None:
         """
         Get benchmark for specific model/GPU/TP configuration.
 
@@ -94,7 +93,7 @@ class BenchmarkRepository:
                 return bench
         return None
 
-    def get_benchmarks_for_model(self, model_id: str) -> List[BenchmarkData]:
+    def get_benchmarks_for_model(self, model_id: str) -> list[BenchmarkData]:
         """
         Get all benchmarks for a specific model.
 
@@ -106,7 +105,7 @@ class BenchmarkRepository:
         """
         return [b for b in self._benchmarks if b.model_id == model_id]
 
-    def get_benchmarks_for_gpu(self, gpu_type: str) -> List[BenchmarkData]:
+    def get_benchmarks_for_gpu(self, gpu_type: str) -> list[BenchmarkData]:
         """
         Get all benchmarks for a specific GPU type.
 
@@ -123,7 +122,7 @@ class BenchmarkRepository:
         ttft_p90_max_ms: int,
         tpot_p90_max_ms: int,
         min_qps: float
-    ) -> List[BenchmarkData]:
+    ) -> list[BenchmarkData]:
         """
         Find all configurations that meet SLO requirements.
 
@@ -143,6 +142,6 @@ class BenchmarkRepository:
                 results.append(bench)
         return results
 
-    def get_all_benchmarks(self) -> List[BenchmarkData]:
+    def get_all_benchmarks(self) -> list[BenchmarkData]:
         """Get all benchmarks."""
         return self._benchmarks.copy()

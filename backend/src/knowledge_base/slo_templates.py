@@ -3,7 +3,6 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class SLOTemplate:
 class SLOTemplateRepository:
     """Repository for use case SLO templates."""
 
-    def __init__(self, data_path: Optional[Path] = None):
+    def __init__(self, data_path: Path | None = None):
         """
         Initialize SLO template repository.
 
@@ -76,7 +75,7 @@ class SLOTemplateRepository:
             data_path = Path(__file__).parent.parent.parent.parent / "data" / "slo_templates.json"
 
         self.data_path = data_path
-        self._templates: Dict[str, SLOTemplate] = {}
+        self._templates: dict[str, SLOTemplate] = {}
         self._load_data()
 
     def _load_data(self):
@@ -91,7 +90,7 @@ class SLOTemplateRepository:
             logger.error(f"Failed to load SLO templates from {self.data_path}: {e}")
             raise
 
-    def get_template(self, use_case: str) -> Optional[SLOTemplate]:
+    def get_template(self, use_case: str) -> SLOTemplate | None:
         """
         Get SLO template for a specific use case.
 
@@ -103,10 +102,10 @@ class SLOTemplateRepository:
         """
         return self._templates.get(use_case)
 
-    def get_all_templates(self) -> Dict[str, SLOTemplate]:
+    def get_all_templates(self) -> dict[str, SLOTemplate]:
         """Get all SLO templates."""
         return self._templates.copy()
 
-    def list_use_cases(self) -> List[str]:
+    def list_use_cases(self) -> list[str]:
         """Get list of all supported use cases."""
         return list(self._templates.keys())

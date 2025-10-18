@@ -1,7 +1,6 @@
 """Model recommendation engine."""
 
 import logging
-from typing import List, Optional, Tuple
 
 from ..context_intent.schema import DeploymentIntent
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class ModelRecommender:
     """Recommend models based on deployment intent and requirements."""
 
-    def __init__(self, catalog: Optional[ModelCatalog] = None):
+    def __init__(self, catalog: ModelCatalog | None = None):
         """
         Initialize model recommender.
 
@@ -25,7 +24,7 @@ class ModelRecommender:
         self,
         intent: DeploymentIntent,
         top_k: int = 3
-    ) -> List[Tuple[ModelInfo, float]]:
+    ) -> list[tuple[ModelInfo, float]]:
         """
         Recommend models for deployment intent.
 

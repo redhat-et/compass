@@ -1,14 +1,13 @@
 """Workflow orchestration for end-to-end recommendation flow."""
 
 import logging
-from typing import Optional, List
 
-from ..context_intent.schema import DeploymentIntent, DeploymentRecommendation, ConversationMessage
 from ..context_intent.extractor import IntentExtractor
-from ..recommendation.traffic_profile import TrafficProfileGenerator
-from ..recommendation.model_recommender import ModelRecommender
-from ..recommendation.capacity_planner import CapacityPlanner
+from ..context_intent.schema import ConversationMessage, DeploymentRecommendation
 from ..llm.ollama_client import OllamaClient
+from ..recommendation.capacity_planner import CapacityPlanner
+from ..recommendation.model_recommender import ModelRecommender
+from ..recommendation.traffic_profile import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +17,11 @@ class RecommendationWorkflow:
 
     def __init__(
         self,
-        llm_client: Optional[OllamaClient] = None,
-        intent_extractor: Optional[IntentExtractor] = None,
-        traffic_generator: Optional[TrafficProfileGenerator] = None,
-        model_recommender: Optional[ModelRecommender] = None,
-        capacity_planner: Optional[CapacityPlanner] = None
+        llm_client: OllamaClient | None = None,
+        intent_extractor: IntentExtractor | None = None,
+        traffic_generator: TrafficProfileGenerator | None = None,
+        model_recommender: ModelRecommender | None = None,
+        capacity_planner: CapacityPlanner | None = None
     ):
         """
         Initialize workflow orchestrator.
@@ -43,7 +42,7 @@ class RecommendationWorkflow:
     def generate_recommendation(
         self,
         user_message: str,
-        conversation_history: Optional[List[ConversationMessage]] = None
+        conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentRecommendation:
         """
         Generate deployment recommendation from user message.
@@ -110,7 +109,7 @@ class RecommendationWorkflow:
                     f"${recommendation.cost_per_month_usd:.0f}/month"
                 )
             else:
-                logger.info(f"  ✗ No viable configuration found")
+                logger.info("  ✗ No viable configuration found")
 
         if not viable_recommendations:
             raise ValueError("No viable deployment configurations found meeting SLO targets")

@@ -1,6 +1,7 @@
 """Data schemas for deployment intent and specifications."""
 
-from typing import Optional, List, Literal
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -8,11 +9,11 @@ class TrafficProfile(BaseModel):
     """Traffic characteristics for the deployment."""
 
     prompt_tokens_mean: int = Field(..., description="Average prompt length in tokens")
-    prompt_tokens_variance: Optional[int] = Field(None, description="Variance in prompt length")
+    prompt_tokens_variance: int | None = Field(None, description="Variance in prompt length")
     generation_tokens_mean: int = Field(..., description="Average generation length in tokens")
-    generation_tokens_variance: Optional[int] = Field(None, description="Variance in generation length")
+    generation_tokens_variance: int | None = Field(None, description="Variance in generation length")
     expected_qps: float = Field(..., description="Expected queries per second")
-    requests_per_user_per_day: Optional[int] = Field(None, description="User request frequency")
+    requests_per_user_per_day: int | None = Field(None, description="User request frequency")
 
 
 class SLOTargets(BaseModel):
@@ -62,12 +63,12 @@ class DeploymentIntent(BaseModel):
         description="Cost sensitivity"
     )
 
-    domain_specialization: List[str] = Field(
+    domain_specialization: list[str] = Field(
         default_factory=lambda: ["general"],
         description="Domain requirements (general, code, multilingual, enterprise)"
     )
 
-    additional_context: Optional[str] = Field(
+    additional_context: str | None = Field(
         None,
         description="Any other relevant details from conversation"
     )
@@ -103,7 +104,7 @@ class DeploymentRecommendation(BaseModel):
     # Metadata
     meets_slo: bool = Field(..., description="Whether configuration meets SLO targets")
     reasoning: str = Field(..., description="Explanation of recommendation choice")
-    alternative_options: Optional[List[dict]] = Field(
+    alternative_options: list[dict] | None = Field(
         default=None,
         description="Alternative configurations with trade-offs"
     )
@@ -114,4 +115,4 @@ class ConversationMessage(BaseModel):
 
     role: Literal["user", "assistant", "system"]
     content: str
-    timestamp: Optional[str] = None
+    timestamp: str | None = None

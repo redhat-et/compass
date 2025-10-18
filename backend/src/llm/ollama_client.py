@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Optional, Dict, List, Any
+from typing import Any
 
 try:
     import ollama
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class OllamaClient:
     """Client for interacting with Ollama LLM service."""
 
-    def __init__(self, model: str = "llama3.1:8b", host: Optional[str] = None):
+    def __init__(self, model: str = "llama3.1:8b", host: str | None = None):
         """
         Initialize Ollama client.
 
@@ -34,10 +34,10 @@ class OllamaClient:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         format_json: bool = False,
         temperature: float = 0.7,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Send chat messages to Ollama.
 
@@ -116,7 +116,7 @@ class OllamaClient:
         prompt: str,
         schema_description: str,
         temperature: float = 0.3,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Extract structured data from prompt using JSON format.
 

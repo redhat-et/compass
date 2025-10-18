@@ -1,0 +1,75 @@
+[project]
+name = "compass"
+version = "0.1.0"
+description = "Confidently navigate LLM deployments from concept to production"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.ruff]
+# Set the maximum line length
+line-length = 100
+
+# Target Python 3.11+
+target-version = "py311"
+
+# Exclude common directories
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    "*.egg-info",
+    "build",
+    "dist",
+    "generated_configs",
+    "logs",
+]
+
+[tool.ruff.lint]
+# Enable recommended rules
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "N",   # pep8-naming
+    "UP",  # pyupgrade (modern Python syntax)
+    "B",   # flake8-bugbear (common bugs)
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+
+# Ignore specific rules that may be too strict for a POC
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults (common in FastAPI)
+    "N802",   # Function name should be lowercase (some exceptions for API routes)
+    "SIM108", # Use ternary operator (sometimes reduces readability)
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"
+
+# Like Black, automatically detect the appropriate line ending
+line-ending = "auto"
+
+[tool.ruff.lint.per-file-ignores]
+# Ignore import sorting in __init__.py files
+"__init__.py" = ["F401", "I"]
+
+# Test files can have longer lines and unused imports
+"tests/**/*.py" = ["E501", "F401"]
+"test_*.py" = ["E501", "F401"]
+
+[tool.ruff.lint.isort]
+# Organize imports into sections
+known-first-party = ["backend", "ui", "simulator"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
