@@ -164,7 +164,7 @@ async def get_recommendation(request: RecommendationRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate recommendation: {str(e)}"
-        )
+        ) from e
 
 
 # Get available models
@@ -179,7 +179,7 @@ async def list_models():
         }
     except Exception as e:
         logger.error(f"Failed to list models: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Get GPU types
@@ -194,7 +194,7 @@ async def list_gpu_types():
         }
     except Exception as e:
         logger.error(f"Failed to list GPU types: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Get use case templates
@@ -212,7 +212,7 @@ async def list_use_cases():
         }
     except Exception as e:
         logger.error(f"Failed to list use cases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Simplified recommendation endpoint for UI
@@ -264,7 +264,7 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate recommendation: {str(e)}"
-        )
+        ) from e
 
 
 # Simple test endpoint for quick validation
@@ -330,7 +330,7 @@ async def deploy_model(request: DeploymentRequest):
             raise HTTPException(
                 status_code=500,
                 detail=f"Generated YAML validation failed: {str(e)}"
-            )
+            ) from e
 
         return DeploymentResponse(
             deployment_id=result["deployment_id"],
@@ -345,7 +345,7 @@ async def deploy_model(request: DeploymentRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate deployment: {str(e)}"
-        )
+        ) from e
 
 
 @app.get("/api/deployments/{deployment_id}/status", response_model=DeploymentStatusResponse)
@@ -436,7 +436,7 @@ async def get_deployment_status(deployment_id: str):
         raise HTTPException(
             status_code=404,
             detail=f"Deployment not found: {deployment_id}"
-        )
+        ) from e
 
 
 @app.post("/api/deploy-to-cluster")
@@ -464,7 +464,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
             raise HTTPException(
                 status_code=503,
                 detail=f"Kubernetes cluster not accessible: {str(e)}"
-            )
+            ) from e
 
     try:
         logger.info(f"Deploying model to cluster: {request.recommendation.model_name}")
@@ -487,7 +487,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
             raise HTTPException(
                 status_code=500,
                 detail=f"Generated YAML validation failed: {str(e)}"
-            )
+            ) from e
 
         # Step 3: Deploy to cluster
         # Note: generator creates keys like "inferenceservice", "vllm-config", "autoscaling", etc.
@@ -524,7 +524,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to deploy to cluster: {str(e)}"
-        )
+        ) from e
 
 
 @app.get("/api/cluster-status")
@@ -579,7 +579,7 @@ async def get_k8s_deployment_status(deployment_id: str):
             raise HTTPException(
                 status_code=503,
                 detail=f"Kubernetes cluster not accessible: {str(e)}"
-            )
+            ) from e
 
     try:
         # Get InferenceService status
@@ -600,7 +600,7 @@ async def get_k8s_deployment_status(deployment_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get deployment status: {str(e)}"
-        )
+        ) from e
 
 
 @app.get("/api/deployments/{deployment_id}/yaml")
@@ -647,7 +647,7 @@ async def get_deployment_yaml(deployment_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to retrieve YAML files: {str(e)}"
-        )
+        ) from e
 
 
 @app.delete("/api/deployments/{deployment_id}")
@@ -673,7 +673,7 @@ async def delete_deployment(deployment_id: str):
             raise HTTPException(
                 status_code=503,
                 detail=f"Kubernetes cluster not accessible: {str(e)}"
-            )
+            ) from e
 
     try:
         result = manager.delete_inferenceservice(deployment_id)
@@ -693,7 +693,7 @@ async def delete_deployment(deployment_id: str):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to delete deployment: {str(e)}"
-        )
+        ) from e
 
 
 @app.get("/api/deployments")
@@ -716,7 +716,7 @@ async def list_all_deployments():
             raise HTTPException(
                 status_code=503,
                 detail=f"Kubernetes cluster not accessible: {str(e)}"
-            )
+            ) from e
 
     try:
         # Get list of all InferenceService names
@@ -746,7 +746,7 @@ async def list_all_deployments():
         raise HTTPException(
             status_code=500,
             detail=f"Failed to list deployments: {str(e)}"
-        )
+        ) from e
 
 
 if __name__ == "__main__":

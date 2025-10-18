@@ -7,6 +7,7 @@ This module provides the main Streamlit interface for Compass, featuring:
 4. Integration with FastAPI backend
 """
 
+import contextlib
 import time
 from typing import Any
 
@@ -241,10 +242,6 @@ def render_deployment_management_tab():
         ready = status.get("ready", False)
         ready_icon = "✅" if ready else "⏳"
 
-        # Extract basic info
-        cluster_ip = "N/A"
-        port = "N/A"
-
         table_data.append({
             "Status": ready_icon,
             "Name": dep_id,
@@ -409,9 +406,8 @@ def render_chat_interface():
         st.session_state.messages.append({"role": "user", "content": prompt})
 
         # Show user message
-        with chat_container:
-            with st.chat_message("user"):
-                st.markdown(prompt)
+        with chat_container, st.chat_message("user"):
+            st.markdown(prompt)
 
         # Get recommendation from API
         with st.spinner("Analyzing requirements and generating recommendation..."):
@@ -785,7 +781,7 @@ def check_cluster_status():
             st.session_state.cluster_accessible = status.get("accessible", False)
             return status
         return {"accessible": False}
-    except:
+    except Exception:
         st.session_state.cluster_accessible = False
         return {"accessible": False}
 
@@ -812,7 +808,7 @@ def generate_deployment_yaml(rec: dict[str, Any]):
 
                 # Show file paths
                 st.markdown("**Generated Files:**")
-                for config_type, file_path in result["files"].items():
+                for _config_type, file_path in result["files"].items():
                     st.code(file_path, language="text")
 
                 # Check cluster status
@@ -1197,10 +1193,8 @@ def render_inference_testing_for_deployment(deployment_info: dict[str, Any], con
 
             except subprocess.TimeoutExpired:
                 st.error("❌ Request timed out (30s). The model may still be starting up.")
-                try:
+                with contextlib.suppress(Exception):
                     port_forward_proc.terminate()
-                except:
-                    pass
             except Exception as e:
                 st.error(f"❌ Error testing inference: {str(e)}")
                 import traceback
@@ -1549,10 +1543,8 @@ def render_inference_testing():
 
             except subprocess.TimeoutExpired:
                 st.error("❌ Request timed out (30s). The model may still be starting up.")
-                try:
+                with contextlib.suppress(Exception):
                     port_forward_proc.terminate()
-                except:
-                    pass
             except Exception as e:
                 st.error(f"❌ Error testing inference: {str(e)}")
                 import traceback

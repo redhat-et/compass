@@ -47,10 +47,10 @@ class KubernetesClusterManager:
                     f"Cannot access Kubernetes cluster: {result.stderr}"
                 )
             logger.info("Kubernetes cluster access verified")
-        except subprocess.TimeoutExpired:
-            raise KubernetesDeploymentError("kubectl cluster-info timed out")
-        except FileNotFoundError:
-            raise KubernetesDeploymentError("kubectl not found in PATH")
+        except subprocess.TimeoutExpired as e:
+            raise KubernetesDeploymentError("kubectl cluster-info timed out") from e
+        except FileNotFoundError as e:
+            raise KubernetesDeploymentError("kubectl not found in PATH") from e
 
     def create_namespace_if_not_exists(self) -> bool:
         """Create namespace if it doesn't exist."""
@@ -83,8 +83,8 @@ class KubernetesClusterManager:
             logger.info(f"Created namespace: {self.namespace}")
             return True
 
-        except subprocess.TimeoutExpired:
-            raise KubernetesDeploymentError("Namespace operation timed out")
+        except subprocess.TimeoutExpired as e:
+            raise KubernetesDeploymentError("Namespace operation timed out") from e
 
     def apply_yaml(self, yaml_path: str) -> dict[str, Any]:
         """
@@ -120,8 +120,8 @@ class KubernetesClusterManager:
                 "timestamp": datetime.now().isoformat()
             }
 
-        except subprocess.TimeoutExpired:
-            raise KubernetesDeploymentError(f"Timeout applying {yaml_path}")
+        except subprocess.TimeoutExpired as e:
+            raise KubernetesDeploymentError(f"Timeout applying {yaml_path}") from e
 
     def deploy_all(self, yaml_files: list[str]) -> dict[str, Any]:
         """

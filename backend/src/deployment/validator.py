@@ -71,7 +71,7 @@ class YAMLValidator:
             logger.info(f"YAML syntax valid: {file_path} ({len(docs)} document(s))")
             return True
         except yaml.YAMLError as e:
-            raise ValidationError(f"Invalid YAML syntax in {file_path}: {e}")
+            raise ValidationError(f"Invalid YAML syntax in {file_path}: {e}") from e
 
     def _get_nested_field(self, data: dict[str, Any], field_path: str) -> Any | None:
         """

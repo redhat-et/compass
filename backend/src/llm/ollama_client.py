@@ -145,7 +145,7 @@ Return ONLY valid JSON matching the schema above. Do not include any explanation
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON response: {response_text}")
             logger.error(f"JSON error: {e}")
-            raise ValueError(f"LLM did not return valid JSON: {e}")
+            raise ValueError(f"LLM did not return valid JSON: {e}") from e
 
     def is_available(self) -> bool:
         """Check if Ollama service is available."""
