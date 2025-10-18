@@ -10,6 +10,16 @@ This guide provides step-by-step instructions for developing and testing Compass
 - [Testing](#testing)
 - [Debugging](#debugging)
 - [Making Changes](#making-changes)
+- [Simulator Development](#simulator-development)
+- [Clean Up](#clean-up)
+- [Useful Commands](#useful-commands)
+- [Alternative Setup Methods](#alternative-setup-methods)
+- [Running Services Manually](#running-services-manually)
+- [Troubleshooting](#troubleshooting)
+- [Manual Kubernetes Cluster Setup](#manual-kubernetes-cluster-setup)
+- [YAML Deployment Generation](#yaml-deployment-generation)
+- [vLLM Simulator Details](#vllm-simulator-details)
+- [Testing Details](#testing-details)
 
 ## Development Environment Setup
 
@@ -497,3 +507,318 @@ make open-ui
 ```bash
 make open-backend
 ```
+
+## Alternative Setup Methods
+
+### Manual Backend Installation
+
+**Terminal 1:**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Verify correct venv
+which python  # Should show: .../venv/bin/python
+
+pip install -r requirements.txt
+```
+
+### Manual Frontend Installation
+
+**Terminal 2 (or deactivate first):**
+```bash
+# If in same terminal: deactivate first
+deactivate
+
+cd frontend
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Verify correct venv
+which python  # Should show: .../frontend/venv/bin/python
+
+pip install -r requirements.txt
+```
+
+### Manual Ollama Model Pull
+
+The POC uses `llama3.1:8b` for intent extraction:
+
+```bash
+ollama pull llama3.1:8b
+```
+
+**Alternative models** (if needed):
+- `llama3.2:3b` - Smaller/faster, less accurate
+- `mistral:7b` - Good balance of speed and quality
+
+### Verify Ollama Setup
+
+```bash
+# Test Ollama is working
+ollama list  # Should show llama3.1:8b
+```
+
+## Running Services Manually
+
+### Option 1: Run Full Stack with UI (Recommended)
+
+The easiest way to use the assistant:
+
+```bash
+# Terminal 1 - Start Ollama (if not already running)
+ollama serve
+
+# Terminal 2 - Start FastAPI Backend
+scripts/run_api.sh
+
+# Terminal 3 - Start Streamlit UI
+scripts/run_ui.sh
+```
+
+Then open http://localhost:8501 in your browser.
+
+### Option 2: Test End-to-End Workflow
+
+Test the complete recommendation workflow with demo scenarios:
+
+```bash
+cd backend
+source venv/bin/activate
+python test_workflow.py
+```
+
+This tests all 3 demo scenarios end-to-end.
+
+### Option 3: Run FastAPI Backend Only
+
+Start the API server:
+
+```bash
+./run_api.sh
+```
+
+Or manually:
+
+```bash
+scripts/run_api.sh
+```
+
+Test the API:
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Full recommendation
+curl -X POST http://localhost:8000/api/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"message": "I need a chatbot for 5000 users with low latency"}'
+```
+
+### Option 4: Test Individual Components
+
+Test the LLM client:
+
+```bash
+cd backend
+source venv/bin/activate
+python -c "
+from src.llm.ollama_client import OllamaClient
+client = OllamaClient(model='llama3.2:3b')
+print('Ollama available:', client.is_available())
+print('Pulling model...')
+client.ensure_model_pulled()
+print('Model ready!')
+"
+```
+
+## Troubleshooting
+
+### Ollama Connection Issues
+
+```bash
+# Check Ollama is running
+curl http://localhost:11434/api/tags
+
+# If not running
+ollama serve
+```
+
+### Model Not Found
+
+```bash
+ollama pull llama3.2:3b
+```
+
+### Import Errors
+
+```bash
+# Make sure you're in the right venv
+which python  # Should show path to venv
+
+# Reinstall dependencies
+pip install -r requirements.txt
+```
+
+## Manual Kubernetes Cluster Setup
+
+### KIND Cluster Installation
+
+**Install KIND (if not already installed):**
+```bash
+brew install kind
+```
+
+**Create cluster with KServe:**
+```bash
+# Ensure Docker Desktop is running
+
+# Create cluster
+kind create cluster --config config/kind-cluster.yaml
+
+# Install cert-manager
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+
+# Wait for cert-manager
+kubectl wait --for=condition=available --timeout=300s -n cert-manager deployment/cert-manager
+
+# Install KServe
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve.yaml
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve-cluster-resources.yaml
+
+# Wait for KServe
+kubectl wait --for=condition=available --timeout=300s -n kserve deployment/kserve-controller-manager
+
+# Configure KServe for RawDeployment mode
+kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{"data": {"deploy": "{\"defaultDeploymentMode\": \"RawDeployment\"}"}}'
+```
+
+### Deploy Models Through UI
+
+1. Get a deployment recommendation from the chat interface
+2. Click **"Generate Deployment YAML"** in the Actions section
+3. If cluster is accessible, click **"Deploy to Kubernetes"**
+4. Go to **Monitoring** tab to see:
+   - Real Kubernetes deployment status
+   - InferenceService conditions
+   - Pod information
+   - Performance metrics
+
+### Manual Deployment Commands
+
+**Deploy generated YAML:**
+```bash
+# After generating YAML via UI
+kubectl apply -f generated_configs/kserve-inferenceservice.yaml
+kubectl get inferenceservices
+kubectl get pods
+```
+
+**View all resources:**
+```bash
+kubectl get pods -A
+```
+
+**View deployments:**
+```bash
+kubectl get inferenceservices
+kubectl get pods
+```
+
+**Delete a specific deployment:**
+```bash
+kubectl delete inferenceservice <deployment-id>
+```
+
+**Check cluster info:**
+```bash
+kubectl cluster-info
+```
+
+## YAML Deployment Generation
+
+The system automatically generates production-ready Kubernetes configurations:
+
+- ✅ KServe InferenceService YAML with vLLM configuration
+- ✅ HorizontalPodAutoscaler (HPA) for autoscaling
+- ✅ Prometheus ServiceMonitor for metrics collection
+- ✅ Grafana Dashboard ConfigMap
+- ✅ Full YAML validation before generation
+- ✅ Files written to `generated_configs/` directory
+
+**How to use:**
+1. Get a deployment recommendation from the chat interface
+2. Go to the **Cost** tab and click **"Generate Deployment YAML"**
+3. View generated YAML file paths
+4. Check `generated_configs/` directory for all YAML files
+
+## vLLM Simulator Details
+
+### Deploy a Model in Simulator Mode (default)
+
+Simulator mode is enabled by default for all deployments:
+
+```bash
+# Start the UI
+scripts/run_ui.sh
+
+# In the UI:
+# 1. Get a deployment recommendation
+# 2. Click "Generate Deployment YAML"
+# 3. Click "Deploy to Kubernetes"
+# 4. Go to Monitoring tab
+# 5. Pod should become Ready in ~10-15 seconds
+```
+
+### Test Inference
+
+Once deployed:
+1. Go to **Monitoring** tab
+2. See "🧪 Inference Testing" section
+3. Enter a test prompt
+4. Click "🚀 Send Test Request"
+5. View the simulated response and metrics
+
+### Switch to Real vLLM
+
+To use real vLLM with actual GPUs (requires GPU-enabled cluster):
+
+```python
+# In backend/src/api/routes.py
+deployment_generator = DeploymentGenerator(simulator_mode=False)
+```
+
+Then deploy to a GPU-enabled cluster with:
+- NVIDIA GPU Operator installed
+- GPU nodes with appropriate labels
+- Sufficient GPU resources
+
+### Simulator vs Real vLLM
+
+| Feature | Simulator Mode | Real vLLM Mode |
+|---------|---------------|----------------|
+| GPU Required | ❌ No | ✅ Yes |
+| Model Download | ❌ No | ✅ Yes (from HuggingFace) |
+| Inference | Canned responses | Real generation |
+| Latency | Simulated (from benchmarks) | Actual GPU performance |
+| Use Case | Development, testing, demos | Production deployment |
+| Cluster | Works on KIND (local) | Requires GPU-enabled cluster |
+
+## Testing Details
+
+### Quick Tests
+
+```bash
+# Test end-to-end workflow
+cd backend && source venv/bin/activate
+cd ..
+python tests/test_workflow.py
+
+# Test FastAPI endpoints
+scripts/run_api.sh  # Start server in terminal 1
+# In terminal 2:
+curl -X POST http://localhost:8000/api/v1/test
+```
+
+For comprehensive testing instructions, see [backend/TESTING.md](../backend/TESTING.md).

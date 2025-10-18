@@ -1,6 +1,10 @@
-# Compass - POC
+# <img src="docs/compass-logo.ico" alt="Compass" width="32" style="vertical-align: middle;"/> Compass
 
-A conversational AI system that guides users from concept to production-ready LLM deployments through intelligent capacity planning and SLO-driven recommendations.
+**Confidently navigate LLM deployments from concept to production.**
+
+Compass guides you from concept to production LLM deployments through SLO-driven capacity planning. Conversationally define your requirements—Compass translates them into traffic profiles, performance targets, and cost constraints. Get intelligent model and GPU recommendations based on real benchmarks. Explore alternatives, compare tradeoffs, deploy with one click, and monitor actual performance—staying on course as your needs evolve.
+
+---
 
 ## Quick Start
 
@@ -20,123 +24,16 @@ make stop           # Stop services
 make cluster-stop   # Delete cluster (optional)
 ```
 
-See [Quick Start Guide](#quick-start-guide) below for details.
-
-## Overview
-
-This is a **Phase 1 POC** demonstrating the core architecture of Compass. The system uses:
-- **Conversational AI** to extract deployment requirements from natural language
-- **SLO-driven capacity planning** to recommend optimal model + GPU configurations
-- **What-if analysis** to explore trade-offs between cost, latency, and throughput
-- **YAML generation** for KServe/vLLM deployment configurations
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design, [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for development workflows, and [docs/LOGGING.md](docs/LOGGING.md) for logging and debugging.
-
-## Project Structure
-
-```
-compass/
-├── backend/                    # FastAPI backend with core recommendation engine
-│   └── src/
-│       ├── context_intent/     # Component 2: Intent extraction
-│       ├── recommendation/     # Component 3: Model/GPU recommendations & capacity planning
-│       ├── simulation/         # Component 4: What-if analysis (placeholder)
-│       ├── deployment/         # Component 5: YAML generation & K8s deployment
-│       ├── knowledge_base/     # Component 6: Data access layer (benchmarks, catalog, SLOs)
-│       ├── orchestration/      # Component 8: Workflow coordination
-│       ├── llm/                # Component 7: Ollama LLM client
-│       └── api/                # FastAPI REST endpoints
-├── ui/                         # Component 1: Streamlit conversational UI
-├── data/                       # Synthetic data for POC (benchmarks, catalog, SLO templates)
-├── generated_configs/          # Output directory for generated YAML files
-├── simulator/                  # vLLM simulator service for GPU-free development
-├── config/                     # Configuration files (KIND cluster)
-├── scripts/                    # Automation scripts (run_api.sh, run_ui.sh, kind-cluster.sh)
-├── tests/                      # Test suites
-├── docs/                       # Architecture documentation and diagrams
-├── CLAUDE.md                   # Claude Code guidance
-└── README.md                   # This file
-```
-
-## Quick Start Guide
-
 ### Prerequisites
 
-**Required:**
 - **macOS or Linux** (Windows via WSL2)
 - **Python 3.11+**
 - **Docker Desktop** (must be running)
-- **Ollama** - LLM inference engine
-  ```bash
-  brew install ollama
-  ```
-- **kubectl** - Kubernetes CLI
-  ```bash
-  brew install kubectl
-  ```
-- **KIND** - Kubernetes in Docker
-  ```bash
-  brew install kind
-  ```
+- **Ollama** - `brew install ollama`
+- **kubectl** - `brew install kubectl`
+- **KIND** - `brew install kind`
 
-### Step 1: Install Dependencies
-
-Run the one-time setup (creates virtual environments, pulls Ollama model):
-
-```bash
-make setup
-```
-
-This will:
-- Check prerequisites (Docker, kubectl, kind, ollama, Python)
-- Create Python virtual environment with all dependencies
-- Pull the `llama3.1:8b` model for intent extraction
-- Auto-start Ollama if not running
-
-### Step 2: Choose Your Kubernetes Environment
-
-**Option A: Local KIND Cluster with vLLM Simulator (Recommended)**
-
-Best for development, testing, and demos. No GPU required.
-
-```bash
-make cluster-start
-```
-
-This creates a 3-node KIND cluster with:
-- KServe v0.13.0 for model serving
-- cert-manager for certificates
-- vLLM simulator pre-loaded (GPU-free inference)
-- Simulated GPU node labels (A100-80GB, L4)
-
-**Option B: Real Kubernetes Cluster with GPUs**
-
-For production deployments with actual GPU inference:
-
-1. Configure `kubectl` to point to your GPU-enabled cluster
-2. Ensure cluster has:
-   - KServe installed
-   - NVIDIA GPU Operator
-   - GPU nodes with appropriate labels
-3. Set simulator mode to false in `backend/src/api/routes.py`:
-   ```python
-   deployment_generator = DeploymentGenerator(simulator_mode=False)
-   ```
-
-### Step 3: Start the Application
-
-```bash
-make dev
-```
-
-This starts:
-- Ollama service (LLM backend)
-- FastAPI backend (http://localhost:8000)
-- Streamlit UI (http://localhost:8501)
-
-Open http://localhost:8501 in your browser to use Compass!
-
-### Step 4: Use the Assistant
+### Using Compass
 
 1. **Describe your use case** in the chat interface
    - Example: "I need a customer service chatbot for 5000 users with low latency"
@@ -147,161 +44,33 @@ Open http://localhost:8501 in your browser to use Compass!
 6. **Monitor deployment** - Switch to "Deployment Management" tab to see status
 7. **Test inference** - Send test prompts once deployment is Ready
 
-### Step 5: Stop and Clean Up
-
-**Stop services:**
-```bash
-make stop
-```
-
-**Delete cluster (optional):**
-```bash
-make cluster-stop
-```
-
-**Remove all generated files and venvs:**
-```bash
-make clean-all
-```
-
-### Next Steps
-
-- **View logs:** `make logs-backend` or `make logs-ui`
-- **Restart services:** `make restart`
-- **Check cluster status:** `make cluster-status`
-- **Run tests:** `make test`
-- **See all commands:** `make help`
-
-For detailed development workflows, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
-
 ---
 
-## Detailed Setup (Alternative to Quick Start)
+## Overview
 
-**Note:** Backend and frontend share a single virtual environment. Use `make setup` instead of manual setup.
+Compass is a **Phase 1 POC** that demonstrates SLO-driven LLM deployment planning. The system addresses a critical challenge: **how do you translate business requirements into the right model and infrastructure choices without expensive trial-and-error?**
 
-### 1. Install Backend Dependencies
+### Key Features
 
-**Terminal 1:**
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+- **🗣️ Conversational Requirements Gathering** - Describe your use case in natural language
+- **📊 SLO-Driven Capacity Planning** - Translate business needs into technical specifications (traffic profiles, latency targets, cost constraints)
+- **🎯 Intelligent Recommendations** - Get optimal model + GPU configurations backed by real benchmark data
+- **🔍 What-If Analysis** - Explore alternatives and compare cost vs. latency tradeoffs
+- **⚡ One-Click Deployment** - Generate production-ready KServe/vLLM YAML and deploy to Kubernetes
+- **📈 Performance Monitoring** - Track actual deployment status and test inference in real-time
+- **💻 GPU-Free Development** - vLLM simulator enables local testing without GPU hardware
 
-# Verify correct venv
-which python  # Should show: .../venv/bin/python
+### How It Works
 
-pip install -r requirements.txt
-```
+1. **Extract Intent** - LLM-powered analysis converts your description into structured requirements
+2. **Generate Traffic Profile** - Estimate prompt/generation tokens, QPS, and peak load patterns
+3. **Set SLO Targets** - Auto-generate TTFT, TPOT, and E2E latency targets based on use case
+4. **Recommend Model + GPU** - Score models against your requirements using benchmark data
+5. **Plan Capacity** - Calculate required GPUs, tensor parallelism, and replica count
+6. **Generate & Deploy** - Create validated Kubernetes YAML and deploy to local or production clusters
+7. **Monitor & Validate** - Track deployment status and test inference endpoints
 
-### 2. Install Frontend Dependencies
-
-**Terminal 2 (or deactivate first):**
-```bash
-# If in same terminal: deactivate first
-deactivate
-
-cd frontend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Verify correct venv
-which python  # Should show: .../frontend/venv/bin/python
-
-pip install -r requirements.txt
-```
-
-### 3. Pull Ollama Model
-
-The POC uses `llama3.1:8b` for intent extraction:
-
-```bash
-ollama pull llama3.1:8b
-```
-
-**Alternative models** (if needed):
-- `llama3.2:3b` - Smaller/faster, less accurate
-- `mistral:7b` - Good balance of speed and quality
-
-### 4. Verify Ollama Setup
-
-```bash
-# Test Ollama is working
-ollama list  # Should show llama3.1:8b
-```
-
-## Running the POC
-
-### Option 1: Run Full Stack with UI (Recommended)
-
-The easiest way to use the assistant:
-
-```bash
-# Terminal 1 - Start Ollama (if not already running)
-ollama serve
-
-# Terminal 2 - Start FastAPI Backend
-scripts/run_api.sh
-
-# Terminal 3 - Start Streamlit UI
-scripts/run_ui.sh
-```
-
-Then open http://localhost:8501 in your browser.
-
-### Option 2: Test End-to-End Workflow
-
-Test the complete recommendation workflow with demo scenarios:
-
-```bash
-cd backend
-source venv/bin/activate
-python test_workflow.py
-```
-
-This tests all 3 demo scenarios end-to-end.
-
-### Option 3: Run FastAPI Backend Only
-
-Start the API server:
-
-```bash
-./run_api.sh
-```
-
-Or manually:
-
-```bash
-scripts/run_api.sh
-```
-
-Test the API:
-
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Full recommendation
-curl -X POST http://localhost:8000/api/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"message": "I need a chatbot for 5000 users with low latency"}'
-```
-
-### Option 4: Test Individual Components
-
-Test the LLM client:
-
-```bash
-cd backend
-source venv/bin/activate
-python -c "
-from src.llm.ollama_client import OllamaClient
-client = OllamaClient(model='llama3.2:3b')
-print('Ollama available:', client.is_available())
-print('Pulling model...')
-client.ensure_model_pulled()
-print('Model ready!')
-"
-```
+---
 
 ## Demo Scenarios
 
@@ -316,14 +85,26 @@ The POC includes 3 pre-configured scenarios (see [data/demo_scenarios.json](data
 3. **Document Summarization** - Batch processing (2000 users/day), cost-sensitive
    - Expected: Mistral 7B on 2x A10G
 
-## Synthetic Data
+---
 
-All data files in `data/` are synthetic for POC purposes:
+## Architecture Highlights
 
-- **benchmarks.json**: 24 benchmark entries covering 10 models × 4 GPU types
-- **slo_templates.json**: 7 use case templates with SLO targets
-- **model_catalog.json**: 10 approved models with metadata
-- **sample_outcomes.json**: 5 mock deployment outcomes
+Compass implements a **10-component architecture** with:
+
+- **Conversational Interface** (Streamlit) - Chat-based requirement gathering
+- **Context & Intent Engine** - LLM-powered extraction of deployment specs
+- **Recommendation Engine** - Traffic profiling, model scoring, capacity planning
+- **Simulation & Exploration** - What-if analysis and spec editing
+- **Deployment Automation** - YAML generation and Kubernetes deployment
+- **Knowledge Base** - Benchmarks, SLO templates, model catalog
+- **LLM Backend** - Ollama (llama3.1:8b) for conversational AI
+- **Orchestration** - Multi-step workflow coordination
+- **Inference Observability** - Real-time deployment monitoring
+- **vLLM Simulator** - GPU-free local development
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
+
+---
 
 ## Implemented Features
 
@@ -335,6 +116,8 @@ All data files in `data/` are synthetic for POC purposes:
 - ✅ **Local Kubernetes**: KIND cluster support, KServe installation, cluster management
 - ✅ **vLLM Simulator**: GPU-free development mode with realistic latency simulation
 - ✅ **Monitoring & Testing**: Real-time deployment status, inference testing UI, cluster observability
+
+---
 
 ## Key Technologies
 
@@ -348,264 +131,79 @@ All data files in `data/` are synthetic for POC purposes:
 | Kubernetes | KIND (local), KServe v0.13.0 |
 | Deployment | kubectl, Kubernetes Python client |
 
-## Configuration
+---
 
-Edit `backend/src/llm/ollama_client.py` to change the default model:
+## Documentation
 
-```python
-def __init__(self, model: str = "llama3.2:3b", host: Optional[str] = None):
-```
+- **[Developer Guide](docs/DEVELOPER_GUIDE.md)** - Development workflows, testing, debugging
+- **[Architecture](docs/ARCHITECTURE.md)** - Detailed system design and component specifications
+- **[Architecture Diagrams](docs/architecture-diagram.md)** - Visual system representations
+- **[Logging Guide](docs/LOGGING.md)** - Logging system and debugging
+- **[Claude Code Guidance](CLAUDE.md)** - AI assistant instructions for contributors
 
-## Troubleshooting
+---
 
-### Ollama Connection Issues
-
-```bash
-# Check Ollama is running
-curl http://localhost:11434/api/tags
-
-# If not running
-ollama serve
-```
-
-### Model Not Found
+## Development Commands
 
 ```bash
-ollama pull llama3.2:3b
+make help           # Show all available commands
+make dev            # Start all services
+make stop           # Stop all services
+make restart        # Restart all services
+make logs-backend   # Tail backend logs
+make logs-ui        # Tail UI logs
+make cluster-status # Check Kubernetes cluster status
+make test           # Run all tests
+make clean          # Remove generated files
 ```
 
-### Import Errors
+For detailed development workflows, see [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
 
-```bash
-# Make sure you're in the right venv
-which python  # Should show path to venv
+---
 
-# Reinstall dependencies
-pip install -r requirements.txt
-```
+## vLLM Simulator Mode
 
-## Testing
+Compass includes a **GPU-free simulator** for local development:
 
-See [backend/TESTING.md](backend/TESTING.md) for detailed testing instructions.
+- **No GPU required** - Run deployments on any laptop
+- **OpenAI-compatible API** - `/v1/completions` and `/v1/chat/completions`
+- **Realistic latency** - Uses benchmark data to simulate TTFT/TPOT
+- **Fast deployment** - Pods become Ready in ~10-15 seconds
 
-Quick tests:
-
-```bash
-# Test end-to-end workflow
-cd backend && source venv/bin/activate
-cd ..
-python tests/test_workflow.py
-
-# Test FastAPI endpoints
-scripts/run_api.sh  # Start server in terminal 1
-# In terminal 2:
-curl -X POST http://localhost:8000/api/v1/test
-```
-
-## YAML Deployment Generation
-
-The system automatically generates production-ready Kubernetes configurations:
-
-- ✅ KServe InferenceService YAML with vLLM configuration
-- ✅ HorizontalPodAutoscaler (HPA) for autoscaling
-- ✅ Prometheus ServiceMonitor for metrics collection
-- ✅ Grafana Dashboard ConfigMap
-- ✅ Full YAML validation before generation
-- ✅ Files written to `generated_configs/` directory
-
-**How to use:**
-1. Get a deployment recommendation from the chat interface
-2. Go to the **Cost** tab and click **"Generate Deployment YAML"**
-3. View generated YAML file paths
-4. Check `generated_configs/` directory for all YAML files
-
-## Kubernetes Deployment
-
-The system supports deploying to local Kubernetes clusters:
-
-- ✅ Local KIND cluster running in Docker
-- ✅ 3-node cluster with simulated GPU labels (A100-80GB, L4)
-- ✅ KServe v0.13.0 installed and configured
-- ✅ cert-manager v1.14.4 for certificate management
-- ✅ **Deploy to Cluster** button in UI
-- ✅ Auto-detects cluster accessibility
-- ✅ Deploys InferenceService and HPA resources to cluster
-- ✅ Real-time deployment status from Kubernetes
-- ✅ Pod and resource monitoring in UI
-
-### Set Up KIND Cluster (One-time setup)
-
-**Easy Way (Recommended):**
-```bash
-# Ensure Docker Desktop is running
-
-# Create and configure cluster (installs KIND, cert-manager, KServe)
-scripts/kind-cluster.sh start
-```
-
-**Manual Way:**
-```bash
-# Ensure Docker Desktop is running
-
-# Install KIND (if not already installed)
-brew install kind
-
-# Create cluster with KServe
-kind create cluster --config config/kind-cluster.yaml
-
-# Install cert-manager
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
-
-# Wait for cert-manager
-kubectl wait --for=condition=available --timeout=300s -n cert-manager deployment/cert-manager
-
-# Install KServe
-kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve.yaml
-kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.13.0/kserve-cluster-resources.yaml
-
-# Wait for KServe
-kubectl wait --for=condition=available --timeout=300s -n kserve deployment/kserve-controller-manager
-
-# Configure KServe for RawDeployment mode
-kubectl patch configmap/inferenceservice-config -n kserve --type=strategic -p '{"data": {"deploy": "{\"defaultDeploymentMode\": \"RawDeployment\"}"}}'
-```
-
-### Deploy Models Through UI
-1. Get a deployment recommendation from the chat interface
-2. Click **"Generate Deployment YAML"** in the Actions section
-3. If cluster is accessible, click **"Deploy to Kubernetes"**
-4. Go to **Monitoring** tab to see:
-   - Real Kubernetes deployment status
-   - InferenceService conditions
-   - Pod information
-   - Performance metrics
-
-### Cluster Management
-
-The `kind-cluster.sh` script provides easy cluster lifecycle management:
-
-**Check cluster status:**
-```bash
-scripts/kind-cluster.sh status
-```
-
-**Restart cluster (fresh start):**
-```bash
-scripts/kind-cluster.sh restart
-```
-
-**Stop/delete cluster:**
-```bash
-scripts/kind-cluster.sh stop
-```
-
-**View help:**
-```bash
-scripts/kind-cluster.sh help
-```
-
-**Manual kubectl commands:**
-```bash
-# View all resources
-kubectl get pods -A
-
-# View deployments
-kubectl get inferenceservices
-kubectl get pods
-
-# Delete a specific deployment
-kubectl delete inferenceservice <deployment-id>
-
-# Check cluster info
-kubectl cluster-info
-```
-
-## vLLM Simulator (GPU-Free Development)
-
-The system includes a vLLM simulator for development without GPU hardware:
-
-**Simulator Features:**
-- ✅ **GPU-free development** - Run deployments on any laptop without GPU hardware
-- ✅ **OpenAI-compatible API** - Implements `/v1/completions` and `/v1/chat/completions`
-- ✅ **Realistic performance** - Uses benchmark data to simulate TTFT/TPOT latency
-- ✅ **Pattern-based responses** - Returns appropriate canned responses (code, chat, summarization, etc.)
-- ✅ **Single Docker image** - Configure model via environment variables
-- ✅ **Prometheus metrics** - Exposes `/metrics` endpoint matching vLLM format
-
-**Inference Testing:**
-- ✅ **Test deployed models** directly from the Monitoring tab
-- ✅ **Send custom prompts** and see responses
-- ✅ **View latency metrics** and token usage
-- ✅ **Automatic port-forwarding** to Kubernetes service
-
-### Deploy a Model in Simulator Mode (default)
-
-Simulator mode is enabled by default for all deployments:
-
-```bash
-# Start the UI
-scripts/run_ui.sh
-
-# In the UI:
-# 1. Get a deployment recommendation
-# 2. Click "Generate Deployment YAML"
-# 3. Click "Deploy to Kubernetes"
-# 4. Go to Monitoring tab
-# 5. Pod should become Ready in ~10-15 seconds
-```
-
-### Test Inference
-
-Once deployed:
-1. Go to **Monitoring** tab
-2. See "🧪 Inference Testing" section
-3. Enter a test prompt
-4. Click "🚀 Send Test Request"
-5. View the simulated response and metrics
-
-### Switch to Real vLLM (Future)
-
-To use real vLLM with actual GPUs (Phase 2):
+**Simulator Mode (default):**
 ```python
 # In backend/src/api/routes.py
+deployment_generator = DeploymentGenerator(simulator_mode=True)
+```
+
+**Production Mode (requires GPU cluster):**
+```python
 deployment_generator = DeploymentGenerator(simulator_mode=False)
 ```
 
-Then deploy to a GPU-enabled cluster.
+See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md#vllm-simulator-details) for details.
 
-### Simulator vs Real vLLM
-
-| Feature | Simulator Mode | Real vLLM Mode |
-|---------|---------------|----------------|
-| GPU Required | ❌ No | ✅ Yes |
-| Model Download | ❌ No | ✅ Yes (from HuggingFace) |
-| Inference | Canned responses | Real generation |
-| Latency | Simulated (from benchmarks) | Actual GPU performance |
-| Use Case | Development, testing, demos | Production deployment |
-| Cluster | Works on KIND (local) | Requires GPU-enabled cluster |
+---
 
 ## Future Enhancements
 
 Potential improvements for Phase 2:
-1. **External Access for Production**:
-   - Generate Ingress/IngressRoute YAML for permanent external access
-   - Support multiple simultaneous services (multi-tenant deployments)
-   - Path-based routing (e.g., `/inference/customer-service`)
-   - Host-based routing (e.g., `customer-service.inference.company.com`)
-   - TLS, authentication, and rate limiting at ingress layer
-2. Streaming response support in simulator
-3. Error injection for testing resilience
-4. Real vLLM deployment mode with GPU validation
-5. Collect actual performance metrics from real deployments
-6. Feedback loop: actual metrics → benchmark updates
-7. Statistical distributions for traffic (not just point estimates)
-8. Multi-dimensional benchmarks (batch size, sequence length variations)
-9. Security hardening (YAML validation, RBAC)
-10. Multi-tenancy support (namespaces, resource quotas, network policies)
+
+1. **Production-Grade Ingress** - External access with TLS, authentication, rate limiting
+2. **Real vLLM Deployment** - GPU validation and actual model inference
+3. **Feedback Loop** - Actual metrics → benchmark updates
+4. **Statistical Traffic Models** - Distributions (not just point estimates)
+5. **Multi-Dimensional Benchmarks** - Batch size, sequence length variations
+6. **Security Hardening** - YAML validation, RBAC, network policies
+7. **Multi-Tenancy** - Namespaces, resource quotas, isolation
+
+---
 
 ## Contributing
 
 This is a POC/design phase repository. See [CLAUDE.md](CLAUDE.md) for AI assistant guidance when making changes.
+
+---
 
 ## License
 
