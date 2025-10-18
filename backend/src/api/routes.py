@@ -22,16 +22,14 @@ log_level = logging.DEBUG if debug_mode else logging.INFO
 logging.basicConfig(
     level=log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 logger.info(f"Compass API starting with log level: {logging.getLevelName(log_level)}")
 
 # Create FastAPI app
 app = FastAPI(
-    title="Compass API",
-    description="API for LLM deployment recommendations",
-    version="0.1.0"
+    title="Compass API", description="API for LLM deployment recommendations", version="0.1.0"
 )
 
 # Add CORS middleware
@@ -63,17 +61,20 @@ except KubernetesDeploymentError as e:
 # Request/Response models
 class RecommendationRequest(BaseModel):
     """Request for deployment recommendation."""
+
     user_message: str
     conversation_history: list[ConversationMessage] | None = None
 
 
 class SimpleRecommendationRequest(BaseModel):
     """Simple request for deployment recommendation (UI compatibility)."""
+
     message: str
 
 
 class RecommendationResponse(BaseModel):
     """Response with deployment recommendation."""
+
     recommendation: DeploymentRecommendation
     success: bool = True
     message: str | None = None
@@ -81,6 +82,7 @@ class RecommendationResponse(BaseModel):
 
 class ErrorResponse(BaseModel):
     """Error response."""
+
     success: bool = False
     error: str
     details: str | None = None
@@ -88,12 +90,14 @@ class ErrorResponse(BaseModel):
 
 class DeploymentRequest(BaseModel):
     """Request to generate deployment YAML files."""
+
     recommendation: DeploymentRecommendation
     namespace: str = "default"
 
 
 class DeploymentResponse(BaseModel):
     """Response with generated deployment files."""
+
     deployment_id: str
     namespace: str
     files: dict
@@ -103,6 +107,7 @@ class DeploymentResponse(BaseModel):
 
 class DeploymentStatusResponse(BaseModel):
     """Mock deployment status response."""
+
     deployment_id: str
     status: str
     slo_compliance: dict
@@ -140,12 +145,13 @@ async def get_recommendation(request: RecommendationRequest):
         logger.info("[USER REQUEST] New recommendation request")
         logger.info(f"[USER MESSAGE] {request.user_message}")
         if request.conversation_history:
-            logger.info(f"[CONVERSATION HISTORY] {len(request.conversation_history)} previous messages")
+            logger.info(
+                f"[CONVERSATION HISTORY] {len(request.conversation_history)} previous messages"
+            )
         logger.info("=" * 80)
 
         recommendation = workflow.generate_recommendation(
-            user_message=request.user_message,
-            conversation_history=request.conversation_history
+            user_message=request.user_message, conversation_history=request.conversation_history
         )
 
         # Validate recommendation
@@ -156,14 +162,13 @@ async def get_recommendation(request: RecommendationRequest):
         return RecommendationResponse(
             recommendation=recommendation,
             success=True,
-            message="Recommendation generated successfully"
+            message="Recommendation generated successfully",
         )
 
     except Exception as e:
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate recommendation: {str(e)}"
+            status_code=500, detail=f"Failed to generate recommendation: {str(e)}"
         ) from e
 
 
@@ -173,10 +178,7 @@ async def list_models():
     """Get list of available models."""
     try:
         models = model_catalog.get_all_models()
-        return {
-            "models": [model.to_dict() for model in models],
-            "count": len(models)
-        }
+        return {"models": [model.to_dict() for model in models], "count": len(models)}
     except Exception as e:
         logger.error(f"Failed to list models: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -188,10 +190,7 @@ async def list_gpu_types():
     """Get list of available GPU types."""
     try:
         gpu_types = model_catalog.get_all_gpu_types()
-        return {
-            "gpu_types": [gpu.to_dict() for gpu in gpu_types],
-            "count": len(gpu_types)
-        }
+        return {"gpu_types": [gpu.to_dict() for gpu in gpu_types], "count": len(gpu_types)}
     except Exception as e:
         logger.error(f"Failed to list GPU types: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -204,11 +203,8 @@ async def list_use_cases():
     try:
         templates = slo_repo.get_all_templates()
         return {
-            "use_cases": {
-                use_case: template.to_dict()
-                for use_case, template in templates.items()
-            },
-            "count": len(templates)
+            "use_cases": {use_case: template.to_dict() for use_case, template in templates.items()},
+            "count": len(templates),
         }
     except Exception as e:
         logger.error(f"Failed to list use cases: {e}")
@@ -231,15 +227,13 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         logger.info(f"Received UI recommendation request: {request.message[:100]}...")
 
         recommendation = workflow.generate_recommendation(
-            user_message=request.message,
-            conversation_history=None
+            user_message=request.message, conversation_history=None
         )
 
         # Auto-generate deployment YAML
         try:
             yaml_result = deployment_generator.generate_all(
-                recommendation=recommendation,
-                namespace="default"
+                recommendation=recommendation, namespace="default"
             )
             deployment_id = yaml_result["deployment_id"]
             yaml_files = yaml_result["files"]
@@ -262,8 +256,7 @@ async def simple_recommend(request: SimpleRecommendationRequest):
     except Exception as e:
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate recommendation: {str(e)}"
+            status_code=500, detail=f"Failed to generate recommendation: {str(e)}"
         ) from e
 
 
@@ -288,13 +281,10 @@ async def test_endpoint(message: str = "I need a chatbot for 1000 users"):
             "gpu_config": f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}",
             "cost_per_month": f"${recommendation.cost_per_month_usd:.2f}",
             "meets_slo": recommendation.meets_slo,
-            "reasoning": recommendation.reasoning
+            "reasoning": recommendation.reasoning,
         }
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 # Deployment endpoints
@@ -317,8 +307,7 @@ async def deploy_model(request: DeploymentRequest):
 
         # Generate all YAML files
         result = deployment_generator.generate_all(
-            recommendation=request.recommendation,
-            namespace=request.namespace
+            recommendation=request.recommendation, namespace=request.namespace
         )
 
         # Validate generated files
@@ -328,8 +317,7 @@ async def deploy_model(request: DeploymentRequest):
         except ValidationError as e:
             logger.error(f"YAML validation failed: {e}")
             raise HTTPException(
-                status_code=500,
-                detail=f"Generated YAML validation failed: {str(e)}"
+                status_code=500, detail=f"Generated YAML validation failed: {str(e)}"
             ) from e
 
         return DeploymentResponse(
@@ -337,14 +325,13 @@ async def deploy_model(request: DeploymentRequest):
             namespace=result["namespace"],
             files=result["files"],
             success=True,
-            message=f"Deployment files generated successfully for {result['deployment_id']}"
+            message=f"Deployment files generated successfully for {result['deployment_id']}",
         )
 
     except Exception as e:
         logger.error(f"Failed to generate deployment: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate deployment: {str(e)}"
+            status_code=500, detail=f"Failed to generate deployment: {str(e)}"
         ) from e
 
 
@@ -394,7 +381,7 @@ async def get_deployment_status(deployment_id: str):
                 "throughput_compliant": True,
                 "uptime_pct": 99.94 + random.uniform(-0.05, 0.05),
                 "uptime_target_pct": 99.9,
-                "uptime_compliant": True
+                "uptime_compliant": True,
             },
             resource_utilization={
                 "gpu_utilization_pct": 78 + random.randint(-5, 10),
@@ -402,7 +389,7 @@ async def get_deployment_status(deployment_id: str):
                 "gpu_memory_total_gb": 24,
                 "avg_batch_size": 18 + random.randint(-3, 5),
                 "queue_depth": random.randint(0, 5),
-                "token_throughput_per_gpu": 3500 + random.randint(-200, 300)
+                "token_throughput_per_gpu": 3500 + random.randint(-200, 300),
             },
             cost_analysis={
                 "actual_cost_per_hour_usd": 0.95 + random.uniform(-0.05, 0.1),
@@ -410,7 +397,7 @@ async def get_deployment_status(deployment_id: str):
                 "actual_cost_per_month_usd": 812 + random.randint(-30, 50),
                 "predicted_cost_per_month_usd": 800,
                 "cost_per_1k_tokens_usd": 0.042 + random.uniform(-0.002, 0.005),
-                "predicted_cost_per_1k_tokens_usd": 0.040
+                "predicted_cost_per_1k_tokens_usd": 0.040,
             },
             traffic_patterns={
                 "avg_prompt_tokens": 165 + random.randint(-10, 20),
@@ -420,23 +407,20 @@ async def get_deployment_status(deployment_id: str):
                 "peak_qps": 95 + random.randint(-5, 10),
                 "predicted_peak_qps": 100,
                 "requests_last_hour": 7200 + random.randint(-500, 800),
-                "requests_last_24h": 172800 + random.randint(-5000, 10000)
+                "requests_last_24h": 172800 + random.randint(-5000, 10000),
             },
             recommendations=[
                 "GPU utilization is 78%, below the 80% efficiency target. Consider downsizing to reduce cost.",
                 "Actual traffic is 10% higher than predicted. Monitor for potential capacity constraints.",
-                "All SLO targets are being met with headroom. Configuration is performing well."
-            ]
+                "All SLO targets are being met with headroom. Configuration is performing well.",
+            ],
         )
 
         return mock_status
 
     except Exception as e:
         logger.error(f"Failed to get deployment status: {e}")
-        raise HTTPException(
-            status_code=404,
-            detail=f"Deployment not found: {deployment_id}"
-        ) from e
+        raise HTTPException(status_code=404, detail=f"Deployment not found: {deployment_id}") from e
 
 
 @app.post("/api/deploy-to-cluster")
@@ -462,8 +446,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
             manager = KubernetesClusterManager(namespace=request.namespace)
         except KubernetesDeploymentError as e:
             raise HTTPException(
-                status_code=503,
-                detail=f"Kubernetes cluster not accessible: {str(e)}"
+                status_code=503, detail=f"Kubernetes cluster not accessible: {str(e)}"
             ) from e
 
     try:
@@ -471,8 +454,7 @@ async def deploy_to_cluster(request: DeploymentRequest):
 
         # Step 1: Generate YAML files
         result = deployment_generator.generate_all(
-            recommendation=request.recommendation,
-            namespace=request.namespace
+            recommendation=request.recommendation, namespace=request.namespace
         )
 
         deployment_id = result["deployment_id"]
@@ -485,25 +467,20 @@ async def deploy_to_cluster(request: DeploymentRequest):
         except ValidationError as e:
             logger.error(f"YAML validation failed: {e}")
             raise HTTPException(
-                status_code=500,
-                detail=f"Generated YAML validation failed: {str(e)}"
+                status_code=500, detail=f"Generated YAML validation failed: {str(e)}"
             ) from e
 
         # Step 3: Deploy to cluster
         # Note: generator creates keys like "inferenceservice", "vllm-config", "autoscaling", etc.
         # Skip ServiceMonitor for now (requires Prometheus Operator)
-        yaml_file_paths = [
-            files["inferenceservice"],
-            files["autoscaling"]
-        ]
+        yaml_file_paths = [files["inferenceservice"], files["autoscaling"]]
 
         deployment_result = manager.deploy_all(yaml_file_paths)
 
         if not deployment_result["success"]:
             logger.error(f"Deployment failed: {deployment_result['errors']}")
             raise HTTPException(
-                status_code=500,
-                detail=f"Deployment failed: {deployment_result['errors']}"
+                status_code=500, detail=f"Deployment failed: {deployment_result['errors']}"
             )
 
         logger.info(f"Successfully deployed {deployment_id} to cluster")
@@ -514,17 +491,14 @@ async def deploy_to_cluster(request: DeploymentRequest):
             "namespace": request.namespace,
             "files": files,
             "deployment_result": deployment_result,
-            "message": f"Successfully deployed {deployment_id} to Kubernetes cluster"
+            "message": f"Successfully deployed {deployment_id} to Kubernetes cluster",
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to deploy to cluster: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to deploy to cluster: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to deploy to cluster: {str(e)}") from e
 
 
 @app.get("/api/cluster-status")
@@ -546,14 +520,11 @@ async def get_cluster_status():
             "namespace": temp_manager.namespace,
             "inference_services": deployments,
             "count": len(deployments),
-            "message": "Cluster accessible"
+            "message": "Cluster accessible",
         }
     except Exception as e:
         logger.error(f"Failed to query cluster status: {e}")
-        return {
-            "accessible": False,
-            "error": str(e)
-        }
+        return {"accessible": False, "error": str(e)}
 
 
 @app.get("/api/deployments/{deployment_id}/k8s-status")
@@ -577,8 +548,7 @@ async def get_k8s_deployment_status(deployment_id: str):
             manager = KubernetesClusterManager(namespace="default")
         except KubernetesDeploymentError as e:
             raise HTTPException(
-                status_code=503,
-                detail=f"Kubernetes cluster not accessible: {str(e)}"
+                status_code=503, detail=f"Kubernetes cluster not accessible: {str(e)}"
             ) from e
 
     try:
@@ -592,14 +562,13 @@ async def get_k8s_deployment_status(deployment_id: str):
             "deployment_id": deployment_id,
             "inferenceservice": isvc_status,
             "pods": pods,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     except Exception as e:
         logger.error(f"Failed to get K8s deployment status: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get deployment status: {str(e)}"
+            status_code=500, detail=f"Failed to get deployment status: {str(e)}"
         ) from e
 
 
@@ -630,23 +599,17 @@ async def get_deployment_yaml(deployment_id: str):
 
         if not yaml_files:
             raise HTTPException(
-                status_code=404,
-                detail=f"No YAML files found for deployment {deployment_id}"
+                status_code=404, detail=f"No YAML files found for deployment {deployment_id}"
             )
 
-        return {
-            "deployment_id": deployment_id,
-            "files": yaml_files,
-            "count": len(yaml_files)
-        }
+        return {"deployment_id": deployment_id, "files": yaml_files, "count": len(yaml_files)}
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Failed to retrieve YAML files: {e}", exc_info=True)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve YAML files: {str(e)}"
+            status_code=500, detail=f"Failed to retrieve YAML files: {str(e)}"
         ) from e
 
 
@@ -671,8 +634,7 @@ async def delete_deployment(deployment_id: str):
             manager = KubernetesClusterManager(namespace="default")
         except KubernetesDeploymentError as e:
             raise HTTPException(
-                status_code=503,
-                detail=f"Kubernetes cluster not accessible: {str(e)}"
+                status_code=503, detail=f"Kubernetes cluster not accessible: {str(e)}"
             ) from e
 
     try:
@@ -681,7 +643,7 @@ async def delete_deployment(deployment_id: str):
         if not result["success"]:
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to delete deployment: {result.get('error', 'Unknown error')}"
+                detail=f"Failed to delete deployment: {result.get('error', 'Unknown error')}",
             )
 
         return result
@@ -690,10 +652,7 @@ async def delete_deployment(deployment_id: str):
         raise
     except Exception as e:
         logger.error(f"Failed to delete deployment: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to delete deployment: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to delete deployment: {str(e)}") from e
 
 
 @app.get("/api/deployments")
@@ -714,8 +673,7 @@ async def list_all_deployments():
             manager = KubernetesClusterManager(namespace="default")
         except KubernetesDeploymentError as e:
             raise HTTPException(
-                status_code=503,
-                detail=f"Kubernetes cluster not accessible: {str(e)}"
+                status_code=503, detail=f"Kubernetes cluster not accessible: {str(e)}"
             ) from e
 
     try:
@@ -728,27 +686,21 @@ async def list_all_deployments():
             status = manager.get_inferenceservice_status(deployment_id)
             pods = manager.get_deployment_pods(deployment_id)
 
-            deployments.append({
-                "deployment_id": deployment_id,
-                "status": status,
-                "pods": pods
-            })
+            deployments.append({"deployment_id": deployment_id, "status": status, "pods": pods})
 
         return {
             "success": True,
             "count": len(deployments),
             "deployments": deployments,
-            "namespace": manager.namespace
+            "namespace": manager.namespace,
         }
 
     except Exception as e:
         logger.error(f"Failed to list deployments: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to list deployments: {str(e)}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Failed to list deployments: {str(e)}") from e
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

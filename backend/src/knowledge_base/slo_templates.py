@@ -44,20 +44,20 @@ class SLOTemplate:
             "slo_targets": {
                 "ttft_p90_target_ms": self.ttft_p90_target_ms,
                 "tpot_p90_target_ms": self.tpot_p90_target_ms,
-                "e2e_p95_target_ms": self.e2e_p95_target_ms
+                "e2e_p95_target_ms": self.e2e_p95_target_ms,
             },
             "typical_traffic": {
                 "prompt_tokens_mean": self.prompt_tokens_mean,
                 "prompt_tokens_variance": self.prompt_tokens_variance,
                 "generation_tokens_mean": self.generation_tokens_mean,
                 "generation_tokens_variance": self.generation_tokens_variance,
-                "requests_per_user_per_day": self.requests_per_user_per_day
+                "requests_per_user_per_day": self.requests_per_user_per_day,
             },
             "business_context": {
                 "user_facing": self.user_facing,
                 "latency_sensitivity": self.latency_sensitivity,
-                "throughput_priority": self.throughput_priority
-            }
+                "throughput_priority": self.throughput_priority,
+            },
         }
 
 

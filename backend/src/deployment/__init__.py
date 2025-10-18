@@ -9,5 +9,5 @@ __all__ = [
     "YAMLValidator",
     "ValidationError",
     "KubernetesClusterManager",
-    "KubernetesDeploymentError"
+    "KubernetesDeploymentError",
 ]

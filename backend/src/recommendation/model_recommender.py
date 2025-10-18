@@ -21,9 +21,7 @@ class ModelRecommender:
         self.catalog = catalog or ModelCatalog()
 
     def recommend_models(
-        self,
-        intent: DeploymentIntent,
-        top_k: int = 3
+        self, intent: DeploymentIntent, top_k: int = 3
     ) -> list[tuple[ModelInfo, float]]:
         """
         Recommend models for deployment intent.
@@ -79,17 +77,13 @@ class ModelRecommender:
         # 3. Latency requirement vs model size (20 points)
         # Smaller models are better for low latency
         size_score = self._score_model_size_for_latency(
-            model.size_parameters,
-            intent.latency_requirement
+            model.size_parameters, intent.latency_requirement
         )
         score += 20 * size_score
 
         # 4. Budget constraint (10 points)
         # Smaller models are more cost-effective
-        budget_score = self._score_model_for_budget(
-            model.size_parameters,
-            intent.budget_constraint
-        )
+        budget_score = self._score_model_for_budget(model.size_parameters, intent.budget_constraint)
         score += 10 * budget_score
 
         # 5. Context length requirement (10 points)
@@ -103,11 +97,7 @@ class ModelRecommender:
         logger.debug(f"Scored {model.name}: {score:.1f}")
         return score
 
-    def _score_model_size_for_latency(
-        self,
-        size_str: str,
-        latency_requirement: str
-    ) -> float:
+    def _score_model_size_for_latency(self, size_str: str, latency_requirement: str) -> float:
         """
         Score model size appropriateness for latency requirement.
 
@@ -123,10 +113,10 @@ class ModelRecommender:
 
         # Latency requirement to preferred size mapping
         preference_map = {
-            "very_high": (0, 10),     # Prefer <10B
-            "high": (0, 15),          # Prefer <15B
-            "medium": (7, 80),        # 7-80B is fine (allow larger for quality)
-            "low": (20, 200)          # Larger models preferred
+            "very_high": (0, 10),  # Prefer <10B
+            "high": (0, 15),  # Prefer <15B
+            "medium": (7, 80),  # 7-80B is fine (allow larger for quality)
+            "low": (20, 200),  # Larger models preferred
         }
 
         min_pref, max_pref = preference_map.get(latency_requirement, (0, 100))
@@ -142,11 +132,7 @@ class ModelRecommender:
             excess = param_count - max_pref
             return max(0.3, 1.0 - (excess / 100))
 
-    def _score_model_for_budget(
-        self,
-        size_str: str,
-        budget_constraint: str
-    ) -> float:
+    def _score_model_for_budget(self, size_str: str, budget_constraint: str) -> float:
         """
         Score model appropriateness for budget constraint.
 
@@ -161,10 +147,10 @@ class ModelRecommender:
 
         # Budget constraint to preferred size mapping
         preference_map = {
-            "strict": (0, 10),        # Prefer small models
-            "moderate": (7, 30),      # Mid-size OK
-            "flexible": (20, 200),    # Prefer larger models for quality
-            "none": (30, 200)         # Prefer largest models
+            "strict": (0, 10),  # Prefer small models
+            "moderate": (7, 30),  # Mid-size OK
+            "flexible": (20, 200),  # Prefer larger models for quality
+            "none": (30, 200),  # Prefer largest models
         }
 
         min_pref, max_pref = preference_map.get(budget_constraint, (0, 100))

@@ -1,6 +1,5 @@
 """Prompt templates for LLM interactions."""
 
-
 INTENT_EXTRACTION_SCHEMA = """
 Expected JSON schema:
 {
@@ -30,8 +29,8 @@ def build_intent_extraction_prompt(user_message: str, conversation_history: list
     if conversation_history:
         context = "Previous conversation:\n"
         for msg in conversation_history[-3:]:  # Last 3 messages for context
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
             context += f"{role}: {content}\n"
         context += "\n"
 
@@ -82,9 +81,7 @@ Keep your response concise (2-3 sentences max).
 
 
 def build_conversational_prompt(
-    user_message: str,
-    current_understanding: dict,
-    conversation_history: list = None
+    user_message: str, current_understanding: dict, conversation_history: list = None
 ) -> str:
     """
     Build prompt for conversational AI responses.
@@ -101,8 +98,8 @@ def build_conversational_prompt(
     if conversation_history:
         context = "Previous messages:\n"
         for msg in conversation_history[-2:]:
-            role = msg.get('role', 'user')
-            content = msg.get('content', '')
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
             context += f"- {role}: {content}\n"
 
     understanding = ""
@@ -113,9 +110,7 @@ def build_conversational_prompt(
 """
 
     return CONVERSATIONAL_RESPONSE_TEMPLATE.format(
-        context=context,
-        user_message=user_message,
-        current_understanding=understanding
+        context=context, user_message=user_message, current_understanding=understanding
     )
 
 

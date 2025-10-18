@@ -30,7 +30,7 @@ def setup_logging(log_file: str = None, debug: bool = False):
         level=level,
         format=LOG_FORMAT,
         datefmt=DATE_FORMAT,
-        handlers=[]  # Clear default handlers
+        handlers=[],  # Clear default handlers
     )
 
     # Console handler (stdout)

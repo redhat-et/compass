@@ -36,7 +36,7 @@ class BenchmarkData:
             "tpot_p90_ms": self.tpot_p90_ms,
             "tpot_p99_ms": self.tpot_p99_ms,
             "throughput_tokens_per_sec": self.throughput_tokens_per_sec,
-            "max_qps": self.max_qps
+            "max_qps": self.max_qps,
         }
 
 
@@ -70,10 +70,7 @@ class BenchmarkRepository:
             raise
 
     def get_benchmark(
-        self,
-        model_id: str,
-        gpu_type: str,
-        tensor_parallel: int = 1
+        self, model_id: str, gpu_type: str, tensor_parallel: int = 1
     ) -> BenchmarkData | None:
         """
         Get benchmark for specific model/GPU/TP configuration.
@@ -87,9 +84,11 @@ class BenchmarkRepository:
             BenchmarkData if found, None otherwise
         """
         for bench in self._benchmarks:
-            if (bench.model_id == model_id and
-                bench.gpu_type == gpu_type and
-                bench.tensor_parallel == tensor_parallel):
+            if (
+                bench.model_id == model_id
+                and bench.gpu_type == gpu_type
+                and bench.tensor_parallel == tensor_parallel
+            ):
                 return bench
         return None
 
@@ -118,10 +117,7 @@ class BenchmarkRepository:
         return [b for b in self._benchmarks if b.gpu_type == gpu_type]
 
     def find_configurations_meeting_slo(
-        self,
-        ttft_p90_max_ms: int,
-        tpot_p90_max_ms: int,
-        min_qps: float
+        self, ttft_p90_max_ms: int, tpot_p90_max_ms: int, min_qps: float
     ) -> list[BenchmarkData]:
         """
         Find all configurations that meet SLO requirements.
@@ -136,9 +132,11 @@ class BenchmarkRepository:
         """
         results = []
         for bench in self._benchmarks:
-            if (bench.ttft_p90_ms <= ttft_p90_max_ms and
-                bench.tpot_p90_ms <= tpot_p90_max_ms and
-                bench.max_qps >= min_qps):
+            if (
+                bench.ttft_p90_ms <= ttft_p90_max_ms
+                and bench.tpot_p90_ms <= tpot_p90_max_ms
+                and bench.max_qps >= min_qps
+            ):
                 results.append(bench)
         return results
 

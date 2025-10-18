@@ -42,9 +42,7 @@ class DeploymentGenerator:
         # Set up template environment
         template_dir = Path(__file__).parent / "templates"
         self.env = Environment(
-            loader=FileSystemLoader(str(template_dir)),
-            trim_blocks=True,
-            lstrip_blocks=True
+            loader=FileSystemLoader(str(template_dir)), trim_blocks=True, lstrip_blocks=True
         )
 
         # Set output directory
@@ -61,7 +59,9 @@ class DeploymentGenerator:
         # Simulator mode (for development/testing without GPUs)
         self.simulator_mode = simulator_mode
 
-        logger.info(f"DeploymentGenerator initialized with output_dir: {self.output_dir}, simulator_mode: {simulator_mode}")
+        logger.info(
+            f"DeploymentGenerator initialized with output_dir: {self.output_dir}, simulator_mode: {simulator_mode}"
+        )
 
     def generate_deployment_id(self, recommendation: DeploymentRecommendation) -> str:
         """
@@ -83,9 +83,9 @@ class DeploymentGenerator:
 
         # Clean model name: remove special chars, keep alphanumeric and hyphens
         model_name = recommendation.model_id.split("/")[-1].lower()
-        model_name = re.sub(r'[^a-z0-9-]', '-', model_name)
+        model_name = re.sub(r"[^a-z0-9-]", "-", model_name)
         # Remove consecutive hyphens
-        model_name = re.sub(r'-+', '-', model_name).strip('-')
+        model_name = re.sub(r"-+", "-", model_name).strip("-")
 
         # Build ID
         deployment_id = f"{use_case}-{model_name}-{timestamp}"
@@ -96,8 +96,10 @@ class DeploymentGenerator:
 
         if len(deployment_id) > max_deployment_id_len:
             # Truncate model name to fit
-            max_model_len = max_deployment_id_len - len(use_case) - len(timestamp) - 2  # 2 for hyphens
-            model_name = model_name[:max_model_len].rstrip('-')
+            max_model_len = (
+                max_deployment_id_len - len(use_case) - len(timestamp) - 2
+            )  # 2 for hyphens
+            model_name = model_name[:max_model_len].rstrip("-")
             deployment_id = f"{use_case}-{model_name}-{timestamp}"
 
         return deployment_id
@@ -106,7 +108,7 @@ class DeploymentGenerator:
         self,
         recommendation: DeploymentRecommendation,
         deployment_id: str,
-        namespace: str = "default"
+        namespace: str = "default",
     ) -> dict[str, Any]:
         """
         Prepare context dictionary for Jinja2 templates.
@@ -165,7 +167,9 @@ class DeploymentGenerator:
         max_num_seqs = max(32, int(traffic.expected_qps * avg_latency_sec * 1.5))
 
         # Max batched tokens (vLLM parameter)
-        max_num_batched_tokens = max_num_seqs * (traffic.prompt_tokens_mean + traffic.generation_tokens_mean)
+        max_num_batched_tokens = max_num_seqs * (
+            traffic.prompt_tokens_mean + traffic.generation_tokens_mean
+        )
 
         context = {
             # Deployment metadata
@@ -176,16 +180,13 @@ class DeploymentGenerator:
             "use_case": recommendation.intent.use_case,
             "reasoning": recommendation.reasoning,
             "generated_at": datetime.now().isoformat(),
-
             # Simulator mode
             "simulator_mode": self.simulator_mode,
-
             # GPU configuration
             "gpu_type": gpu_config.gpu_type,
             "gpu_count": gpu_config.gpu_count,
             "tensor_parallel": gpu_config.tensor_parallel,
             "gpus_per_replica": gpu_config.tensor_parallel,  # GPUs per pod
-
             # vLLM configuration
             "vllm_version": self.VLLM_VERSION,
             "dtype": "auto",  # Let vLLM auto-detect (float16, bfloat16, etc.)
@@ -195,36 +196,30 @@ class DeploymentGenerator:
             "max_num_batched_tokens": max_num_batched_tokens,
             "max_batch_size": max_num_seqs,
             "enable_prefix_caching": True,  # Enable KV cache optimization
-
             # Autoscaling
             "min_replicas": min_replicas,
             "max_replicas": max_replicas,
             "autoscaling_metric": "inference_requests_concurrency",
             "autoscaling_target": "10",  # Target 10 concurrent requests per pod
             "queue_depth_threshold": "20",
-
             # Resource requests
             "cpu_request": cpu_request,
             "cpu_limit": cpu_limit,
             "memory_request": memory_request,
             "memory_limit": memory_limit,
-
             # SLO targets
             "ttft_target": slo.ttft_p90_target_ms,
             "tpot_target": slo.tpot_p90_target_ms,
             "e2e_target": slo.e2e_p95_target_ms,
             "target_qps": traffic.expected_qps,
-
             # Traffic profile
             "expected_qps": traffic.expected_qps,
             "prompt_tokens_mean": traffic.prompt_tokens_mean,
             "generation_tokens_mean": traffic.generation_tokens_mean,
-
             # Cost estimation
             "cost_per_hour": recommendation.cost_per_hour_usd,
             "cost_per_month": recommendation.cost_per_month_usd,
             "gpu_hourly_rate": gpu_hourly_rate,
-
             # Intent metadata
             "user_count": recommendation.intent.user_count,
             "latency_requirement": recommendation.intent.latency_requirement,
@@ -234,9 +229,7 @@ class DeploymentGenerator:
         return context
 
     def generate_all(
-        self,
-        recommendation: DeploymentRecommendation,
-        namespace: str = "default"
+        self, recommendation: DeploymentRecommendation, namespace: str = "default"
     ) -> dict[str, str]:
         """
         Generate all deployment YAML files.
@@ -300,7 +293,7 @@ class DeploymentGenerator:
         self,
         recommendation: DeploymentRecommendation,
         deployment_id: str | None = None,
-        namespace: str = "default"
+        namespace: str = "default",
     ) -> str:
         """
         Generate only the KServe InferenceService YAML.
