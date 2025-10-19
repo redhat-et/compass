@@ -185,8 +185,10 @@ Potential improvements for Phase 2:
 
 ## Contributing
 
-This is a POC/design phase repository. See [CLAUDE.md](CLAUDE.md) for AI assistant guidance when making changes.
+We are early in development of this project, but contributions are welcome. 
+
+See [CLAUDE.md](CLAUDE.md) for AI assistant guidance when making changes.
 
 ## License
 
-[To be determined]
+This project is licensed under Apache License 2.0. See the [LICENSE file](LICENSE) for details.
