@@ -686,89 +686,310 @@ def render_specifications_tab(rec: dict[str, Any]):
     """Render specifications tab with editable fields."""
 
     st.markdown("### 🔧 Deployment Specifications")
-    st.caption("Review and modify the specifications before deployment")
+    st.caption("Review and modify the specifications to explore different configurations")
 
-    # Intent
-    st.markdown("#### Use Case & Requirements")
+    # Initialize session state for tracking edit modes per section
+    if "editing_requirements" not in st.session_state:
+        st.session_state.editing_requirements = False
+    if "editing_traffic" not in st.session_state:
+        st.session_state.editing_traffic = False
+    if "editing_slo" not in st.session_state:
+        st.session_state.editing_slo = False
+    if "original_requirements" not in st.session_state:
+        st.session_state.original_requirements = None
+    if "show_regenerate_warning" not in st.session_state:
+        st.session_state.show_regenerate_warning = False
+
+    # Intent Section
     intent = rec["intent"]
+
+    col_header, col_button = st.columns([6, 1])
+    with col_header:
+        st.markdown("#### Use Case & Requirements")
+    with col_button:
+        if not st.session_state.editing_requirements:
+            if st.button("✏️", key="edit_requirements_btn", help="Edit requirements"):
+                st.session_state.editing_requirements = True
+                # Store original values
+                st.session_state.original_requirements = {
+                    "use_case": intent["use_case"],
+                    "user_count": intent["user_count"],
+                    "latency_requirement": intent["latency_requirement"],
+                    "throughput_priority": intent.get("throughput_priority", "medium"),
+                    "budget_constraint": intent["budget_constraint"],
+                }
+                st.rerun()
+
+    # Define enum options
+    use_case_options = [
+        "chatbot",
+        "customer_service",
+        "summarization",
+        "code_generation",
+        "content_creation",
+        "qa_retrieval",
+        "batch_analytics",
+    ]
+    latency_options = ["very_high", "high", "medium", "low"]
+    throughput_options = ["very_high", "high", "medium", "low"]
+    budget_options = ["strict", "moderate", "flexible", "none"]
 
     col1, col2 = st.columns(2)
     with col1:
-        st.text_input("Use Case", value=intent["use_case"], disabled=True)
-        st.number_input("Users", value=intent["user_count"], disabled=True)
-
-    with col2:
-        st.text_input("Latency Requirement", value=intent["latency_requirement"], disabled=True)
-        st.text_input("Budget Constraint", value=intent["budget_constraint"], disabled=True)
-
-    # Traffic Profile
-    st.markdown("#### Traffic Profile")
-    traffic = rec["traffic_profile"]
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.number_input(
-            "Expected QPS",
-            value=traffic["expected_qps"],
-            format="%.2f",
-            disabled=not st.session_state.editing_mode,
+        use_case = st.selectbox(
+            "Use Case",
+            options=use_case_options,
+            index=use_case_options.index(intent["use_case"]),
+            disabled=not st.session_state.editing_requirements,
+            key="edit_use_case",
+        )
+        user_count = st.number_input(
+            "Users",
+            value=intent["user_count"],
+            min_value=1,
+            step=100,
+            disabled=not st.session_state.editing_requirements,
+            key="edit_user_count",
+        )
+        throughput_priority = st.selectbox(
+            "Throughput Priority",
+            options=throughput_options,
+            index=throughput_options.index(intent.get("throughput_priority", "medium")),
+            disabled=not st.session_state.editing_requirements,
+            key="edit_throughput_priority",
         )
 
     with col2:
-        st.number_input(
-            "Avg Prompt Tokens",
-            value=traffic["prompt_tokens_mean"],
-            disabled=not st.session_state.editing_mode,
+        latency_requirement = st.selectbox(
+            "Latency Requirement",
+            options=latency_options,
+            index=latency_options.index(intent["latency_requirement"]),
+            disabled=not st.session_state.editing_requirements,
+            key="edit_latency_requirement",
+        )
+        budget_constraint = st.selectbox(
+            "Budget Constraint",
+            options=budget_options,
+            index=budget_options.index(intent["budget_constraint"]),
+            disabled=not st.session_state.editing_requirements,
+            key="edit_budget_constraint",
         )
 
-    with col3:
-        st.number_input(
-            "Avg Generation Tokens",
-            value=traffic["generation_tokens_mean"],
-            disabled=not st.session_state.editing_mode,
-        )
-
-    # SLO Targets
-    st.markdown("#### SLO Targets")
-    slo = rec["slo_targets"]
-
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.number_input(
-            "TTFT p90 (ms)",
-            value=slo["ttft_p90_target_ms"],
-            disabled=not st.session_state.editing_mode,
-        )
-
-    with col2:
-        st.number_input(
-            "TPOT p90 (ms)",
-            value=slo["tpot_p90_target_ms"],
-            disabled=not st.session_state.editing_mode,
-        )
-
-    with col3:
-        st.number_input(
-            "E2E p95 (ms)",
-            value=slo["e2e_p95_target_ms"],
-            disabled=not st.session_state.editing_mode,
-        )
-
-    # Edit mode toggle
-    st.markdown("---")
-    if not st.session_state.editing_mode:
-        if st.button("✏️ Enable Editing", use_container_width=True):
-            st.session_state.editing_mode = True
-            st.rerun()
-    else:
+    # Save/Cancel buttons for requirements section
+    if st.session_state.editing_requirements:
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Save Changes", use_container_width=True):
-                st.success("Changes saved! (Note: Re-recommendation not yet implemented)")
-                st.session_state.editing_mode = False
+            if st.button(
+                "💾 Regenerate Profile & SLOs",
+                key="save_requirements",
+                use_container_width=True,
+                type="primary",
+            ):
+                # Check if requirements actually changed
+                requirements_changed = (
+                    use_case != st.session_state.original_requirements["use_case"]
+                    or int(user_count) != st.session_state.original_requirements["user_count"]
+                    or latency_requirement
+                    != st.session_state.original_requirements["latency_requirement"]
+                    or throughput_priority
+                    != st.session_state.original_requirements["throughput_priority"]
+                    or budget_constraint
+                    != st.session_state.original_requirements["budget_constraint"]
+                )
+
+                if requirements_changed and not st.session_state.show_regenerate_warning:
+                    # Show warning first
+                    st.session_state.show_regenerate_warning = True
+                    st.rerun()
+                else:
+                    # Proceed with regeneration
+                    st.session_state.show_regenerate_warning = False
+                    edited_intent = {
+                        "use_case": use_case,
+                        "user_count": int(user_count),
+                        "latency_requirement": latency_requirement,
+                        "throughput_priority": throughput_priority,
+                        "budget_constraint": budget_constraint,
+                        "domain_specialization": intent.get("domain_specialization", ["general"]),
+                        "additional_context": intent.get("additional_context"),
+                    }
+                    regenerate_and_recommend({"intent": edited_intent})
+
         with col2:
-            if st.button("❌ Cancel", use_container_width=True):
-                st.session_state.editing_mode = False
+            if st.button("❌ Cancel", key="cancel_requirements", use_container_width=True):
+                st.session_state.editing_requirements = False
+                st.session_state.show_regenerate_warning = False
+                st.session_state.original_requirements = None
+                st.rerun()
+
+        # Show warning if triggered
+        if st.session_state.show_regenerate_warning:
+            st.warning(
+                """
+                ⚠️ **Regenerate Profile & SLOs**
+
+                You modified Use Case & Requirements fields. This will regenerate
+                Traffic Profile and SLO Targets based on the new requirements.
+
+                Any manual edits to Traffic Profile or SLO Targets will be overwritten.
+
+                Click "Regenerate Profile & SLOs" again to confirm.
+                """,
+                icon="⚠️",
+            )
+
+    # Traffic Profile Section
+    traffic = rec["traffic_profile"]
+
+    col_header, col_button = st.columns([6, 1])
+    with col_header:
+        st.markdown("#### Traffic Profile")
+    with col_button:
+        if not st.session_state.editing_traffic:
+            if st.button("✏️", key="edit_traffic_btn", help="Edit traffic profile"):
+                st.session_state.editing_traffic = True
+                st.rerun()
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        expected_qps = st.number_input(
+            "Expected QPS",
+            value=float(traffic["expected_qps"]),
+            min_value=0.1,
+            step=1.0,
+            format="%.2f",
+            disabled=not st.session_state.editing_traffic,
+            key="edit_expected_qps",
+        )
+
+    with col2:
+        prompt_tokens = st.number_input(
+            "Avg Prompt Tokens",
+            value=traffic["prompt_tokens_mean"],
+            min_value=1,
+            step=10,
+            disabled=not st.session_state.editing_traffic,
+            key="edit_prompt_tokens",
+        )
+
+    with col3:
+        generation_tokens = st.number_input(
+            "Avg Generation Tokens",
+            value=traffic["generation_tokens_mean"],
+            min_value=1,
+            step=10,
+            disabled=not st.session_state.editing_traffic,
+            key="edit_generation_tokens",
+        )
+
+    # Save/Cancel buttons for traffic section
+    if st.session_state.editing_traffic:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(
+                "💾 Save & Re-Evaluate",
+                key="save_traffic",
+                use_container_width=True,
+                type="primary",
+            ):
+                # Collect all current specs with edited traffic
+                edited_specs = {
+                    "intent": {
+                        "use_case": intent["use_case"],
+                        "user_count": intent["user_count"],
+                        "latency_requirement": intent["latency_requirement"],
+                        "throughput_priority": intent.get("throughput_priority", "medium"),
+                        "budget_constraint": intent["budget_constraint"],
+                        "domain_specialization": intent.get("domain_specialization", ["general"]),
+                        "additional_context": intent.get("additional_context"),
+                    },
+                    "traffic_profile": {
+                        "prompt_tokens_mean": int(prompt_tokens),
+                        "generation_tokens_mean": int(generation_tokens),
+                        "expected_qps": float(expected_qps),
+                    },
+                    "slo_targets": rec["slo_targets"],
+                }
+                re_recommend_with_specs(edited_specs)
+
+        with col2:
+            if st.button("❌ Cancel", key="cancel_traffic", use_container_width=True):
+                st.session_state.editing_traffic = False
+                st.rerun()
+
+    # SLO Targets Section
+    slo = rec["slo_targets"]
+
+    col_header, col_button = st.columns([6, 1])
+    with col_header:
+        st.markdown("#### SLO Targets")
+    with col_button:
+        if not st.session_state.editing_slo:
+            if st.button("✏️", key="edit_slo_btn", help="Edit SLO targets"):
+                st.session_state.editing_slo = True
+                st.rerun()
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        ttft_target = st.number_input(
+            "TTFT p90 (ms)",
+            value=slo["ttft_p90_target_ms"],
+            min_value=1,
+            step=10,
+            disabled=not st.session_state.editing_slo,
+            key="edit_ttft_target",
+        )
+
+    with col2:
+        tpot_target = st.number_input(
+            "TPOT p90 (ms)",
+            value=slo["tpot_p90_target_ms"],
+            min_value=1,
+            step=5,
+            disabled=not st.session_state.editing_slo,
+            key="edit_tpot_target",
+        )
+
+    with col3:
+        e2e_target = st.number_input(
+            "E2E p95 (ms)",
+            value=slo["e2e_p95_target_ms"],
+            min_value=1,
+            step=50,
+            disabled=not st.session_state.editing_slo,
+            key="edit_e2e_target",
+        )
+
+    # Save/Cancel buttons for SLO section
+    if st.session_state.editing_slo:
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button(
+                "💾 Save & Re-Evaluate", key="save_slo", use_container_width=True, type="primary"
+            ):
+                # Collect all current specs with edited SLOs
+                edited_specs = {
+                    "intent": {
+                        "use_case": intent["use_case"],
+                        "user_count": intent["user_count"],
+                        "latency_requirement": intent["latency_requirement"],
+                        "throughput_priority": intent.get("throughput_priority", "medium"),
+                        "budget_constraint": intent["budget_constraint"],
+                        "domain_specialization": intent.get("domain_specialization", ["general"]),
+                        "additional_context": intent.get("additional_context"),
+                    },
+                    "traffic_profile": rec["traffic_profile"],
+                    "slo_targets": {
+                        "ttft_p90_target_ms": int(ttft_target),
+                        "tpot_p90_target_ms": int(tpot_target),
+                        "e2e_p95_target_ms": int(e2e_target),
+                    },
+                }
+                re_recommend_with_specs(edited_specs)
+
+        with col2:
+            if st.button("❌ Cancel", key="cancel_slo", use_container_width=True):
+                st.session_state.editing_slo = False
                 st.rerun()
 
 
@@ -945,6 +1166,88 @@ def generate_deployment_yaml(rec: dict[str, Any]):
         st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running.")
     except Exception as e:
         st.error(f"❌ Error generating deployment: {str(e)}")
+
+
+def regenerate_and_recommend(edited_specs: dict[str, Any]):
+    """Regenerate traffic profile and SLO targets from requirements, then re-recommend."""
+    try:
+        with st.spinner("Regenerating traffic profile and SLO targets..."):
+            response = requests.post(
+                f"{API_BASE_URL}/api/regenerate-and-recommend",
+                json={"intent": edited_specs["intent"]},
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                new_recommendation = response.json()
+                st.session_state.recommendation = new_recommendation
+
+                # Reset all edit mode flags
+                st.session_state.editing_requirements = False
+                st.session_state.editing_traffic = False
+                st.session_state.editing_slo = False
+                st.session_state.original_requirements = None
+                st.session_state.show_regenerate_warning = False
+
+                # Reset deployment state for new recommendation
+                st.session_state.deployed_to_cluster = False
+                st.session_state.deployment_id = None
+
+                st.success(
+                    "✅ Traffic Profile and SLO Targets regenerated! New recommendation generated."
+                )
+                st.info(
+                    f"**New Recommendation:** {new_recommendation['model_name']} on "
+                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                )
+                st.rerun()
+            else:
+                st.error(f"Failed to regenerate: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running.")
+    except Exception as e:
+        st.error(f"❌ Error during regeneration: {str(e)}")
+
+
+def re_recommend_with_specs(edited_specs: dict[str, Any]):
+    """Re-generate recommendation with edited specifications (no regeneration)."""
+    try:
+        with st.spinner("Re-evaluating model and GPU choices..."):
+            response = requests.post(
+                f"{API_BASE_URL}/api/re-recommend",
+                json={"specifications": edited_specs},
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                new_recommendation = response.json()
+                st.session_state.recommendation = new_recommendation
+
+                # Reset all edit mode flags
+                st.session_state.editing_requirements = False
+                st.session_state.editing_traffic = False
+                st.session_state.editing_slo = False
+                st.session_state.original_requirements = None
+                st.session_state.show_regenerate_warning = False
+
+                # Reset deployment state for new recommendation
+                st.session_state.deployed_to_cluster = False
+                st.session_state.deployment_id = None
+
+                st.success("✅ Re-evaluation complete! New recommendation generated.")
+                st.info(
+                    f"**New Recommendation:** {new_recommendation['model_name']} on "
+                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                )
+                st.rerun()
+            else:
+                st.error(f"Failed to re-evaluate: {response.text}")
+
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to backend API. Make sure the FastAPI server is running.")
+    except Exception as e:
+        st.error(f"❌ Error during re-evaluation: {str(e)}")
 
 
 def deploy_to_cluster(rec: dict[str, Any]):

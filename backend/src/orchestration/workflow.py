@@ -155,6 +155,104 @@ class RecommendationWorkflow:
 
         return best_recommendation
 
+    def generate_recommendation_from_specs(self, specifications: dict) -> DeploymentRecommendation:
+        """
+        Generate recommendation from user-edited specifications (exploration mode).
+
+        This bypasses intent extraction and uses the provided specifications directly.
+
+        Args:
+            specifications: Dict with keys: intent, traffic_profile, slo_targets
+
+        Returns:
+            DeploymentRecommendation
+
+        Raises:
+            ValueError: If recommendation cannot be generated
+        """
+        from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
+
+        logger.info("Starting re-recommendation workflow with edited specifications")
+
+        # Parse specifications into proper schema objects
+        intent = DeploymentIntent(**specifications["intent"])
+        traffic_profile = TrafficProfile(**specifications["traffic_profile"])
+        slo_targets = SLOTargets(**specifications["slo_targets"])
+
+        logger.info(
+            f"Specs: {intent.use_case}, {intent.user_count} users, "
+            f"{traffic_profile.expected_qps} QPS, "
+            f"TTFT target={slo_targets.ttft_p90_target_ms}ms"
+        )
+
+        # Step 1: Recommend models based on edited intent
+        logger.info("Step 1: Recommending models")
+        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
+
+        if not model_candidates:
+            raise ValueError(f"No suitable models found for use case: {intent.use_case}")
+
+        logger.info(f"Found {len(model_candidates)} model candidates")
+
+        # Step 2: Plan capacity for each model and find best option
+        logger.info("Step 2: Planning GPU capacity with edited specifications")
+        viable_recommendations = []
+
+        for model, score in model_candidates:
+            logger.info(f"Planning capacity for {model.name} (score: {score:.1f})")
+
+            recommendation = self.capacity_planner.plan_capacity(
+                model, traffic_profile, slo_targets, intent
+            )
+
+            if recommendation:
+                viable_recommendations.append((recommendation, score))
+                logger.info(
+                    f"  ✓ Viable: {recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}, "
+                    f"${recommendation.cost_per_month_usd:.0f}/month"
+                )
+            else:
+                logger.info("  ✗ No viable configuration found")
+
+        if not viable_recommendations:
+            raise ValueError("No viable deployment configurations found meeting SLO targets")
+
+        # Step 3: Select best recommendation and populate alternatives
+        viable_recommendations.sort(key=lambda x: (-x[1], x[0].cost_per_month_usd))
+        best_recommendation = viable_recommendations[0][0]
+
+        logger.info(
+            f"Re-recommendation selected: {best_recommendation.model_name} on "
+            f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type}"
+        )
+
+        # Add alternative options
+        if len(viable_recommendations) > 1:
+            existing_alternatives = best_recommendation.alternative_options or []
+
+            cross_model_alternatives = [
+                {
+                    "model_name": rec.model_name,
+                    "model_id": rec.model_id,
+                    "gpu_config": rec.gpu_config.dict(),
+                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
+                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_throughput_qps": rec.predicted_throughput_qps,
+                    "cost_per_hour_usd": rec.cost_per_hour_usd,
+                    "cost_per_month_usd": rec.cost_per_month_usd,
+                    "reasoning": rec.reasoning,
+                }
+                for rec, _ in viable_recommendations[1:3]
+            ]
+
+            all_alternatives = existing_alternatives + cross_model_alternatives
+            best_recommendation.alternative_options = all_alternatives[:3]
+
+            logger.info(f"Added {len(best_recommendation.alternative_options)} alternative options")
+
+        return best_recommendation
+
     def validate_recommendation(self, recommendation: DeploymentRecommendation) -> bool:
         """
         Validate that recommendation meets all requirements.
