@@ -342,6 +342,10 @@ def render_deployment_management_tab():
     render_k8s_status_for_deployment(deployment_info, context="mgmt")
     st.markdown("---")
     render_inference_testing_for_deployment(deployment_info, context="mgmt")
+    st.markdown("---")
+
+    # Show simulated observability metrics if available
+    render_simulated_observability(deployment_info, context="mgmt")
 
 
 def render_sidebar():
@@ -1412,96 +1416,6 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
         st.info("💡 The YAML files are stored on the backend and ready for deployment.")
 
 
-def render_monitoring_tab(rec: dict[str, Any]):
-    """Render monitoring dashboard."""
-
-    st.markdown("### 📡 Deployment Monitoring")
-
-    # Load all deployments from cluster
-    all_deployments = load_all_deployments()
-
-    if all_deployments is None:
-        st.warning("⚠️ Could not connect to cluster to list deployments")
-        return
-
-    if len(all_deployments) == 0:
-        st.info("""
-        👈 **No deployments found!**
-
-        Click **Deploy to Kubernetes** in the Actions section to deploy to the cluster.
-
-        This dashboard will show all InferenceServices deployed to the cluster, allowing you to:
-        - Monitor deployment status
-        - Test inference endpoints
-        - Delete deployments
-        """)
-        return
-
-    # Show deployment selector
-    st.markdown(f"**Found {len(all_deployments)} deployment(s) in cluster**")
-
-    deployment_options = {d["deployment_id"]: d for d in all_deployments}
-    deployment_ids = list(deployment_options.keys())
-
-    # Initialize selected deployment if not set
-    if (
-        "selected_deployment" not in st.session_state
-        or st.session_state.selected_deployment not in deployment_ids
-    ):
-        st.session_state.selected_deployment = deployment_ids[0] if deployment_ids else None
-
-    # Deployment selector
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        selected = st.selectbox(
-            "Select deployment to monitor:",
-            deployment_ids,
-            index=deployment_ids.index(st.session_state.selected_deployment)
-            if st.session_state.selected_deployment in deployment_ids
-            else 0,
-            key="deployment_selector",
-        )
-        st.session_state.selected_deployment = selected
-
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)  # Spacer
-        if st.button("🔄 Refresh", use_container_width=True, key="refresh_monitoring"):
-            st.rerun()
-
-    if not st.session_state.selected_deployment:
-        return
-
-    deployment_info = deployment_options[st.session_state.selected_deployment]
-
-    # Show deployment management options
-    render_deployment_management(deployment_info, context="monitoring")
-    st.markdown("---")
-
-    # Show K8s status and inference testing
-    render_k8s_status_for_deployment(deployment_info, context="monitoring")
-    st.markdown("---")
-    render_inference_testing_for_deployment(deployment_info, context="monitoring")
-    st.markdown("---")
-
-    # Fetch mock monitoring data (if available)
-    if st.session_state.deployment_id == st.session_state.selected_deployment:
-        try:
-            with st.spinner("Loading deployment metrics..."):
-                response = requests.get(
-                    f"{API_BASE_URL}/api/deployments/{st.session_state.selected_deployment}/status",
-                    timeout=10,
-                )
-
-                if response.status_code == 200:
-                    status = response.json()
-                    render_monitoring_dashboard(status, rec)
-
-        except requests.exceptions.ConnectionError:
-            st.error("❌ Cannot connect to backend API.")
-        except Exception as e:
-            st.error(f"❌ Error fetching monitoring data: {str(e)}")
-
-
 def render_k8s_status():
     """Render actual Kubernetes deployment status."""
     st.markdown("#### 🎛️ Kubernetes Cluster Status")
@@ -1735,163 +1649,208 @@ def render_inference_testing():
         """)
 
 
-def render_monitoring_dashboard(status: dict[str, Any], rec: dict[str, Any]):
-    """Render the actual monitoring dashboard with metrics."""
+def render_simulated_observability(deployment_info: dict[str, Any], context: str = "default"):
+    """Render simulated observability metrics from sample_outcomes.json.
 
-    deployment_id = status["deployment_id"]
+    Args:
+        deployment_info: Deployment information dictionary
+        context: Unique context identifier to avoid key collisions
+    """
+    status = deployment_info.get("status", {})
 
-    st.markdown(f"**Deployment ID:** `{deployment_id}`")
-    st.markdown(f"**Status:** 🟢 {status['status'].upper()} (Simulated)")
+    # Only show if deployment is ready
+    if not status.get("ready"):
+        st.info("⏳ Observability metrics will be available once deployment is ready")
+        return
 
-    st.markdown("---")
+    st.markdown("#### 📊 Simulated Observability Metrics")
+    st.caption(
+        "These metrics are simulated from sample deployment outcomes. In production, these would come from Prometheus/Grafana."
+    )
 
-    # SLO Compliance
-    st.markdown("### ✅ SLO Compliance (Last 7 Days) - Simulated Data")
+    # Load sample outcomes data
+    try:
+        import json
+        import random
 
-    slo = status["slo_compliance"]
+        with open("data/sample_outcomes.json") as f:
+            data = json.load(f)
+            outcomes = data.get("deployment_outcomes", [])
 
-    col1, col2, col3, col4 = st.columns(4)
+        if not outcomes:
+            st.info("No sample outcome data available")
+            return
+
+        # Pick a random outcome for demonstration
+        # In a real system, this would match the actual deployment
+        outcome = random.choice(outcomes)
+
+        # Display metrics in tabs
+        metrics_tabs = st.tabs(["🎯 SLO Compliance", "🖥️ Resources", "💰 Cost", "📈 Traffic"])
+
+        with metrics_tabs[0]:
+            render_slo_compliance_metrics(outcome)
+
+        with metrics_tabs[1]:
+            render_resource_metrics(outcome)
+
+        with metrics_tabs[2]:
+            render_cost_metrics(outcome)
+
+        with metrics_tabs[3]:
+            render_traffic_metrics(outcome)
+
+    except FileNotFoundError:
+        st.warning("⚠️ Sample outcomes data file not found (data/sample_outcomes.json)")
+    except Exception as e:
+        st.error(f"Error loading simulated metrics: {str(e)}")
+
+
+def render_slo_compliance_metrics(outcome: dict[str, Any]):
+    """Render SLO compliance metrics from outcome data."""
+    st.markdown("##### SLO Performance vs Targets")
+
+    predicted = outcome["predicted_slos"]
+    actual = outcome["actual_slos"]
+
+    col1, col2, col3 = st.columns(3)
 
     with col1:
-        ttft_delta = slo["ttft_p90_ms"] - slo["ttft_target_ms"]
         st.metric(
             "TTFT p90",
-            f"{slo['ttft_p90_ms']}ms",
-            delta=f"{ttft_delta}ms vs target",
+            f"{actual['ttft_p90_ms']}ms",
+            delta=f"{actual['ttft_p90_ms'] - predicted['ttft_p90_ms']}ms vs predicted",
             delta_color="inverse",
         )
-        st.caption(f"Target: {slo['ttft_target_ms']}ms {'✓' if slo['ttft_compliant'] else '⚠️'}")
+        compliant = actual["ttft_p90_ms"] <= predicted["ttft_p90_ms"] * 1.1
+        st.caption(f"Predicted: {predicted['ttft_p90_ms']}ms {'✅' if compliant else '⚠️'}")
 
     with col2:
-        tpot_delta = slo["tpot_p90_ms"] - slo["tpot_target_ms"]
         st.metric(
             "TPOT p90",
-            f"{slo['tpot_p90_ms']}ms",
-            delta=f"{tpot_delta}ms vs target",
+            f"{actual['tpot_p90_ms']}ms",
+            delta=f"{actual['tpot_p90_ms'] - predicted['tpot_p90_ms']}ms vs predicted",
             delta_color="inverse",
         )
-        st.caption(f"Target: {slo['tpot_target_ms']}ms {'✓' if slo['tpot_compliant'] else '⚠️'}")
+        compliant = actual["tpot_p90_ms"] <= predicted["tpot_p90_ms"] * 1.1
+        st.caption(f"Predicted: {predicted['tpot_p90_ms']}ms {'✅' if compliant else '⚠️'}")
 
     with col3:
-        e2e_delta = slo["e2e_p95_ms"] - slo["e2e_target_ms"]
         st.metric(
             "E2E p95",
-            f"{slo['e2e_p95_ms']}ms",
-            delta=f"{e2e_delta}ms vs target",
+            f"{actual['e2e_p95_ms']}ms",
+            delta=f"{actual['e2e_p95_ms'] - predicted['e2e_p95_ms']}ms vs predicted",
             delta_color="inverse",
         )
-        st.caption(f"Target: {slo['e2e_target_ms']}ms {'✓' if slo['e2e_compliant'] else '⚠️'}")
+        compliant = actual["e2e_p95_ms"] <= predicted["e2e_p95_ms"] * 1.1
+        st.caption(f"Predicted: {predicted['e2e_p95_ms']}ms {'✅' if compliant else '⚠️'}")
 
-    with col4:
-        qps_delta = slo["throughput_qps"] - slo["throughput_target_qps"]
-        st.metric("Throughput", f"{slo['throughput_qps']} QPS", delta=f"{qps_delta:+.0f} vs target")
-        st.caption(
-            f"Target: {slo['throughput_target_qps']} QPS {'✓' if slo['throughput_compliant'] else '⚠️'}"
+    # Throughput
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(
+            "Actual QPS",
+            f"{outcome['actual_qps']} QPS",
+            delta=f"{outcome['actual_qps'] - outcome['predicted_qps']} vs predicted",
+        )
+        st.caption(f"Predicted: {outcome['predicted_qps']} QPS")
+
+    with col2:
+        success_icon = "✅" if outcome["deployment_success"] else "❌"
+        st.metric(
+            "Deployment Status",
+            f"{success_icon} {'Success' if outcome['deployment_success'] else 'Failed'}",
         )
 
-    # Uptime
-    st.markdown("---")
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        uptime_delta = slo["uptime_pct"] - slo["uptime_target_pct"]
-        st.metric("Uptime", f"{slo['uptime_pct']:.2f}%", delta=f"{uptime_delta:+.2f}% vs target")
-        st.caption(f"Target: {slo['uptime_target_pct']}% {'✓' if slo['uptime_compliant'] else '⚠️'}")
+    # Notes
+    if outcome.get("notes"):
+        st.markdown("---")
+        st.info(f"**Notes:** {outcome['notes']}")
 
-    # Resource Utilization
-    st.markdown("---")
-    st.markdown("### 🖥️ Resource Utilization")
 
-    util = status["resource_utilization"]
+def render_resource_metrics(outcome: dict[str, Any]):
+    """Render resource utilization metrics."""
+    st.markdown("##### GPU Configuration & Utilization")
+
+    gpu_config = outcome["gpu_config"]
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("GPU Utilization", f"{util['gpu_utilization_pct']}%")
-        st.caption("Target: >80% for cost efficiency")
-        if util["gpu_utilization_pct"] < 80:
-            st.warning("⚠️ Below efficiency target")
+        st.metric("GPU Type", gpu_config["gpu_type"])
+        st.metric("GPU Count", gpu_config["gpu_count"])
 
     with col2:
-        st.metric(
-            "GPU Memory",
-            f"{util['gpu_memory_used_gb']:.1f} GB",
-            delta=f"of {util['gpu_memory_total_gb']} GB",
-        )
+        st.metric("Tensor Parallel", gpu_config["tensor_parallel"])
+        st.metric("Replicas", gpu_config["replicas"])
 
     with col3:
-        st.metric("Avg Batch Size", util["avg_batch_size"])
-        st.caption(f"Queue depth: {util['queue_depth']}")
+        # Simulated utilization (would come from Prometheus in production)
+        import random
 
-    # Cost Analysis
-    st.markdown("---")
-    st.markdown("### 💰 Cost Analysis")
+        gpu_util = random.randint(75, 95)
+        st.metric("GPU Utilization", f"{gpu_util}%")
+        st.caption("Simulated metric")
 
-    cost = status["cost_analysis"]
+
+def render_cost_metrics(outcome: dict[str, Any]):
+    """Render cost analysis metrics."""
+    st.markdown("##### Cost Analysis")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        cost_diff_month = cost["actual_cost_per_month_usd"] - cost["predicted_cost_per_month_usd"]
-        st.metric(
-            "Monthly Cost",
-            f"${cost['actual_cost_per_month_usd']:.0f}",
-            delta=f"${cost_diff_month:+.0f} vs predicted",
-        )
-        st.caption(f"Predicted: ${cost['predicted_cost_per_month_usd']:.0f}")
+        st.metric("Monthly Cost", f"${outcome['cost_per_month_usd']:,.0f}")
 
     with col2:
-        st.metric("Cost per 1k Tokens", f"${cost['cost_per_1k_tokens_usd']:.3f}")
-        st.caption(f"Predicted: ${cost['predicted_cost_per_1k_tokens_usd']:.3f}")
-
-    # Traffic Patterns
-    st.markdown("---")
-    st.markdown("### 📊 Traffic Patterns")
-
-    traffic = status["traffic_patterns"]
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        prompt_diff = traffic["avg_prompt_tokens"] - traffic["predicted_prompt_tokens"]
-        st.metric(
-            "Avg Prompt Tokens",
-            traffic["avg_prompt_tokens"],
-            delta=f"{prompt_diff:+d} vs predicted",
-        )
-        st.caption(f"Predicted: {traffic['predicted_prompt_tokens']}")
-
-    with col2:
-        gen_diff = traffic["avg_generation_tokens"] - traffic["predicted_generation_tokens"]
-        st.metric(
-            "Avg Generation Tokens",
-            traffic["avg_generation_tokens"],
-            delta=f"{gen_diff:+d} vs predicted",
-        )
-        st.caption(f"Predicted: {traffic['predicted_generation_tokens']}")
-
-    with col3:
-        qps_diff = traffic["peak_qps"] - traffic["predicted_peak_qps"]
-        st.metric("Peak QPS", traffic["peak_qps"], delta=f"{qps_diff:+d} vs predicted")
-        st.caption(f"Predicted: {traffic['predicted_peak_qps']}")
-
-    # Request volume
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Requests (Last Hour)", f"{traffic['requests_last_hour']:,}")
-    with col2:
-        st.metric("Requests (Last 24h)", f"{traffic['requests_last_24h']:,}")
-
-    # Recommendations
-    st.markdown("---")
-    st.markdown("### 💡 Optimization Recommendations")
-
-    for recommendation in status.get("recommendations", []):
-        st.info(recommendation)
+        # Calculate cost per 1k tokens (simulated)
+        # Assume ~1M tokens/day for estimation
+        tokens_per_month = 30_000_000
+        cost_per_1k = (outcome["cost_per_month_usd"] / tokens_per_month) * 1000
+        st.metric("Cost per 1k Tokens", f"${cost_per_1k:.3f}")
+        st.caption("Estimated from usage")
 
     st.markdown("---")
-    st.caption(
-        "**Note:** This is simulated monitoring data for POC purposes. In production, this would connect to Prometheus/Grafana."
+    st.markdown("**GPU Configuration:**")
+    st.markdown(f"- {outcome['gpu_config']['gpu_count']}x {outcome['gpu_config']['gpu_type']}")
+    st.markdown(
+        f"- Tensor Parallel: {outcome['gpu_config']['tensor_parallel']}, Replicas: {outcome['gpu_config']['replicas']}"
     )
+
+
+def render_traffic_metrics(outcome: dict[str, Any]):
+    """Render traffic pattern metrics."""
+    st.markdown("##### Traffic Patterns")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("Use Case", outcome["use_case"].replace("_", " ").title())
+        st.metric("User Count", f"{outcome['user_count']:,}")
+
+    with col2:
+        st.metric("Model", outcome["model_id"].split("/")[-1])
+        st.metric("Timestamp", outcome["timestamp"].split("T")[0])
+
+    # Simulated request volume
+    st.markdown("---")
+    st.markdown("**Request Volume (Simulated):**")
+
+    import random
+
+    requests_per_hour = outcome["actual_qps"] * 3600
+    requests_per_day = requests_per_hour * 24
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Requests/Hour", f"{requests_per_hour:,.0f}")
+    with col2:
+        st.metric("Requests/Day", f"{requests_per_day:,.0f}")
+    with col3:
+        # Add some variance for "last 7 days"
+        variance = random.uniform(0.9, 1.1)
+        st.metric("Requests (7d)", f"{int(requests_per_day * 7 * variance):,.0f}")
 
 
 if __name__ == "__main__":
