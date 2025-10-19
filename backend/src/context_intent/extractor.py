@@ -141,6 +141,55 @@ class IntentExtractor:
             # Take the first option
             cleaned["use_case"] = cleaned["use_case"].split("|")[0].strip()
 
+        # Fix user_count if it's a descriptive string instead of integer
+        if "user_count" in cleaned and isinstance(cleaned["user_count"], str):
+            # Extract integer from strings like "thousands of users (estimated: 5,000 - 10,000)"
+            import re
+
+            user_count_str = cleaned["user_count"]
+
+            # Try to find numbers with commas or ranges
+            # Match patterns like "5,000", "5000", "5,000 - 10,000", etc.
+            numbers = re.findall(r"[\d,]+", user_count_str.replace(",", ""))
+
+            if numbers:
+                # If it's a range, take the midpoint
+                if len(numbers) >= 2:
+                    try:
+                        low = int(numbers[0])
+                        high = int(numbers[1])
+                        cleaned["user_count"] = (low + high) // 2
+                        logger.info(
+                            f"Extracted user_count range [{low}, {high}], using midpoint: {cleaned['user_count']}"
+                        )
+                    except (ValueError, IndexError):
+                        # Fallback to first number
+                        cleaned["user_count"] = int(numbers[0])
+                        logger.info(
+                            f"Extracted user_count from string '{user_count_str}': {cleaned['user_count']}"
+                        )
+                else:
+                    # Single number found
+                    cleaned["user_count"] = int(numbers[0])
+                    logger.info(
+                        f"Extracted user_count from string '{user_count_str}': {cleaned['user_count']}"
+                    )
+            else:
+                # No numbers found, try to infer from keywords
+                user_count_str_lower = user_count_str.lower()
+                if "thousand" in user_count_str_lower or "1k" in user_count_str_lower:
+                    cleaned["user_count"] = 1000
+                elif "million" in user_count_str_lower or "1m" in user_count_str_lower:
+                    cleaned["user_count"] = 1000000
+                elif "hundred" in user_count_str_lower:
+                    cleaned["user_count"] = 100
+                else:
+                    # Default fallback
+                    cleaned["user_count"] = 1000
+                    logger.warning(
+                        f"Could not parse user_count from '{user_count_str}', defaulting to 1000"
+                    )
+
         # Ensure domain_specialization is a list
         if "domain_specialization" in cleaned:
             if isinstance(cleaned["domain_specialization"], str):
