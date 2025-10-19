@@ -260,6 +260,154 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         ) from e
 
 
+class ReRecommendationRequest(BaseModel):
+    """Request for re-recommendation with edited specifications."""
+
+    specifications: dict
+
+
+@app.post("/api/re-recommend")
+async def re_recommend(request: ReRecommendationRequest):
+    """
+    Re-generate recommendation with user-edited specifications.
+
+    Args:
+        request: Request with edited specifications (intent, traffic_profile, slo_targets)
+
+    Returns:
+        New recommendation as JSON dict with auto-generated YAML
+    """
+    try:
+        logger.info("Received re-recommendation request with edited specifications")
+        logger.debug(f"Edited specs: {request.specifications}")
+
+        # Re-run recommendation workflow with edited specifications
+        recommendation = workflow.generate_recommendation_from_specs(request.specifications)
+
+        # Auto-generate deployment YAML
+        try:
+            yaml_result = deployment_generator.generate_all(
+                recommendation=recommendation, namespace="default"
+            )
+            deployment_id = yaml_result["deployment_id"]
+            yaml_files = yaml_result["files"]
+            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
+            yaml_generated = True
+        except Exception as yaml_error:
+            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+            deployment_id = None
+            yaml_files = {}
+            yaml_generated = False
+
+        # Return recommendation as dict with YAML info
+        result = recommendation.model_dump()
+        result["deployment_id"] = deployment_id
+        result["yaml_generated"] = yaml_generated
+        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+        logger.info(
+            f"Re-recommendation complete: {recommendation.model_name} on "
+            f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to re-generate recommendation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to re-generate recommendation: {str(e)}"
+        ) from e
+
+
+class RegenerateRequest(BaseModel):
+    """Request for regenerating traffic profile and SLOs from requirements."""
+
+    intent: dict
+
+
+@app.post("/api/regenerate-and-recommend")
+async def regenerate_and_recommend(request: RegenerateRequest):
+    """
+    Regenerate traffic profile and SLO targets from edited requirements, then recommend.
+
+    This is the full workflow: requirements → profile/SLOs → recommendation
+
+    Args:
+        request: Request with edited intent/requirements
+
+    Returns:
+        New recommendation as JSON dict with auto-generated YAML
+    """
+    try:
+        from ..context_intent.schema import DeploymentIntent
+
+        logger.info("Received regenerate-and-recommend request with edited requirements")
+        logger.debug(f"Edited intent: {request.intent}")
+
+        # Parse intent into schema
+        intent = DeploymentIntent(**request.intent)
+
+        # Generate traffic profile and SLO targets from intent
+        from ..recommendation.traffic_profile import TrafficProfileGenerator
+
+        traffic_generator = TrafficProfileGenerator()
+        traffic_profile = traffic_generator.generate_profile(intent)
+        slo_targets = traffic_generator.generate_slo_targets(intent)
+
+        logger.info(
+            f"Regenerated traffic profile: {traffic_profile.expected_qps} QPS, "
+            f"{traffic_profile.prompt_tokens_mean} prompt tokens"
+        )
+        logger.info(
+            f"Regenerated SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, "
+            f"TPOT={slo_targets.tpot_p90_target_ms}ms"
+        )
+
+        # Build specifications dict
+        specifications = {
+            "intent": intent.model_dump(),
+            "traffic_profile": traffic_profile.model_dump(),
+            "slo_targets": slo_targets.model_dump(),
+        }
+
+        # Re-run recommendation workflow with regenerated specifications
+        recommendation = workflow.generate_recommendation_from_specs(specifications)
+
+        # Auto-generate deployment YAML
+        try:
+            yaml_result = deployment_generator.generate_all(
+                recommendation=recommendation, namespace="default"
+            )
+            deployment_id = yaml_result["deployment_id"]
+            yaml_files = yaml_result["files"]
+            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
+            yaml_generated = True
+        except Exception as yaml_error:
+            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+            deployment_id = None
+            yaml_files = {}
+            yaml_generated = False
+
+        # Return recommendation as dict with YAML info
+        result = recommendation.model_dump()
+        result["deployment_id"] = deployment_id
+        result["yaml_generated"] = yaml_generated
+        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+        logger.info(
+            f"Regenerate-and-recommend complete: {recommendation.model_name} on "
+            f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Failed to regenerate and recommend: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to regenerate and recommend: {str(e)}"
+        ) from e
+
+
 # Simple test endpoint for quick validation
 @app.post("/api/v1/test")
 async def test_endpoint(message: str = "I need a chatbot for 1000 users"):
