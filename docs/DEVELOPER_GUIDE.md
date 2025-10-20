@@ -273,6 +273,58 @@ make test-watch
 
 ## Debugging
 
+### Logging
+
+Compass implements comprehensive logging to help you debug and monitor the system. For complete logging documentation, see [docs/LOGGING.md](LOGGING.md).
+
+**Quick Start:**
+
+Enable debug logging to see full LLM prompts and responses:
+```bash
+# Enable debug mode
+export COMPASS_DEBUG=true
+make start-backend
+
+# Or inline:
+COMPASS_DEBUG=true make start-backend
+```
+
+**Log Levels:**
+- **INFO (default)**: User requests, workflow steps, LLM metadata, results
+- **DEBUG**: Full LLM prompts, complete responses, detailed timing
+
+**Log Locations:**
+- Console output (stdout/stderr)
+- `logs/backend.log` - Main application logs
+- `logs/compass.log` - Structured detailed logs
+
+**Common Log Searches:**
+```bash
+# View all user requests
+grep "\[USER MESSAGE\]" logs/backend.log
+
+# View LLM prompts (DEBUG mode only)
+grep "\[LLM PROMPT\]" logs/backend.log
+
+# View extracted intents
+grep "\[EXTRACTED INTENT\]" logs/backend.log
+
+# Follow a complete request flow
+grep -A 50 "USER REQUEST" logs/backend.log
+```
+
+**Log Tags:**
+- `[USER REQUEST]` - User request start
+- `[USER MESSAGE]` - User's actual message
+- `[LLM REQUEST]` - Request to LLM (metadata)
+- `[LLM PROMPT]` - Full prompt text (DEBUG only)
+- `[LLM RESPONSE]` - Response from LLM (metadata)
+- `[LLM RESPONSE CONTENT]` - Full response text (DEBUG only)
+- `[EXTRACTED INTENT]` - Parsed intent from LLM
+- `Step 1`, `Step 2`, etc. - Workflow progress
+
+**Privacy Note:** DEBUG mode logs contain full user messages and LLM interactions. Only use in development/testing.
+
 ### View Logs
 
 **Backend logs:**
@@ -280,6 +332,8 @@ make test-watch
 make logs-backend
 # Or manually:
 tail -f .pids/backend.pid.log
+# Or for detailed logs:
+tail -f logs/backend.log
 ```
 
 **UI logs:**
