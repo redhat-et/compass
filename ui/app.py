@@ -100,7 +100,7 @@ def main():
     render_sidebar()
 
     # Top-level tabs
-    main_tabs = st.tabs(["🤖 Assistant", "📊 Recommendation Details", "📦 Deployment Management"])
+    main_tabs = st.tabs(["💬 Chat", "📊 Recommendation Details", "📦 Deployment Management"])
 
     with main_tabs[0]:
         render_assistant_tab()
@@ -500,7 +500,7 @@ def format_recommendation_summary(rec: dict[str, Any]) -> str:
     slo_status = "✅ Meets SLO" if meets_slo else "⚠️ Does not meet SLO"
 
     summary = f"""
-I've analyzed your requirements and generated a recommendation:
+I've analyzed your requirements and recommend the following solution:
 
 **{rec['model_name']}** on **{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}**
 
