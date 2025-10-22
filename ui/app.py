@@ -699,6 +699,8 @@ def render_specifications_tab(rec: dict[str, Any]):
         st.session_state.original_requirements = None
     if "show_regenerate_warning" not in st.session_state:
         st.session_state.show_regenerate_warning = False
+    if "edit_session_key" not in st.session_state:
+        st.session_state.edit_session_key = 0
 
     # Intent Section
     intent = rec["intent"]
@@ -734,6 +736,9 @@ def render_specifications_tab(rec: dict[str, Any]):
     throughput_options = ["very_high", "high", "medium", "low"]
     budget_options = ["strict", "moderate", "flexible", "none"]
 
+    # Use session key to force widget recreation on cancel
+    session_key = st.session_state.edit_session_key
+
     col1, col2 = st.columns(2)
     with col1:
         use_case = st.selectbox(
@@ -741,7 +746,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             options=use_case_options,
             index=use_case_options.index(intent["use_case"]),
             disabled=not st.session_state.editing_requirements,
-            key="edit_use_case",
+            key=f"edit_use_case_{session_key}",
         )
         user_count = st.number_input(
             "Users",
@@ -749,14 +754,14 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=100,
             disabled=not st.session_state.editing_requirements,
-            key="edit_user_count",
+            key=f"edit_user_count_{session_key}",
         )
         throughput_priority = st.selectbox(
             "Throughput Priority",
             options=throughput_options,
             index=throughput_options.index(intent.get("throughput_priority", "medium")),
             disabled=not st.session_state.editing_requirements,
-            key="edit_throughput_priority",
+            key=f"edit_throughput_priority_{session_key}",
         )
 
     with col2:
@@ -765,14 +770,14 @@ def render_specifications_tab(rec: dict[str, Any]):
             options=latency_options,
             index=latency_options.index(intent["latency_requirement"]),
             disabled=not st.session_state.editing_requirements,
-            key="edit_latency_requirement",
+            key=f"edit_latency_requirement_{session_key}",
         )
         budget_constraint = st.selectbox(
             "Budget Constraint",
             options=budget_options,
             index=budget_options.index(intent["budget_constraint"]),
             disabled=not st.session_state.editing_requirements,
-            key="edit_budget_constraint",
+            key=f"edit_budget_constraint_{session_key}",
         )
 
     # Save/Cancel buttons for requirements section
@@ -817,9 +822,16 @@ def render_specifications_tab(rec: dict[str, Any]):
 
         with col2:
             if st.button("❌ Cancel", key="cancel_requirements", use_container_width=True):
+                # Restore original values
+                if st.session_state.original_requirements:
+                    st.session_state.recommendation["intent"].update(
+                        st.session_state.original_requirements
+                    )
                 st.session_state.editing_requirements = False
                 st.session_state.show_regenerate_warning = False
                 st.session_state.original_requirements = None
+                # Increment session key to force widget recreation with original values
+                st.session_state.edit_session_key += 1
                 st.rerun()
 
         # Show warning if triggered
@@ -848,6 +860,12 @@ def render_specifications_tab(rec: dict[str, Any]):
         if not st.session_state.editing_traffic:
             if st.button("✏️", key="edit_traffic_btn", help="Edit traffic profile"):
                 st.session_state.editing_traffic = True
+                # Store original values
+                st.session_state.original_traffic = {
+                    "expected_qps": traffic["expected_qps"],
+                    "prompt_tokens_mean": traffic["prompt_tokens_mean"],
+                    "generation_tokens_mean": traffic["generation_tokens_mean"],
+                }
                 st.rerun()
 
     col1, col2, col3 = st.columns(3)
@@ -859,7 +877,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             step=1.0,
             format="%.2f",
             disabled=not st.session_state.editing_traffic,
-            key="edit_expected_qps",
+            key=f"edit_expected_qps_{session_key}",
         )
 
     with col2:
@@ -869,7 +887,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_traffic,
-            key="edit_prompt_tokens",
+            key=f"edit_prompt_tokens_{session_key}",
         )
 
     with col3:
@@ -879,7 +897,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_traffic,
-            key="edit_generation_tokens",
+            key=f"edit_generation_tokens_{session_key}",
         )
 
     # Save/Cancel buttons for traffic section
@@ -914,7 +932,15 @@ def render_specifications_tab(rec: dict[str, Any]):
 
         with col2:
             if st.button("❌ Cancel", key="cancel_traffic", use_container_width=True):
+                # Restore original values
+                if "original_traffic" in st.session_state and st.session_state.original_traffic:
+                    st.session_state.recommendation["traffic_profile"].update(
+                        st.session_state.original_traffic
+                    )
+                    st.session_state.original_traffic = None
                 st.session_state.editing_traffic = False
+                # Increment session key to force widget recreation with original values
+                st.session_state.edit_session_key += 1
                 st.rerun()
 
     # SLO Targets Section
@@ -927,6 +953,12 @@ def render_specifications_tab(rec: dict[str, Any]):
         if not st.session_state.editing_slo:
             if st.button("✏️", key="edit_slo_btn", help="Edit SLO targets"):
                 st.session_state.editing_slo = True
+                # Store original values
+                st.session_state.original_slo = {
+                    "ttft_p90_target_ms": slo["ttft_p90_target_ms"],
+                    "tpot_p90_target_ms": slo["tpot_p90_target_ms"],
+                    "e2e_p90_target_ms": slo["e2e_p90_target_ms"],
+                }
                 st.rerun()
 
     col1, col2, col3 = st.columns(3)
@@ -937,7 +969,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_slo,
-            key="edit_ttft_target",
+            key=f"edit_ttft_target_{session_key}",
         )
 
     with col2:
@@ -947,7 +979,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=5,
             disabled=not st.session_state.editing_slo,
-            key="edit_tpot_target",
+            key=f"edit_tpot_target_{session_key}",
         )
 
     with col3:
@@ -957,7 +989,7 @@ def render_specifications_tab(rec: dict[str, Any]):
             min_value=1,
             step=50,
             disabled=not st.session_state.editing_slo,
-            key="edit_e2e_target",
+            key=f"edit_e2e_target_{session_key}",
         )
 
     # Save/Cancel buttons for SLO section
@@ -989,7 +1021,15 @@ def render_specifications_tab(rec: dict[str, Any]):
 
         with col2:
             if st.button("❌ Cancel", key="cancel_slo", use_container_width=True):
+                # Restore original values
+                if "original_slo" in st.session_state and st.session_state.original_slo:
+                    st.session_state.recommendation["slo_targets"].update(
+                        st.session_state.original_slo
+                    )
+                    st.session_state.original_slo = None
                 st.session_state.editing_slo = False
+                # Increment session key to force widget recreation with original values
+                st.session_state.edit_session_key += 1
                 st.rerun()
 
 
