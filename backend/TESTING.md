@@ -76,7 +76,7 @@ print()
 print('SLO Targets:')
 print(f'  TTFT p90: {slo.ttft_p90_target_ms}ms')
 print(f'  TPOT p90: {slo.tpot_p90_target_ms}ms')
-print(f'  E2E p95: {slo.e2e_p95_target_ms}ms')
+print(f'  E2E p90: {slo.e2e_p90_target_ms}ms')
 "
 ```
 

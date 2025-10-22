@@ -25,7 +25,7 @@
 
 **System generates** (structured specs):
 - Traffic profile: avg prompt 150 tokens, generation 200 tokens, peak QPS 100
-- SLO targets: TTFT p90 < 200ms, TPOT p90 < 50ms, E2E p95 < 2000ms
+- SLO targets: TTFT p90 < 200ms, TPOT p90 < 50ms, E2E p90 < 10150ms
 - GPU recommendation: 2x NVIDIA L4, independent replicas
 - Cost estimate: $800/month
 

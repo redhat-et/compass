@@ -13,7 +13,7 @@
         "slo_targets": {
           "ttft_p90_target_ms": 150,
           "tpot_p90_target_ms": 40,
-          "e2e_p95_target_ms": 500
+          "e2e_p90_target_ms": 500
         },
         "traffic_profile": {
           "prompt_tokens_mean": 200,
@@ -46,7 +46,7 @@
         "slo_targets": {
           "ttft_p90_target_ms": 250,
           "tpot_p90_target_ms": 60,
-          "e2e_p95_target_ms": 3000
+          "e2e_p90_target_ms": 3000
         },
         "traffic_profile": {
           "prompt_tokens_mean": 500,
@@ -79,7 +79,7 @@
         "slo_targets": {
           "ttft_p90_target_ms": 500,
           "tpot_p90_target_ms": 80,
-          "e2e_p95_target_ms": 8000
+          "e2e_p90_target_ms": 8000
         },
         "traffic_profile": {
           "prompt_tokens_mean": 2000,

@@ -94,10 +94,10 @@ class CapacityPlanner:
             predicted_e2e = self._estimate_e2e_latency(bench, traffic_profile)
 
             # Check if E2E also meets target
-            if predicted_e2e > slo_targets.e2e_p95_target_ms:
+            if predicted_e2e > slo_targets.e2e_p90_target_ms:
                 logger.debug(
                     f"Skipping {bench.gpu_type} TP={bench.tensor_parallel}: "
-                    f"E2E {predicted_e2e}ms > target {slo_targets.e2e_p95_target_ms}ms"
+                    f"E2E {predicted_e2e}ms > target {slo_targets.e2e_p90_target_ms}ms"
                 )
                 continue
 
@@ -135,7 +135,7 @@ class CapacityPlanner:
                 gpu_config=gpu_config,
                 predicted_ttft_p90_ms=bench.ttft_p90_ms,
                 predicted_tpot_p90_ms=bench.tpot_p90_ms,
-                predicted_e2e_p95_ms=predicted_e2e,
+                predicted_e2e_p90_ms=predicted_e2e,
                 predicted_throughput_qps=bench.max_qps * replicas,
                 cost_per_hour_usd=cost_per_hour,
                 cost_per_month_usd=cost_per_month,
@@ -164,7 +164,7 @@ class CapacityPlanner:
                     "gpu_config": rec.gpu_config.dict(),
                     "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
                     "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -213,7 +213,7 @@ class CapacityPlanner:
             traffic_profile: Traffic characteristics
 
         Returns:
-            Estimated E2E p95 latency (ms)
+            Estimated E2E p90 latency (ms)
         """
         # For streaming: E2E ≈ TTFT + (first ~20 tokens × TPOT)
         # This represents the time until the user has a meaningful response
@@ -226,10 +226,7 @@ class CapacityPlanner:
 
         e2e_p90 = ttft + (tpot * perceived_gen_tokens)
 
-        # Add ~20% buffer for p95
-        e2e_p95 = int(e2e_p90 * 1.2)
-
-        return e2e_p95
+        return e2e_p90
 
     def _generate_reasoning(
         self,

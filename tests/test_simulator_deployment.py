@@ -54,7 +54,7 @@ def test_simulator_deployment():
         tpot_p50_target_ms=30,
         tpot_p90_target_ms=50,
         tpot_p99_target_ms=70,
-        e2e_p95_target_ms=2000,
+        e2e_p90_target_ms=2000,
         throughput_target_rps=10
     )
 

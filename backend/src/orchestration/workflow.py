@@ -137,7 +137,7 @@ class RecommendationWorkflow:
                     "gpu_config": rec.gpu_config.dict(),
                     "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
                     "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -237,7 +237,7 @@ class RecommendationWorkflow:
                     "gpu_config": rec.gpu_config.dict(),
                     "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
                     "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
+                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -285,10 +285,10 @@ class RecommendationWorkflow:
             return False
 
         # Check E2E
-        if recommendation.predicted_e2e_p95_ms > recommendation.slo_targets.e2e_p95_target_ms:
+        if recommendation.predicted_e2e_p90_ms > recommendation.slo_targets.e2e_p90_target_ms:
             logger.warning(
-                f"E2E {recommendation.predicted_e2e_p95_ms}ms exceeds target "
-                f"{recommendation.slo_targets.e2e_p95_target_ms}ms"
+                f"E2E {recommendation.predicted_e2e_p90_ms}ms exceeds target "
+                f"{recommendation.slo_targets.e2e_p90_target_ms}ms"
             )
             return False
 

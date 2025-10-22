@@ -104,7 +104,7 @@ Test all tabs when a recommendation is displayed:
 #### Performance Tab
 - [ ] TTFT metrics shown (p50, p90, p99)
 - [ ] TPOT metrics shown (p50, p90, p99)
-- [ ] E2E latency metrics shown (p50, p95, p99)
+- [ ] E2E latency metrics shown (p50, p90, p99)
 - [ ] Throughput metrics shown (QPS, tokens/sec)
 - [ ] Delta values vs targets displayed
 
