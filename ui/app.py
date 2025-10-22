@@ -826,7 +826,7 @@ def render_specifications_tab(rec: dict[str, Any]):
         if st.session_state.show_regenerate_warning:
             st.warning(
                 """
-                ⚠️ **Regenerate Profile & SLOs**
+                **Regenerate Profile & SLOs**
 
                 You modified Use Case & Requirements fields. This will regenerate
                 Traffic Profile and SLO Targets based on the new requirements.
