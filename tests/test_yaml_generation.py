@@ -53,7 +53,7 @@ def create_test_recommendation() -> DeploymentRecommendation:
     slo_targets = SLOTargets(
         ttft_p90_target_ms=200,
         tpot_p90_target_ms=50,
-        e2e_p95_target_ms=2000
+        e2e_p90_target_ms=2000
     )
 
     gpu_config = GPUConfig(
@@ -72,7 +72,7 @@ def create_test_recommendation() -> DeploymentRecommendation:
         gpu_config=gpu_config,
         predicted_ttft_p90_ms=185,
         predicted_tpot_p90_ms=48,
-        predicted_e2e_p95_ms=1850,
+        predicted_e2e_p90_ms=1850,
         predicted_throughput_qps=122.0,
         cost_per_hour_usd=8.20,
         cost_per_month_usd=5986.0,

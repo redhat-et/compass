@@ -448,7 +448,7 @@ curl http://localhost:8080/health
   "generation_tokens_mean": 150,
   "ttft_p90_target_ms": 250,
   "tpot_p90_target_ms": 60,
-  "e2e_p95_target_ms": 3000
+  "e2e_p90_target_ms": 3000
 }
 ```
 

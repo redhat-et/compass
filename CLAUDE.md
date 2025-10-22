@@ -61,7 +61,7 @@ The system translates high-level user intent into technical specifications:
 - **User says**: "I need a chatbot for 1000 users, low latency is critical"
 - **System generates**:
   - Traffic profile (avg prompt: 150 tokens, gen: 200 tokens, peak QPS: 100)
-  - SLO targets (TTFT p90: 200ms, TPOT p90: 50ms, E2E p95: 2000ms)
+  - SLO targets (TTFT p90: 200ms, TPOT p90: 50ms, E2E p90: 10150ms)
   - GPU capacity plan (e.g., "2x NVIDIA L4 GPUs, independent replicas")
   - Cost estimate ($800/month)
 
@@ -110,7 +110,7 @@ The system translates high-level user intent into technical specifications:
 3. **SLO metrics are mandatory**:
    - TTFT (Time to First Token): p50, p90, p99 - **stored in benchmarks**
    - TPOT (Time Per Output Token): p50, p90, p99 - **stored in benchmarks**
-   - E2E Latency: p50, p95, p99 - **calculated dynamically** from TTFT + (generation_tokens × TPOT)
+   - E2E Latency: p50, p90, p99 - **calculated dynamically** from TTFT + (generation_tokens × TPOT)
    - Throughput: requests/sec and tokens/sec
    - Rationale: E2E latency varies by workload (generation length, streaming mode, use case), so it's calculated per-request rather than stored as a fixed benchmark value
 

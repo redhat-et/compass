@@ -42,7 +42,7 @@ def test_scenario(workflow: RecommendationWorkflow, scenario: dict):
         print(f"\nPredicted Performance:")
         print(f"  - TTFT p90: {recommendation.predicted_ttft_p90_ms}ms (target: {recommendation.slo_targets.ttft_p90_target_ms}ms)")
         print(f"  - TPOT p90: {recommendation.predicted_tpot_p90_ms}ms (target: {recommendation.slo_targets.tpot_p90_target_ms}ms)")
-        print(f"  - E2E p95: {recommendation.predicted_e2e_p95_ms}ms (target: {recommendation.slo_targets.e2e_p95_target_ms}ms)")
+        print(f"  - E2E p90: {recommendation.predicted_e2e_p90_ms}ms (target: {recommendation.slo_targets.e2e_p90_target_ms}ms)")
         print(f"  - Throughput: {recommendation.predicted_throughput_qps:.1f} QPS")
 
         print(f"\nTraffic Profile:")

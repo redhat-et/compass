@@ -521,7 +521,7 @@ async def get_deployment_status(deployment_id: str):
                 "tpot_p90_ms": base_tpot + random.randint(-3, 5),
                 "tpot_target_ms": 50,
                 "tpot_compliant": True,
-                "e2e_p95_ms": base_e2e + random.randint(-50, 100),
+                "e2e_p90_ms": base_e2e + random.randint(-50, 100),
                 "e2e_target_ms": 2000,
                 "e2e_compliant": True,
                 "throughput_qps": 122 + random.randint(-5, 10),

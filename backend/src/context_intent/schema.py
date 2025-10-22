@@ -23,7 +23,7 @@ class SLOTargets(BaseModel):
 
     ttft_p90_target_ms: int = Field(..., description="Time to First Token p90 target (ms)")
     tpot_p90_target_ms: int = Field(..., description="Time Per Output Token p90 target (ms)")
-    e2e_p95_target_ms: int = Field(..., description="End-to-end latency p95 target (ms)")
+    e2e_p90_target_ms: int = Field(..., description="End-to-end latency p90 target (ms)")
 
 
 class GPUConfig(BaseModel):
@@ -93,7 +93,7 @@ class DeploymentRecommendation(BaseModel):
     # Performance predictions
     predicted_ttft_p90_ms: int
     predicted_tpot_p90_ms: int
-    predicted_e2e_p95_ms: int
+    predicted_e2e_p90_ms: int
     predicted_throughput_qps: float
 
     # Cost estimation

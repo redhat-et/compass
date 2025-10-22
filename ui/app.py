@@ -176,7 +176,7 @@ def get_selected_option():
             selected_rec["gpu_config"] = alt["gpu_config"]
             selected_rec["predicted_ttft_p90_ms"] = alt["predicted_ttft_p90_ms"]
             selected_rec["predicted_tpot_p90_ms"] = alt["predicted_tpot_p90_ms"]
-            selected_rec["predicted_e2e_p95_ms"] = alt["predicted_e2e_p95_ms"]
+            selected_rec["predicted_e2e_p90_ms"] = alt["predicted_e2e_p90_ms"]
             selected_rec["predicted_throughput_qps"] = alt["predicted_throughput_qps"]
             selected_rec["cost_per_hour_usd"] = alt["cost_per_hour_usd"]
             selected_rec["cost_per_month_usd"] = alt["cost_per_month_usd"]
@@ -507,7 +507,7 @@ I've analyzed your requirements and recommend the following solution:
 **Performance:**
 - TTFT p90: {rec['predicted_ttft_p90_ms']}ms
 - TPOT p90: {rec['predicted_tpot_p90_ms']}ms
-- E2E p95: {rec['predicted_e2e_p95_ms']}ms
+- E2E p90: {rec['predicted_e2e_p90_ms']}ms
 - Throughput: {rec['predicted_throughput_qps']:.1f} QPS
 
 **Cost:** ${rec['cost_per_month_usd']:,.2f}/month
@@ -590,7 +590,7 @@ def render_overview_tab(rec: dict[str, Any]):
         st.metric("TPOT p90", f"{rec['predicted_tpot_p90_ms']}ms")
 
     with metrics_col3:
-        st.metric("E2E p95", f"{rec['predicted_e2e_p95_ms']}ms")
+        st.metric("E2E p90", f"{rec['predicted_e2e_p90_ms']}ms")
 
     with metrics_col4:
         st.metric("Throughput", f"{rec['predicted_throughput_qps']:.1f} QPS")
@@ -625,7 +625,7 @@ def render_overview_tab(rec: dict[str, Any]):
         header_cols[4].markdown("**Replicas**")
         header_cols[5].markdown("**TTFT p90**")
         header_cols[6].markdown("**TPOT p90**")
-        header_cols[7].markdown("**E2E p95**")
+        header_cols[7].markdown("**E2E p90**")
         header_cols[8].markdown("**Max QPS**")
         header_cols[9].markdown("**Cost/Month**")
 
@@ -647,7 +647,7 @@ def render_overview_tab(rec: dict[str, Any]):
         cols[4].markdown(f"{rec['gpu_config']['replicas']}")
         cols[5].markdown(f"{rec['predicted_ttft_p90_ms']}")
         cols[6].markdown(f"{rec['predicted_tpot_p90_ms']}")
-        cols[7].markdown(f"{rec['predicted_e2e_p95_ms']}")
+        cols[7].markdown(f"{rec['predicted_e2e_p90_ms']}")
         cols[8].markdown(f"{rec['predicted_throughput_qps']:.0f}")
         cols[9].markdown(f"${rec['cost_per_month_usd']:,.0f}")
 
@@ -673,7 +673,7 @@ def render_overview_tab(rec: dict[str, Any]):
             cols[4].markdown(f"{alt['gpu_config']['replicas']}")
             cols[5].markdown(f"{alt['predicted_ttft_p90_ms']}")
             cols[6].markdown(f"{alt['predicted_tpot_p90_ms']}")
-            cols[7].markdown(f"{alt['predicted_e2e_p95_ms']}")
+            cols[7].markdown(f"{alt['predicted_e2e_p90_ms']}")
             cols[8].markdown(f"{alt['predicted_throughput_qps']:.0f}")
             cols[9].markdown(f"${alt['cost_per_month_usd']:,.0f}")
     else:
@@ -952,8 +952,8 @@ def render_specifications_tab(rec: dict[str, Any]):
 
     with col3:
         e2e_target = st.number_input(
-            "E2E p95 (ms)",
-            value=slo["e2e_p95_target_ms"],
+            "E2E p90 (ms)",
+            value=slo["e2e_p90_target_ms"],
             min_value=1,
             step=50,
             disabled=not st.session_state.editing_slo,
@@ -982,7 +982,7 @@ def render_specifications_tab(rec: dict[str, Any]):
                     "slo_targets": {
                         "ttft_p90_target_ms": int(ttft_target),
                         "tpot_p90_target_ms": int(tpot_target),
-                        "e2e_p95_target_ms": int(e2e_target),
+                        "e2e_p90_target_ms": int(e2e_target),
                     },
                 }
                 re_recommend_with_specs(edited_specs)
@@ -1032,12 +1032,12 @@ def render_performance_tab(rec: dict[str, Any]):
     st.markdown("#### End-to-End Latency")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Predicted p95", f"{rec['predicted_e2e_p95_ms']}ms")
+        st.metric("Predicted p90", f"{rec['predicted_e2e_p90_ms']}ms")
     with col2:
-        delta_ms = rec["predicted_e2e_p95_ms"] - slo["e2e_p95_target_ms"]
+        delta_ms = rec["predicted_e2e_p90_ms"] - slo["e2e_p90_target_ms"]
         st.metric(
-            "Target p95",
-            f"{slo['e2e_p95_target_ms']}ms",
+            "Target p90",
+            f"{slo['e2e_p90_target_ms']}ms",
             delta=f"{delta_ms}ms",
             delta_color="inverse",
         )
@@ -2040,13 +2040,13 @@ def render_slo_compliance_metrics(outcome: dict[str, Any]):
 
     with col3:
         st.metric(
-            "E2E p95",
-            f"{actual['e2e_p95_ms']}ms",
-            delta=f"{actual['e2e_p95_ms'] - predicted['e2e_p95_ms']}ms vs predicted",
+            "E2E p90",
+            f"{actual['e2e_p90_ms']}ms",
+            delta=f"{actual['e2e_p90_ms'] - predicted['e2e_p90_ms']}ms vs predicted",
             delta_color="inverse",
         )
-        compliant = actual["e2e_p95_ms"] <= predicted["e2e_p95_ms"] * 1.1
-        st.caption(f"Predicted: {predicted['e2e_p95_ms']}ms {'✅' if compliant else '⚠️'}")
+        compliant = actual["e2e_p90_ms"] <= predicted["e2e_p90_ms"] * 1.1
+        st.caption(f"Predicted: {predicted['e2e_p90_ms']}ms {'✅' if compliant else '⚠️'}")
 
     # Throughput
     st.markdown("---")

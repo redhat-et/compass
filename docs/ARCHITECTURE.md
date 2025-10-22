@@ -88,7 +88,7 @@ class DeploymentIntent:
     # SLOs (auto-suggested from use case template, user-editable)
     target_ttft_p90_ms: Optional[float]  # Time to First Token
     target_tpot_p90_ms: Optional[float]  # Time Per Output Token
-    target_e2e_latency_p95_ms: Optional[float]  # End-to-End latency
+    target_e2e_latency_p90_ms: Optional[float]  # End-to-End latency
     target_throughput_rps: Optional[float]  # Requests per second
     quality_threshold: Optional[str]  # "standard", "high", "very_high"
     reliability_target: Optional[float]  # e.g., 99.9% uptime
@@ -112,7 +112,7 @@ USE_CASE_TEMPLATES = {
         "default_slos": {
             "ttft_p90_ms": 300,
             "tpot_p90_ms": 50,
-            "e2e_latency_p95_ms": 2000,
+            "e2e_latency_p90_ms": 2000,
             "quality": "high"
         },
         "traffic_defaults": {
@@ -125,7 +125,7 @@ USE_CASE_TEMPLATES = {
         "default_slos": {
             "ttft_p90_ms": 1000,
             "tpot_p90_ms": 100,
-            "e2e_latency_p95_ms": 10000,
+            "e2e_latency_p90_ms": 10000,
             "quality": "very_high"
         },
         "traffic_defaults": {
@@ -138,7 +138,7 @@ USE_CASE_TEMPLATES = {
         "default_slos": {
             "ttft_p90_ms": 500,
             "tpot_p90_ms": 75,
-            "e2e_latency_p95_ms": 5000,
+            "e2e_latency_p90_ms": 5000,
             "quality": "high"
         },
         "traffic_defaults": {
@@ -245,7 +245,7 @@ def calculate_capacity(
        - Filter benchmarks where TPOT_p90 > slo.tpot_target (reject)
        - Calculate E2E: TTFT + (min(20, gen_tokens) × TPOT) × 1.2
          (first 20 tokens represent "perceived latency" for streaming)
-       - Filter benchmarks where E2E_p95 > slo.e2e_target (reject)
+       - Filter benchmarks where E2E_p90 > slo.e2e_target (reject)
 
     3. Replica calculation:
        - required_capacity = traffic_qps × 1.2  (20% headroom for safety)
@@ -340,7 +340,7 @@ def calculate_capacity(
 │ SLO Targets (Suggested):                    │
 │   TTFT (p90): 200ms [Edit]                  │
 │   TPOT (p90): 50ms [Edit]                   │
-│   E2E Latency (p95): 2000ms [Edit]          │
+│   E2E Latency (p90): 2000ms [Edit]          │
 │   Throughput: 100 rps [Edit]                │
 │   Quality: High [Edit]                      │
 │   Reliability: 99.9% [Edit]                 │
@@ -538,7 +538,7 @@ End-to-end (E2E) latency is **NOT stored** in benchmarks because it is a **deriv
 
 Instead, the system **calculates E2E dynamically** from atomic metrics:
 ```
-E2E_p95 = TTFT_p90 + (generation_tokens × TPOT_p90) + adjustments
+E2E_p90 = TTFT_p90 + (generation_tokens × TPOT_p90) + adjustments
 ```
 
 See `backend/src/recommendation/capacity_planner.py::_estimate_e2e_latency()` for implementation.
@@ -608,15 +608,15 @@ Default SLO targets and traffic profiles for common use cases.
   "default_slos": {
     "ttft_p90_ms": 300,
     "tpot_p90_ms": 50,
-    "e2e_latency_p95_ms": 2000,
+    "e2e_latency_p90_ms": 2000,
     "quality": "high",
     "reliability_pct": 99.9
   },
   "traffic_defaults": {
     "prompt_length_avg": 150,
-    "prompt_length_p95": 300,
+    "prompt_length_p90": 300,
     "generation_length_avg": 200,
-    "generation_length_p95": 500,
+    "generation_length_p90": 500,
     "burstiness_pattern": "moderate",
     "typical_concurrency_ratio": 0.1  // 10% of users active simultaneously
   },
@@ -780,7 +780,7 @@ Historical data from real deployments for continuous learning.
 Track whether deployed models meet their predicted SLO targets:
 - **TTFT (Time to First Token)**: p50, p90, p99 latencies
 - **TPOT (Time Per Output Token)**: p50, p90, p99 latencies
-- **E2E Latency**: Full request-response time at p50, p95, p99
+- **E2E Latency**: Full request-response time at p50, p90, p99
 - **Throughput**: Actual requests/sec and tokens/sec vs predicted
 - **Quality**: Model accuracy/quality metrics if available
 - **Reliability**: Uptime, error rates, timeout rates
@@ -802,7 +802,7 @@ Validate cost predictions and identify optimization opportunities:
 
 #### Traffic Pattern Analysis
 Understand actual workload vs predictions:
-- **Prompt length distribution**: Actual vs predicted (mean, p95, max)
+- **Prompt length distribution**: Actual vs predicted (mean, p90, max)
 - **Generation length distribution**: Actual vs predicted
 - **QPS patterns**: Steady-state, peak, burstiness
 - **Temporal patterns**: Diurnal cycles, weekday/weekend differences
@@ -829,7 +829,7 @@ Understand actual workload vs predictions:
 │ SLO Compliance (Last 7 days):                           │
 │   TTFT p90:    185ms ✓ (target: 200ms)                  │
 │   TPOT p90:     48ms ✓ (target: 50ms)                   │
-│   E2E p95:    1850ms ✓ (target: 2000ms)                 │
+│   E2E p90:    1850ms ✓ (target: 2000ms)                 │
 │   Throughput:  122 rps ✓ (target: 100 rps)              │
 │   Uptime:     99.94% ✓ (target: 99.9%)                  │
 │                                                         │

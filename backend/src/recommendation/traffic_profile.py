@@ -78,13 +78,13 @@ class TrafficProfileGenerator:
             template.tpot_p90_target_ms, intent.latency_requirement
         )
         e2e_target = self._adjust_slo_for_latency(
-            template.e2e_p95_target_ms, intent.latency_requirement
+            template.e2e_p90_target_ms, intent.latency_requirement
         )
 
         return SLOTargets(
             ttft_p90_target_ms=ttft_target,
             tpot_p90_target_ms=tpot_target,
-            e2e_p95_target_ms=e2e_target,
+            e2e_p90_target_ms=e2e_target,
         )
 
     def _estimate_qps(
@@ -120,6 +120,9 @@ class TrafficProfileGenerator:
 
         # Apply peak ratio
         peak_qps = avg_qps_peak * peak_ratio
+
+        # Ensure minimum QPS of 0.1 for small workloads
+        peak_qps = max(0.1, peak_qps)
 
         return round(peak_qps, 2)
 
@@ -169,4 +172,4 @@ class TrafficProfileGenerator:
 
         ttft, tpot, e2e = slo_map.get(intent.latency_requirement, (500, 80, 5000))
 
-        return SLOTargets(ttft_p90_target_ms=ttft, tpot_p90_target_ms=tpot, e2e_p95_target_ms=e2e)
+        return SLOTargets(ttft_p90_target_ms=ttft, tpot_p90_target_ms=tpot, e2e_p90_target_ms=e2e)

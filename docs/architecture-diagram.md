@@ -390,7 +390,7 @@ erDiagram
         int gpu_count
         float ttft_p90_ms
         float tpot_p90_ms
-        float e2e_latency_p95_ms
+        float e2e_latency_p90_ms
         float throughput_avg_rps
         float cost_per_hour_usd
         json slo_compliance

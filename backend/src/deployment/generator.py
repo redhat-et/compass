@@ -163,7 +163,7 @@ class DeploymentGenerator:
 
         # Calculate max_num_seqs based on expected QPS and latency
         # Rule of thumb: concurrent requests = QPS × avg_latency_seconds
-        avg_latency_sec = slo.e2e_p95_target_ms / 1000.0
+        avg_latency_sec = slo.e2e_p90_target_ms / 1000.0
         max_num_seqs = max(32, int(traffic.expected_qps * avg_latency_sec * 1.5))
 
         # Max batched tokens (vLLM parameter)
@@ -210,7 +210,7 @@ class DeploymentGenerator:
             # SLO targets
             "ttft_target": slo.ttft_p90_target_ms,
             "tpot_target": slo.tpot_p90_target_ms,
-            "e2e_target": slo.e2e_p95_target_ms,
+            "e2e_target": slo.e2e_p90_target_ms,
             "target_qps": traffic.expected_qps,
             # Traffic profile
             "expected_qps": traffic.expected_qps,

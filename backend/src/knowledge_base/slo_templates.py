@@ -19,7 +19,7 @@ class SLOTemplate:
         slo = data["slo_targets"]
         self.ttft_p90_target_ms = slo["ttft_p90_target_ms"]
         self.tpot_p90_target_ms = slo["tpot_p90_target_ms"]
-        self.e2e_p95_target_ms = slo["e2e_p95_target_ms"]
+        self.e2e_p90_target_ms = slo["e2e_p90_target_ms"]
 
         # Typical traffic characteristics
         traffic = data["typical_traffic"]
@@ -44,7 +44,7 @@ class SLOTemplate:
             "slo_targets": {
                 "ttft_p90_target_ms": self.ttft_p90_target_ms,
                 "tpot_p90_target_ms": self.tpot_p90_target_ms,
-                "e2e_p95_target_ms": self.e2e_p95_target_ms,
+                "e2e_p90_target_ms": self.e2e_p90_target_ms,
             },
             "typical_traffic": {
                 "prompt_tokens_mean": self.prompt_tokens_mean,
