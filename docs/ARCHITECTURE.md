@@ -17,7 +17,7 @@ This document defines the system architecture for **Compass**, which streamlines
 
 ## Solution Approach
 
-The assistant follows a **4-stage conversational flow**:
+Compass follows a **4-stage conversational flow**:
 
 1. **Understand Business Context** - Capture task definition, expected load, and constraints
 2. **Provide Tailored Recommendations** - Suggest models, hardware, and SLOs

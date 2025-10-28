@@ -1,4 +1,4 @@
-# Pre-Deployment Assistant Architecture Diagram
+# Compass Architecture Diagram
 
 ```mermaid
 graph TB
@@ -174,12 +174,12 @@ graph TB
 
 ```mermaid
 C4Context
-    title System Context - Pre-Deployment Assistant
+    title System Context - Compass
 
     Person(dev, "Application Developer", "Wants to deploy LLM model")
     Person(admin, "Cluster Admin", "Manages infrastructure")
 
-    System(assistant, "Pre-Deployment Assistant", "Guides users from concept to production")
+    System(assistant, "Compass", "Guides users from concept to production")
 
     System_Ext(k8s, "Kubernetes/OpenShift", "Container orchestration")
     System_Ext(registry, "Model Registry", "HuggingFace Hub")
