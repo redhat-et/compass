@@ -658,7 +658,7 @@ ollama list  # Should show llama3.1:8b
 
 ### Option 1: Run Full Stack with UI (Recommended)
 
-The easiest way to use the assistant:
+The easiest way to use Compass:
 
 ```bash
 # Terminal 1 - Start Ollama (if not already running)
