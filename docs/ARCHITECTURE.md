@@ -28,7 +28,9 @@ The assistant follows a **4-stage conversational flow**:
 
 ## Architecture Components
 
-### 1. Conversational Interface Layer
+The system is composed of eight core components:
+
+### Conversational Interface Layer
 **Purpose**: Natural language dialogue to capture user intent
 
 **Technology Choices**:
@@ -39,11 +41,73 @@ The assistant follows a **4-stage conversational flow**:
 - Render conversational UI
 - Handle user input/output
 - Maintain session state
-- Display recommendations and simulation results
+- Display recommendations and enable interactive exploration
+
+**Interactive Exploration Features**:
+
+#### Specification Review & Editing
+- Display auto-generated deployment specification in user-friendly format
+- Allow inline editing of traffic characteristics (prompt length, QPS, etc.)
+- Allow modification of SLO targets (TTFT, TPOT, E2E latency)
+- Re-trigger recommendations after manual specification changes
+
+**UI Example**:
+```
+┌─────────────────────────────────────────────┐
+│ Deployment Specification                    │
+├─────────────────────────────────────────────┤
+│ Use Case: Interactive Chatbot               │
+│ Subject Matter: Customer Support            │
+│ Expected Users: 1000 concurrent             │
+│ Priority: Low Latency                       │
+│                                             │
+│ Traffic Profile (Auto-Generated):           │
+│   Avg Prompt Length: 150 tokens [Edit]      │
+│   Avg Response Length: 250 tokens [Edit]    │
+│   Steady-State QPS: 50 [Edit]               │
+│   Peak QPS: 100 [Edit]                      │
+│   Burstiness: Moderate [Edit]               │
+│                                             │
+│ SLO Targets (Suggested):                    │
+│   TTFT (p90): 200ms [Edit]                  │
+│   TPOT (p90): 50ms [Edit]                   │
+│   E2E Latency (p90): 2000ms [Edit]          │
+│   Throughput: 100 rps [Edit]                │
+│   Quality: High [Edit]                      │
+│   Reliability: 99.9% [Edit]                 │
+│                                             │
+│ Budget Constraints:                         │
+│   Max Monthly Cost: $5000 [Edit]            │
+│                                             │
+│ [Regenerate Recommendations] [Deploy]       │
+└─────────────────────────────────────────────┘
+```
+
+#### What-If Scenario Analysis (Phase 2 Enhancement)
+Future phases will enable:
+- Modify model selection and see impact on cost/latency
+- Change GPU types and see capacity/cost implications
+- Adjust SLO targets and see which configurations remain viable
+- Compare scenarios side-by-side
+
+**Scenario Comparison Example (Phase 2)**:
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ Scenario A              │ Scenario B              │ Difference   │
+├──────────────────────────────────────────────────────────────────┤
+│ Llama-3-8B              │ Llama-3-70B             │              │
+│ 2x NVIDIA L4            │ 4x NVIDIA A100          │              │
+│ $800/month              │ $2400/month             │ +$1600/month │
+│ TTFT p90: 180ms ✓       │ TTFT p90: 150ms ✓       │ -30ms        │
+│ TPOT p90: 45ms ✓        │ TPOT p90: 35ms ✓        │ -10ms        │
+│ Quality: High           │ Quality: Very High      │ Better       │
+│ Throughput: 120 rps ✓   │ Throughput: 200 rps ✓   │ +80 rps      │
+└──────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### 2. Context & Intent Engine
+### Context & Intent Engine
 **Purpose**: Extract structured intent from conversational input and generate comprehensive deployment specifications
 
 **Technology Options**:
@@ -59,7 +123,10 @@ The assistant follows a **4-stage conversational flow**:
 - Store conversation context for iterative refinement
 - Present editable specification to user for review/modification
 
-**Enhanced Data Schema**:
+**Data Schema**:
+
+*Note: The Phase 1 POC uses a simplified version of this schema with enum-based fields for easier LLM extraction (see `backend/src/context_intent/schema.py`). In future phases, we may want to support the user providing a more detailed intent that may include some of the following information:*
+
 ```python
 class DeploymentIntent:
     # High-level intent (user-provided)
@@ -152,7 +219,7 @@ USE_CASE_TEMPLATES = {
 
 ---
 
-### 3. Recommendation Engine
+### Recommendation Engine
 **Purpose**: Suggest model, hardware, and SLO configurations based on captured context and deployment specifications
 
 **Technology Options**:
@@ -304,85 +371,7 @@ def calculate_capacity(
 
 ---
 
-### 4. Simulation & Exploration Layer
-**Purpose**: Enable what-if analysis with cost/latency/throughput predictions and interactive specification editing
-
-**Technology Options**:
-- **Custom analytical models** - Formula-based estimation (tokens/sec × cost/token)
-- **Discrete event simulation (SimPy)** - More accurate workload modeling (Phase 2)
-- **Historical performance extrapolation** - Use real benchmark data interpolation
-
-**Key Functions**:
-
-#### Specification Review & Editing
-- Display auto-generated deployment specification in user-friendly format
-- Allow inline editing of traffic characteristics (prompt length, QPS, etc.)
-- Allow modification of SLO targets (TTFT, TPOT, E2E latency)
-- Re-trigger recommendations after manual specification changes
-
-**UI Example**:
-```
-┌─────────────────────────────────────────────┐
-│ Deployment Specification                    │
-├─────────────────────────────────────────────┤
-│ Use Case: Interactive Chatbot               │
-│ Subject Matter: Customer Support            │
-│ Expected Users: 1000 concurrent             │
-│ Priority: Low Latency                       │
-│                                             │
-│ Traffic Profile (Auto-Generated):           │
-│   Avg Prompt Length: 150 tokens [Edit]      │
-│   Avg Response Length: 250 tokens [Edit]    │
-│   Steady-State QPS: 50 [Edit]               │
-│   Peak QPS: 100 [Edit]                      │
-│   Burstiness: Moderate [Edit]               │
-│                                             │
-│ SLO Targets (Suggested):                    │
-│   TTFT (p90): 200ms [Edit]                  │
-│   TPOT (p90): 50ms [Edit]                   │
-│   E2E Latency (p90): 2000ms [Edit]          │
-│   Throughput: 100 rps [Edit]                │
-│   Quality: High [Edit]                      │
-│   Reliability: 99.9% [Edit]                 │
-│                                             │
-│ Budget Constraints:                         │
-│   Max Monthly Cost: $5000 [Edit]            │
-│                                             │
-│ [Regenerate Recommendations] [Deploy]       │
-└─────────────────────────────────────────────┘
-```
-
-#### What-If Scenario Analysis
-- Modify model selection and see impact on cost/latency
-- Change GPU types and see capacity/cost implications
-- Adjust SLO targets and see which configurations remain viable
-- Compare scenarios side-by-side
-
-**Scenario Comparison Example**:
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ Scenario A              │ Scenario B              │ Difference   │
-├──────────────────────────────────────────────────────────────────┤
-│ Llama-3-8B              │ Llama-3-70B             │              │
-│ 2x NVIDIA L4            │ 4x NVIDIA A100          │              │
-│ $800/month              │ $2400/month             │ +$1600/month │
-│ TTFT p90: 180ms ✓       │ TTFT p90: 150ms ✓       │ -30ms        │
-│ TPOT p90: 45ms ✓        │ TPOT p90: 35ms ✓        │ -10ms        │
-│ Quality: High           │ Quality: Very High      │ Better       │
-│ Throughput: 120 rps ✓   │ Throughput: 200 rps ✓   │ +80 rps      │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**Simulation Outputs**:
-- Estimated costs (hourly, monthly, per-1k-tokens)
-- SLO compliance predictions (TTFT, TPOT, E2E latency percentiles)
-- Expected throughput (requests/sec, tokens/sec)
-- Resource utilization estimates (GPU memory, compute)
-- Quality projections (based on model capabilities)
-
----
-
-### 5. Deployment Automation Engine
+### Deployment Automation Engine
 **Purpose**: Generate production-ready configs and trigger deployment
 
 **Technology Options**:
@@ -471,7 +460,7 @@ The POC uses kubectl port-forward for testing individual deployments. Production
 
 ---
 
-### 6. Knowledge Base & Benchmarking Data Store
+### Knowledge Base & Benchmarking Data Store
 **Purpose**: Store performance data, industry standards, deployment patterns, and use case templates
 
 **Technology Options**:
@@ -732,7 +721,7 @@ Historical data from real deployments for continuous learning.
 
 ---
 
-### 7. LLM Backend
+### LLM Backend
 **Purpose**: Power conversational AI and reasoning
 
 **Technology Options**:
@@ -748,7 +737,7 @@ Historical data from real deployments for continuous learning.
 
 ---
 
-### 8. Orchestration & Workflow Engine
+### Orchestration & Workflow Engine
 **Purpose**: Coordinate multi-step flows (conversation → recommendation → deployment)
 
 **Technology Options**:
@@ -766,7 +755,7 @@ Historical data from real deployments for continuous learning.
 
 ---
 
-### 9. Inference Observability & SLO Monitoring
+### Inference Observability & SLO Monitoring
 **Purpose**: Monitor deployed inference systems to validate SLO compliance and enable feedback loop to improve recommendations
 
 **Technology Options**:
@@ -859,78 +848,6 @@ Understand actual workload vs predictions:
 
 ---
 
-### 10. vLLM Simulator
-**Purpose**: Enable GPU-free development, testing, and demonstrations without requiring expensive GPU hardware
-
-**Technology Choices**:
-- **FastAPI** - Implements OpenAI-compatible API endpoints
-- **Docker** - Single containerized image for all models
-- **Python** - Benchmark-driven latency simulation
-
-**Key Responsibilities**:
-
-#### API Compatibility
-Provide drop-in replacement for vLLM during development:
-- **`/v1/completions`** - Standard OpenAI completions endpoint
-- **`/v1/chat/completions`** - Chat completions endpoint
-- **`/health`** - Health check endpoint
-- **`/metrics`** - Prometheus-compatible metrics endpoint
-
-#### Realistic Performance Simulation
-Use actual benchmark data to simulate production behavior:
-- **TTFT simulation**: Sleep for benchmark-derived time-to-first-token
-- **TPOT simulation**: Sleep per output token based on benchmark data
-- **Token counting**: Accurate prompt and completion token counts
-- **Latency variance**: Add realistic jitter to simulated latencies
-
-#### Response Generation
-Pattern-based canned responses for different use cases:
-- **Code generation**: Return sample Python/JavaScript code snippets
-- **Chat**: Return conversational responses
-- **Summarization**: Return condensed text summaries
-- **Q&A**: Return factual answers
-- **Generic**: Return sensible default text
-
-#### Configuration
-Single Docker image configured via environment variables:
-- **`MODEL_NAME`**: Which model to simulate (e.g., "mistralai/Mistral-7B-Instruct-v0.3")
-- **`GPU_TYPE`**: GPU type for benchmark lookup (e.g., "NVIDIA-L4")
-- **`TENSOR_PARALLEL_SIZE`**: Number of GPUs for benchmark lookup
-- **`BENCHMARKS_PATH`**: Path to benchmark data JSON file
-
-**Deployment Modes**:
-
-The Deployment Automation Engine (Component 5) supports two modes:
-
-1. **Simulator Mode** (default for POC):
-   - Uses `vllm-simulator:latest` Docker image
-   - No GPU resources requested
-   - Fast startup (~10-15 seconds to Ready)
-   - Runs on CPU-only Kubernetes clusters (KIND, minikube)
-   - Controlled via `DeploymentGenerator(simulator_mode=True)`
-
-2. **Real vLLM Mode** (production):
-   - Uses `vllm/vllm-openai:v0.6.2` Docker image
-   - Requests GPU resources (nvidia.com/gpu)
-   - Downloads models from HuggingFace
-   - Actual inference with real GPUs
-   - Controlled via `DeploymentGenerator(simulator_mode=False)`
-
-**Benefits**:
-- **No GPU required**: Developers can test full deployment workflows on laptops
-- **Fast feedback**: Quick iteration without waiting for GPU provisioning
-- **Consistent behavior**: Predictable responses for demos and testing
-- **Cost savings**: No GPU costs during development
-- **CI/CD friendly**: Automated tests without GPU infrastructure
-
-**Integration**:
-- Deployed via same KServe InferenceService YAML as real vLLM
-- Monitored via same Kubernetes API as production deployments
-- Testable via Inference Testing UI in Streamlit
-- Uses actual benchmark data for realistic latency simulation
-
----
-
 ## Enhanced Data Flow Diagram
 
 ```
@@ -981,10 +898,11 @@ User: "I need a chatbot for 1000 users, low latency is critical"
                         │
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│       Simulation & Exploration Layer (What-if)              │
-│  • Modify model/GPU → see cost/latency impact               │
-│  • Compare scenarios side-by-side                           │
-│  • Adjust SLOs → see viable configurations                  │
+│       Interactive Exploration (UI-driven)                   │
+│  • Review and edit auto-generated specifications            │
+│  • Modify SLOs and traffic parameters                       │
+│  • Re-trigger recommendations with new parameters           │
+│  • (Phase 2: Side-by-side scenario comparison)              │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
@@ -1021,13 +939,11 @@ For the initial iteration, recommended technology choices:
 | **Conversational UI** | Streamlit (POC) | Fastest time-to-value, built-in session management |
 | **Intent Extraction** | Ollama (llama3.1:8b) + Pydantic | Structured output with validation |
 | **Recommendation Engine** | Rule-based + LLM augmentation | Explainable, no ML training needed |
-| **Simulation** | Analytical formulas | Simple cost/latency estimates |
 | **Deployment Automation** | Jinja2 + Kubernetes Python client | Direct control, no GitOps overhead yet |
 | **Knowledge Base** | JSON files (POC) → Database (Production, e.g., PostgreSQL) | Simple for POC, scalable for production |
 | **LLM Backend** | Ollama (llama3.1:8b) | Local development, cost-effective |
 | **Orchestration** | FastAPI + in-memory state | Minimal complexity |
 | **Observability** | Kubernetes API + Streamlit | Direct cluster monitoring |
-| **vLLM Simulator** | FastAPI + Docker | GPU-free development and testing |
 
 ---
 
@@ -1039,6 +955,83 @@ For the initial iteration, recommended technology choices:
 4. **Iterative**: Support what-if exploration before committing resources
 5. **One-click deployment**: Minimize manual YAML editing
 6. **Observability by default**: Every deployment includes monitoring hooks
+
+---
+
+## Development Tools
+
+### vLLM Simulator
+
+The vLLM Simulator is a critical development tool that enables GPU-free development, testing, and demonstrations without requiring expensive GPU hardware.
+
+**Purpose**: Provide a drop-in replacement for vLLM during development and testing
+
+**Technology Stack**:
+- **FastAPI** - Implements OpenAI-compatible API endpoints
+- **Docker** - Single containerized image for all models
+- **Python** - Benchmark-driven latency simulation
+
+**Key Features**:
+
+#### API Compatibility
+Provides OpenAI-compatible endpoints that match vLLM:
+- **`/v1/completions`** - Standard OpenAI completions endpoint
+- **`/v1/chat/completions`** - Chat completions endpoint
+- **`/health`** - Health check endpoint
+- **`/metrics`** - Prometheus-compatible metrics endpoint
+
+#### Realistic Performance Simulation
+Uses actual benchmark data to simulate production behavior:
+- **TTFT simulation**: Sleep for benchmark-derived time-to-first-token
+- **TPOT simulation**: Sleep per output token based on benchmark data
+- **Token counting**: Accurate prompt and completion token counts
+- **Latency variance**: Add realistic jitter to simulated latencies
+
+#### Response Generation
+Pattern-based canned responses for different use cases:
+- **Code generation**: Return sample Python/JavaScript code snippets
+- **Chat**: Return conversational responses
+- **Summarization**: Return condensed text summaries
+- **Q&A**: Return factual answers
+- **Generic**: Return sensible default text
+
+#### Configuration
+Single Docker image configured via environment variables:
+- **`MODEL_NAME`**: Which model to simulate (e.g., "mistralai/Mistral-7B-Instruct-v0.3")
+- **`GPU_TYPE`**: GPU type for benchmark lookup (e.g., "NVIDIA-L4")
+- **`TENSOR_PARALLEL_SIZE`**: Number of GPUs for benchmark lookup
+- **`BENCHMARKS_PATH`**: Path to benchmark data JSON file
+
+**Deployment Modes**:
+
+The Deployment Automation Engine supports toggling between simulator and real vLLM:
+
+1. **Simulator Mode** (default for POC):
+   - Uses `vllm-simulator:latest` Docker image
+   - No GPU resources requested
+   - Fast startup (~10-15 seconds to Ready)
+   - Runs on CPU-only Kubernetes clusters (KIND, minikube)
+   - Controlled via `DeploymentGenerator(simulator_mode=True)`
+
+2. **Real vLLM Mode** (production):
+   - Uses `vllm/vllm-openai:v0.6.2` Docker image
+   - Requests GPU resources (nvidia.com/gpu)
+   - Downloads models from HuggingFace
+   - Actual inference with real GPUs
+   - Controlled via `DeploymentGenerator(simulator_mode=False)`
+
+**Benefits**:
+- **No GPU required**: Developers can test full deployment workflows on laptops
+- **Fast feedback**: Quick iteration without waiting for GPU provisioning
+- **Consistent behavior**: Predictable responses for demos and testing
+- **Cost savings**: No GPU costs during development
+- **CI/CD friendly**: Automated tests without GPU infrastructure
+
+**Integration**:
+- Deployed via same KServe InferenceService YAML as real vLLM
+- Monitored via same Kubernetes API as production deployments
+- Testable via Inference Testing UI in Streamlit
+- Uses actual benchmark data for realistic latency simulation
 
 ---
 
@@ -1138,10 +1131,26 @@ For the initial iteration, recommended technology choices:
   - Auto-scaling policy generation (min/max replicas)
   - Queueing theory models for latency under load
 
-### Simulation & Exploration Layer
-- **Discrete event simulation (SimPy)**: More accurate workload modeling beyond simple what-if scenarios
-- Interactive scenario comparison with side-by-side cost/performance analysis
-- Monte Carlo simulation for uncertainty quantification
+### Conversational Interface Layer
+- **Advanced what-if analysis and simulation**:
+  - **Side-by-side scenario comparison**: Compare multiple configurations (different models, GPU types, SLO targets) with visual diff showing cost/latency/quality trade-offs
+  - **Interactive cost/latency sliders**: Real-time updates as users adjust SLO targets or traffic parameters
+  - **Discrete event simulation (SimPy)**: More accurate workload modeling accounting for:
+    - Arrival patterns (Poisson, bursty, diurnal cycles)
+    - Queueing delays under load
+    - Auto-scaling behavior (scale-up/scale-down latency)
+    - Cold start penalties for new replicas
+  - **Monte Carlo simulation**: Uncertainty quantification for cost and latency predictions
+    - Account for variance in traffic patterns
+    - Confidence intervals for SLO compliance (e.g., "95% confident TTFT p90 < 200ms")
+    - Risk analysis for budget overruns
+  - **Historical performance extrapolation**: Use real benchmark data interpolation for non-exact traffic matches
+  - **Resource utilization projections**: GPU memory, compute efficiency, batch size optimization
+  - **What-if scenario builder**:
+    - "What if traffic doubles?" → show new GPU requirements and costs
+    - "What if we relax TTFT from 200ms to 500ms?" → show cost savings
+    - "What if we switch to quantized models?" → show latency/quality trade-offs
+  - **Saved scenarios**: Allow users to save and revisit different configuration explorations
 
 ### Deployment Automation Engine
 - **Migration to Go** (optional, for advanced K8s integration):

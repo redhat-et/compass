@@ -88,18 +88,19 @@ The POC includes 3 pre-configured scenarios (see [data/demo_scenarios.json](data
 
 ## Architecture Highlights
 
-Compass implements a **10-component architecture** with:
+Compass implements an **8-component architecture** with:
 
-- **Conversational Interface** (Streamlit) - Chat-based requirement gathering
+- **Conversational Interface** (Streamlit) - Chat-based requirement gathering with interactive exploration
 - **Context & Intent Engine** - LLM-powered extraction of deployment specs
 - **Recommendation Engine** - Traffic profiling, model scoring, capacity planning
-- **Simulation & Exploration** - What-if analysis and spec editing
 - **Deployment Automation** - YAML generation and Kubernetes deployment
 - **Knowledge Base** - Benchmarks, SLO templates, model catalog
 - **LLM Backend** - Ollama (llama3.1:8b) for conversational AI
 - **Orchestration** - Multi-step workflow coordination
 - **Inference Observability** - Real-time deployment monitoring
-- **vLLM Simulator** - GPU-free local development
+
+**Development Tools:**
+- **vLLM Simulator** - GPU-free local development and testing
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design.
 
