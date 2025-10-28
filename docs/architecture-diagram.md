@@ -3,7 +3,7 @@
 ```mermaid
 graph TB
     subgraph "User Interface"
-        UI[Conversational Interface Layer<br/>Streamlit]
+        UI[Conversational Interface Layer<br/>Streamlit + Interactive Exploration]
         SPEC_UI[Specification Review UI<br/>Editable Deployment Spec]
     end
 
@@ -12,7 +12,6 @@ graph TB
         TPG[Traffic Profile Generator<br/>QPS, Prompt/Gen Lengths]
         MRE[Model Recommendation Engine<br/>Filter & Rank Models]
         CPE[Capacity Planning Engine<br/>GPU Count, Tensor Parallelism]
-        SIM[Simulation & Exploration<br/>What-if Analysis]
         LLM[LLM Backend<br/>Ollama llama3.1:8b]
     end
 
@@ -65,15 +64,14 @@ graph TB
     TPG -->|Traffic Profile| MRE
     TPG -->|Traffic Profile| CPE
     MRE -->|Model Candidates| CPE
-    CPE -->|GPU Configs + Costs| SIM
-    SIM -->|Recommendations| UI
+    CPE -->|GPU Configs + Costs| UI
 
-    %% What-if exploration
-    UI -->|Modify Params| SIM
-    SIM -->|Updated Predictions| UI
+    %% What-if exploration (UI-driven)
+    UI -->|Edit Specs/SLOs| TPG
+    UI -->|Re-trigger Recommendations| MRE
 
     %% Deployment flow
-    SIM -->|Confirmed Config| DAE
+    UI -->|Confirmed Config| DAE
     DAE -->|Generate Manifests| ORCH
     ORCH -->|Deploy| K8S
     ORCH -->|Configure| KSERVE
@@ -107,7 +105,6 @@ graph TB
     style TPG fill:#fff4e1
     style MRE fill:#fff4e1
     style CPE fill:#fff4e1
-    style SIM fill:#fff4e1
     style LLM fill:#ffe1f5
     style DAE fill:#e1ffe1
     style ORCH fill:#e1ffe1
@@ -135,13 +132,14 @@ graph TB
 3. Engine queries **Model Benchmarks** for performance data
 4. **Capacity Planning Engine** calculates GPU count and configuration for each model
 5. System ranks recommendations by user priority (cost vs latency vs accuracy)
-6. **Simulation Layer** presents ranked options with cost/latency/SLO predictions
+6. **Conversational Interface** presents ranked options with cost/latency/SLO predictions
 
-### 3. What-If Exploration
-1. User modifies model selection, GPU type, or SLO targets in **Simulation Layer**
-2. System re-calculates capacity requirements and cost predictions
-3. User compares scenarios side-by-side
-4. User selects final configuration
+### 3. Interactive Exploration (UI-driven)
+1. User modifies specifications (traffic params, SLO targets) in the **Conversational Interface**
+2. User triggers re-generation of recommendations with updated parameters
+3. System re-calculates capacity requirements and cost predictions
+4. User reviews updated recommendations
+5. User selects final configuration
 
 ### 4. Deployment Flow
 1. **Deployment Automation Engine** generates KServe/vLLM configs from selected option

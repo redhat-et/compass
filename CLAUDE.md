@@ -65,9 +65,11 @@ The system translates high-level user intent into technical specifications:
   - GPU capacity plan (e.g., "2x NVIDIA L4 GPUs, independent replicas")
   - Cost estimate ($800/month)
 
-### The 10 Core Components
+### The 8 Core Components
 
-1. **Conversational Interface Layer** - Streamlit UI
+1. **Conversational Interface Layer** - Streamlit UI with interactive exploration features
+   - Specification review and editing
+   - What-if analysis (Phase 2: advanced simulation)
 2. **Context & Intent Engine** - Extract structured specs from conversation
    - Use case → SLO template mapping
    - Auto-generate traffic profiles
@@ -75,13 +77,14 @@ The system translates high-level user intent into technical specifications:
    - Traffic Profile Generator
    - Model Recommendation Engine
    - Capacity Planning Engine
-4. **Simulation & Exploration Layer** - What-if analysis, spec editing
-5. **Deployment Automation Engine** - Generate YAML, deploy to K8s
-6. **Knowledge Base** - Benchmarks, SLO templates, model catalog, outcomes
-7. **LLM Backend** - Powers conversational AI (Ollama with llama3.1:8b)
-8. **Orchestration & Workflow Engine** - Coordinate multi-step flows
-9. **Inference Observability** - Monitor deployed models (TTFT, TPOT, GPU utilization)
-10. **vLLM Simulator** - GPU-free development and testing
+4. **Deployment Automation Engine** - Generate YAML, deploy to K8s
+5. **Knowledge Base** - Benchmarks, SLO templates, model catalog, outcomes
+6. **LLM Backend** - Powers conversational AI (Ollama with llama3.1:8b)
+7. **Orchestration & Workflow Engine** - Coordinate multi-step flows
+8. **Inference Observability** - Monitor deployed models (TTFT, TPOT, GPU utilization)
+
+**Development Tools:**
+- **vLLM Simulator** - GPU-free development and testing (not part of core architecture)
 
 ### Critical Data Collections (Knowledge Base)
 - **Model Benchmarks**: TTFT/TPOT/throughput for (model, GPU, tensor_parallel) tuples
@@ -96,7 +99,7 @@ The system translates high-level user intent into technical specifications:
 **docs/ARCHITECTURE.md and docs/architecture-diagram.md must stay synchronized**:
 - If you change component descriptions in ARCHITECTURE.md, update architecture-diagram.md diagrams
 - If you add/remove components, update both files
-- Component numbering must match (e.g., "Component 3" in both docs)
+- Components are referenced by name (not numbered) for clarity and flexibility
 
 ### Key Architectural Decisions to Preserve
 
