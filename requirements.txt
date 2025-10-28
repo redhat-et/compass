@@ -8,7 +8,7 @@ pydantic-settings==2.6.0
 ollama==0.3.3
 
 # Data handling
-python-json-logger==2.0.7
+pandas==2.2.0
 
 # YAML generation
 jinja2==3.1.6
