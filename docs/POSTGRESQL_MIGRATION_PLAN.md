@@ -2,524 +2,448 @@
 
 ## Overview
 
-This document tracks the 6-phase migration to support PostgreSQL benchmarks with traffic-aware fuzzy matching.
+This document tracks the migration to support PostgreSQL benchmarks with traffic profile-based exact matching.
 
-**Goal**: Enable Compass to use real benchmark data from PostgreSQL (downstream/production) while maintaining JSON support (upstream/demos).
+**Goal**: Enable Compass to use real benchmark data from PostgreSQL for both upstream and downstream, using exact matching on GuideLLM traffic profiles (prompt_tokens, output_tokens).
 
-**Status**: Phase 1 complete, ready to begin Phase 2 (2025-10-29)
+**Status**: Phase 1 complete, PostgreSQL analysis complete, ready to begin implementation (2025-10-30)
+
+**Key Discovery**: The real database contains benchmarks organized around 4 GuideLLM traffic profiles (512→256, 1024→1024, 4096→512, 10240→1536), eliminating the need for fuzzy matching. We can use exact matching on `prompt_tokens` and `output_tokens` fields.
 
 ---
 
-## Phase 1: Schema & Data Updates ✅ COMPLETED
+## Phase 1: Infrastructure Setup ✅ COMPLETED
 
-**Objective**: Update benchmarks.json to SQL-aligned schema with diverse traffic profiles
+**Objective**: Set up PostgreSQL infrastructure and analyze real benchmark data
 
 **Changes Made**:
-- ✅ Migrated schema to match PostgreSQL `exported_summaries` table
-- ✅ Renamed fields:
-  - `model_id` → `model_hf_repo`
-  - `gpu_type` → `hardware`
-  - `tensor_parallel` → `hardware_count`
-  - `tpot_*` → `itl_*` (Inter-Token Latency)
-  - `ttft_p50_ms` → `ttft_mean`
-  - `throughput_tokens_per_sec` → `tokens_per_second`
-  - `max_qps` → `requests_per_second`
-- ✅ Added new fields:
-  - `framework`, `framework_version`
-  - `e2e_mean`, `e2e_p90`, `e2e_p99` (pre-calculated E2E latency)
-  - Traffic characteristics: `mean_input_tokens`, `mean_output_tokens`, `prompt_tokens`, `prompt_tokens_stdev`, etc.
-- ✅ Expanded dataset: 24 → 120 entries
-- ✅ Added 5 traffic profiles per model+GPU config:
-  - (150, 200) - Default chatbot
-  - (512, 256) - Medium prompt/response
-  - (1024, 512) - Long documents
-  - (2048, 1024) - Summarization
-  - (100, 50) - Short chat
+- ✅ Added PostgreSQL dependency to `requirements.txt` (psycopg2-binary==2.9.9)
+- ✅ Created database schema in `scripts/schema.sql` matching `exported_summaries` table
+- ✅ Added Makefile targets for PostgreSQL management:
+  - `postgres-start` - Start PostgreSQL container
+  - `postgres-stop` - Stop PostgreSQL container
+  - `postgres-load-real` - Load real benchmark dump (integ-oct-29.sql)
+  - `postgres-load-synthetic` - Load synthetic data from JSON
+  - `postgres-query-traffic` - Query unique traffic patterns
+  - `postgres-query-models` - Query available models
+  - `postgres-shell` - Open PostgreSQL shell
+- ✅ Loaded real benchmark data (2,662 entries)
+- ✅ Analyzed traffic patterns - discovered 4 GuideLLM profiles:
+  - (512, 256) - 1,865 benchmarks - Interactive workloads
+  - (1024, 1024) - 153 benchmarks - Balanced workloads
+  - (4096, 512) - 611 benchmarks - Prefill-dominated workloads
+  - (10240, 1536) - 33 benchmarks - Edge/enterprise workloads
+- ✅ Updated `.gitignore` to exclude SQL files (NDA-restricted)
 
 **Files Changed**:
-- `data/benchmarks.json` - Migrated to new schema
-- `scripts/migrate_benchmarks_schema.py` - Migration script (kept for reference)
+- `requirements.txt` - Added psycopg2-binary
+- `scripts/schema.sql` - Database schema
+- `Makefile` - PostgreSQL management targets
+- `.gitignore` - Exclude *.sql files
 
-**Commit**: `9f378aa` - "Update benchmarks.json to SQL-aligned schema with traffic profiles"
+**Commits**:
+- `c917c35` - "Add PostgreSQL migration plan and ignore SQL files"
 
 ---
 
-## Phase 2: Rename TPOT to ITL Throughout Codebase
+## Phase 2: Update SLO Templates and Use Case Definitions
 
-**Objective**: Update all code to use ITL (Inter-Token Latency) instead of TPOT
+**Objective**: Update slo_templates.json to align with traffic_and_slos.md framework
 
-**Decision**: Use ITL terminology to match SQL database. Report TPOT in performance predictions if available for backward compatibility.
+**Decision**: Map 9 use cases to 4 GuideLLM traffic profiles with experience-driven SLO targets (p95).
+
+**Reference**: See `docs/traffic_and_slos.md` for detailed framework.
+
+**Traffic Profile Mapping**:
+- **(512, 256)** → Chatbot/Q&A, Code Completion
+- **(1024, 1024)** → Detailed Code Generation, Translation, Content Generation
+- **(4096, 512)** → Summarization, Document Analysis/RAG
+- **(10240, 1536)** → Long Document Summarization, Research/Legal Analysis
 
 **Files to Update**:
-1. `backend/src/context_intent/schema.py`
-   - `SLOTargets.tpot_p90_target_ms` → `itl_p90_target_ms`
+1. `data/slo_templates.json`
+   - Replace 7 use cases with 9 from traffic_and_slos.md
+   - Add `traffic_profile` field: `{"prompt_tokens": int, "output_tokens": int}`
+   - Add `experience_class` field: "instant", "conversational", "interactive", "deferred", "batch"
+   - Update SLO targets to use p95 (not p90):
+     - `ttft_p95_ms`, `itl_p95_ms`, `e2e_p95_ms`
+   - Include rationale/notes for each use case
 
-2. `backend/src/knowledge_base/benchmarks.py`
-   - Update field mappings to read new schema
-   - Map `itl_*` fields from benchmarks
-
-3. `backend/src/knowledge_base/slo_templates.py`
-   - All `tpot` references → `itl`
-
-4. `backend/src/recommendation/capacity_planner.py`
-   - All `tpot` variables → `itl`
-   - Update benchmark field access
-
-5. `ui/app.py`
-   - Display labels: "TPOT" → "ITL" or "Inter-Token Latency"
-   - Update all references in specs display and monitoring
-
-6. `data/slo_templates.json`
-   - All `tpot_*` → `itl_*`
-
-7. Tests:
-   - `tests/test_recommendation_workflow.py`
-   - `tests/test_yaml_generation.py`
-   - Any other test files referencing tpot
+**Example Structure**:
+```json
+{
+  "chatbot_conversational": {
+    "use_case": "Chatbot / Q&A",
+    "description": "Conversational assistants, customer support, knowledge search",
+    "traffic_profile": {
+      "prompt_tokens": 512,
+      "output_tokens": 256
+    },
+    "experience_class": "conversational",
+    "slo_targets": {
+      "ttft_p95_ms": 150,
+      "itl_p95_ms": 25,
+      "e2e_p95_ms": 7000
+    },
+    "rationale": "Highly interactive; perceived responsiveness drives satisfaction"
+  }
+}
+```
 
 **Validation**:
-- [ ] All tests pass
-- [ ] UI displays ITL correctly
-- [ ] Recommendations use new field names
+- [ ] All 9 use cases from traffic_and_slos.md are represented
+- [ ] Traffic profiles match GuideLLM configurations
+- [ ] SLO targets use p95 percentiles
+- [ ] Experience classes are correctly assigned
 
 ---
 
-## Phase 3: Use Pre-Calculated E2E Latency
+## Phase 3: Update Synthetic Benchmark Data
 
-**Objective**: Use `e2e_p90` from benchmarks instead of dynamic calculation
+**Objective**: Update benchmarks.json to match the 4 GuideLLM traffic profiles
 
-**Decision**: Use pre-calculated E2E values from both SQL and JSON sources.
+**Decision**: Replace existing traffic profiles with the 4 real profiles from the database.
 
 **Changes Needed**:
-1. `backend/src/recommendation/capacity_planner.py`
-   - Remove or deprecate `_estimate_e2e_latency()` function
-   - Use `benchmark.e2e_p90` directly
-   - Update SLO compliance checks to use pre-calculated values
+1. `data/benchmarks.json`
+   - Update all benchmark entries to use one of 4 traffic profiles:
+     - (512, 256) - Most common
+     - (1024, 1024) - Balanced
+     - (4096, 512) - Prefill-dominated
+     - (10240, 1536) - Edge workloads (optional for Phase 1)
+   - Set `prompt_tokens` and `output_tokens` fields
+   - Keep `mean_input_tokens` ≈ `prompt_tokens` ± small variance
+   - Keep `mean_output_tokens` ≈ `output_tokens` ± small variance
+   - Ensure p95 fields are populated (ttft_p95, itl_p95, e2e_p95)
+
+**Approach**:
+- For each (model, hardware, hardware_count) combination, create benchmarks for 3-4 traffic profiles
+- Focus on (512, 256), (1024, 1024), and (4096, 512) for Phase 1
+- Skip (10240, 1536) initially (edge case, only 33 real benchmarks)
 
 **Validation**:
-- [ ] Capacity planning uses benchmark E2E values
-- [ ] SLO compliance checks work correctly
-- [ ] No breaking changes to recommendations
+- [ ] All benchmarks have prompt_tokens and output_tokens fields
+- [ ] Traffic profiles match GuideLLM configurations
+- [ ] Sufficient coverage across models and hardware types
 
 ---
 
-## Phase 4: Implement Fuzzy Matching with Distance Logging
+## Phase 4: Create PostgreSQL Data Loader
 
-**Objective**: Find closest benchmark match based on traffic characteristics
+**Objective**: Create script to load synthetic benchmarks into PostgreSQL
 
-**Decision**:
-- Always use closest match (no rejection threshold)
-- Log distance metric for debugging
+**Files to Create**:
+1. `scripts/load_benchmarks.py`
+   - Read benchmarks.json
+   - Connect to PostgreSQL
+   - Truncate and reload exported_summaries table
+   - Report statistics
 
 **Algorithm**:
 ```python
-def find_closest_benchmark(
-    model: str,
-    hardware: str,
-    hardware_count: int,
-    target_input_tokens: int,
-    target_output_tokens: int
-) -> Benchmark:
-    # 1. Filter by model + hardware + count
-    candidates = filter_benchmarks(model, hardware, hardware_count)
+def load_benchmarks():
+    # 1. Load JSON data
+    benchmarks = load_json("data/benchmarks.json")
 
-    # 2. Find closest traffic match using distance metric
-    best_match = min(candidates, key=lambda b: traffic_distance(
-        (b.mean_input_tokens, b.mean_output_tokens),
-        (target_input_tokens, target_output_tokens)
-    ))
+    # 2. Connect to PostgreSQL
+    conn = psycopg2.connect(DATABASE_URL)
 
-    # 3. Log distance for debugging
-    distance = traffic_distance(...)
-    logger.info(f"Using benchmark with traffic ({best_match.mean_input_tokens}, "
-                f"{best_match.mean_output_tokens}) for requested "
-                f"({target_input_tokens}, {target_output_tokens}), "
-                f"distance={distance:.3f}")
+    # 3. Clear existing synthetic data (keep real data separate)
+    # Option: Use different database or table for synthetic vs real
 
-    return best_match
+    # 4. Insert benchmarks
+    for benchmark in benchmarks:
+        INSERT INTO exported_summaries (...)
+        VALUES (...)
 
-def traffic_distance(benchmark_traffic, target_traffic):
-    """Weighted Euclidean distance between traffic profiles"""
-    input_diff = (benchmark_traffic[0] - target_traffic[0]) / target_traffic[0]
-    output_diff = (benchmark_traffic[1] - target_traffic[1]) / target_traffic[1]
-    return (input_diff ** 2 + output_diff ** 2) ** 0.5
+    # 5. Report statistics
+    print(f"Loaded {len(benchmarks)} benchmarks")
+    print(f"Traffic profiles: {unique_profiles}")
 ```
 
-**Files to Update**:
-1. `backend/src/knowledge_base/benchmarks.py`
-   - Add `find_closest_benchmark()` function
-   - Add `traffic_distance()` helper
-
-2. `backend/src/recommendation/capacity_planner.py`
-   - Update benchmark lookup to use fuzzy matching
-   - Pass traffic characteristics to lookup
-
 **Validation**:
-- [ ] Fuzzy matching finds reasonable matches
-- [ ] Distance logging works
-- [ ] Handles edge cases (no candidates, exact match, etc.)
+- [ ] Script loads data successfully
+- [ ] Data queryable via postgres-query-traffic
+- [ ] No conflicts with real data (if both present)
 
 ---
 
-## Phase 5: Update Architecture Documentation
+## Phase 5: Update Code to Use PostgreSQL and Traffic Profiles
 
-**Objective**: Document parametric models as Phase 3+ enhancement
+**Objective**: Migrate code from JSON to PostgreSQL with traffic profile-based queries
+
+**Decision**: Use PostgreSQL for all environments (upstream and downstream). Query by exact match on `(model_hf_repo, hardware, hardware_count, prompt_tokens, output_tokens)`, then filter by p95 SLO compliance.
 
 **Files to Update**:
-1. `docs/ARCHITECTURE.md` - Add to "Possible Future Enhancements":
-   ```markdown
-   ### Knowledge Base - Parametric Performance Models (Phase 3+)
 
-   Develop regression models for each (model, GPU, tensor_parallel) configuration
-   that predict TTFT, ITL, and E2E latency for arbitrary input/output token lengths.
+1. **`backend/src/knowledge_base/benchmarks.py`**
+   - Replace JSON file reading with PostgreSQL queries
+   - Add `get_benchmarks_by_traffic_profile()` function:
+     ```python
+     def get_benchmarks_by_traffic_profile(
+         model: str,
+         hardware: str,
+         hardware_count: int,
+         prompt_tokens: int,
+         output_tokens: int
+     ) -> list[dict]:
+         """Find benchmarks matching exact traffic profile"""
+         query = """
+             SELECT * FROM exported_summaries
+             WHERE model_hf_repo = %s
+               AND hardware = %s
+               AND hardware_count = %s
+               AND prompt_tokens = %s
+               AND output_tokens = %s
+         """
+         return execute_query(query, params)
+     ```
+   - Add connection pooling for performance
+   - Add environment variable for DATABASE_URL
 
-   **Approach**:
-   - Train models on benchmark data: f(input_tokens, output_tokens) → (ttft, itl, e2e)
-   - Model types: Linear regression, polynomial regression, or neural networks
-   - Per-configuration models account for hardware-specific behaviors
-   - Interpolation for in-range predictions, extrapolation with confidence bounds
+2. **`backend/src/context_intent/schema.py`**
+   - Update `SLOTargets` to use p95:
+     - `ttft_p95_target_ms` (was `ttft_p90_target_ms`)
+     - `itl_p95_target_ms` (was `tpot_p90_target_ms`)
+     - `e2e_p95_target_ms` (was `e2e_p90_target_ms`)
+   - Add `traffic_profile` field to DeploymentIntent
+   - Add `experience_class` field
 
-   **Benefits**:
-   - Precise predictions for any traffic profile
-   - No need for exact benchmark matches
-   - Confidence intervals for uncertainty quantification
-   - Continuous improvement as more benchmarks are collected
-   ```
+3. **`backend/src/recommendation/capacity_planner.py`**
+   - Update to query PostgreSQL via benchmarks.py
+   - Use exact match on traffic profile (prompt_tokens, output_tokens)
+   - Filter results by p95 SLO compliance:
+     ```python
+     matching_benchmarks = get_benchmarks_by_traffic_profile(...)
+     compliant = [b for b in matching_benchmarks
+                  if b['ttft_p95'] <= slo.ttft_p95_target_ms
+                  and b['itl_p95'] <= slo.itl_p95_target_ms
+                  and b['e2e_p95'] <= slo.e2e_p95_target_ms]
+     ```
+   - Use pre-calculated e2e_p95 from benchmarks (no dynamic calculation)
+
+4. **`backend/src/knowledge_base/slo_templates.py`**
+   - Update to read new slo_templates.json structure
+   - Extract traffic_profile and experience_class
+   - Map to p95 SLO targets
+
+5. **`ui/app.py`**
+   - Update use case selector to show new use cases
+   - Display traffic profile in UI
+   - Update SLO display to show p95 (not p90)
+   - Rename "TPOT" → "ITL" throughout UI
+
+6. **Configuration**
+   - Add to `.env` or environment:
+     ```
+     DATABASE_URL=postgresql://postgres:compass@localhost:5432/compass
+     ```
+
+**Validation**:
+- [ ] Code connects to PostgreSQL successfully
+- [ ] Benchmark queries return correct results
+- [ ] SLO filtering works with p95 values
+- [ ] No performance regressions
+- [ ] All tests pass
 
 ---
 
-## Phase 6: PostgreSQL Backend Support
+## Phase 6: Testing and Documentation
 
-**Objective**: Add PostgreSQL as optional data source for production benchmarks
+**Objective**: Comprehensive testing and documentation updates
 
-**Architecture**:
-```
-┌─────────────────────────────────────────────────┐
-│          BenchmarkRepository (Abstract)         │
-│           Interface with SQL schema             │
-└────────────┬────────────────────────────────────┘
-             │
-       ┌─────┴─────┐
-       │           │
-   ┌───▼───┐   ┌──▼─────┐
-   │ JSON  │   │  SQL   │
-   │Backend│   │Backend │
-   └───────┘   └────────┘
-   Default     Optional
-   (upstream)  (downstream)
-```
+**Testing Strategy**:
 
-**Configuration**:
-```python
-# Environment variable controls data source
-BENCHMARK_SOURCE = os.getenv("BENCHMARK_SOURCE", "json")  # "json" or "postgresql"
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost/integ")
-```
+1. **Unit Tests**
+   - Test PostgreSQL connection and queries
+   - Test traffic profile matching logic
+   - Test p95 SLO filtering
+   - Test slo_templates.json parsing
 
-### Phase 6a: Add Dependencies
+2. **Integration Tests**
+   - End-to-end workflow with PostgreSQL
+   - Use case → traffic profile → benchmark lookup
+   - SLO compliance checking
+   - Recommendation generation
 
-**Files to Update**:
-1. `requirements.txt`:
-   ```
-   # PostgreSQL support (optional - for production benchmarks)
-   psycopg2-binary==2.9.9
-   ```
+3. **Files to Update**:
+   - `tests/test_recommendation_workflow.py` - Update for new SLO structure
+   - `tests/test_yaml_generation.py` - Update for traffic profiles
+   - Add `tests/test_postgresql_integration.py` - New PostgreSQL tests
 
-### Phase 6b: Create Abstraction Layer
+**Documentation Updates**:
 
-**Files to Create**:
-1. `backend/src/knowledge_base/repository.py` - Abstract interface
-2. `backend/src/knowledge_base/json_repository.py` - JSON implementation (current)
-3. `backend/src/knowledge_base/sql_repository.py` - PostgreSQL implementation
+1. **`docs/ARCHITECTURE.md`**
+   - Update Knowledge Base section to describe PostgreSQL
+   - Update SLO-driven capacity planning with p95 targets
+   - Add traffic profile concept
+   - Reference traffic_and_slos.md
 
-**Example Interface**:
-```python
-from abc import ABC, abstractmethod
+2. **`README.md`**
+   - Add PostgreSQL setup to Quick Start
+   - Update architecture overview
+   - Add traffic profile explanation
 
-class BenchmarkRepository(ABC):
-    """Abstract interface for benchmark data sources"""
-
-    @abstractmethod
-    def find_benchmarks(
-        self,
-        model_hf_repo: str,
-        hardware: str,
-        hardware_count: int
-    ) -> list[dict]:
-        """Find all benchmarks matching model and hardware"""
-        pass
-
-    @abstractmethod
-    def find_closest_benchmark(
-        self,
-        model_hf_repo: str,
-        hardware: str,
-        hardware_count: int,
-        target_input_tokens: int,
-        target_output_tokens: int
-    ) -> dict:
-        """Find closest benchmark by traffic characteristics"""
-        pass
-
-class JSONBenchmarkRepository(BenchmarkRepository):
-    """JSON file-based benchmark repository"""
-    def __init__(self, json_path: str = "data/benchmarks.json"):
-        ...
-
-class PostgreSQLBenchmarkRepository(BenchmarkRepository):
-    """PostgreSQL-based benchmark repository"""
-    def __init__(self, database_url: str):
-        ...
-```
-
-**Factory Pattern**:
-```python
-# backend/src/knowledge_base/__init__.py
-def get_benchmark_repository() -> BenchmarkRepository:
-    source = os.getenv("BENCHMARK_SOURCE", "json")
-    if source == "postgresql":
-        db_url = os.getenv("DATABASE_URL")
-        return PostgreSQLBenchmarkRepository(db_url)
-    else:
-        return JSONBenchmarkRepository()
-```
-
-### Phase 6c: Update Makefile
-
-**File**: `Makefile`
-
-Add PostgreSQL support:
-```makefile
-# PostgreSQL (optional - for production benchmarks)
-.PHONY: postgres-start
-postgres-start:
-	@echo "Starting PostgreSQL for benchmark data..."
-	docker run --name compass-postgres -d \
-	  -e POSTGRES_PASSWORD=compass \
-	  -e POSTGRES_DB=integ \
-	  -p 5432:5432 \
-	  postgres:16
-	@echo "PostgreSQL started on port 5432"
-
-.PHONY: postgres-stop
-postgres-stop:
-	@echo "Stopping PostgreSQL..."
-	docker stop compass-postgres || true
-	docker rm compass-postgres || true
-
-.PHONY: postgres-load
-postgres-load:
-	@echo "Loading benchmark data into PostgreSQL..."
-	@echo "Note: Place integ-oct-29.sql in data/ directory (downstream only)"
-	pg_restore -h localhost -U postgres -d integ data/integ-oct-29.sql
-
-.PHONY: postgres-shell
-postgres-shell:
-	docker exec -it compass-postgres psql -U postgres -d integ
-
-# Add to help target
-help:
-	...
-	@echo "  postgres-start    - Start PostgreSQL container for benchmarks"
-	@echo "  postgres-stop     - Stop PostgreSQL container"
-	@echo "  postgres-load     - Load benchmark SQL dump (downstream only)"
-```
-
-### Phase 6d: Update Documentation
-
-**Files to Update**:
-
-1. `docs/DEVELOPER_GUIDE.md` - Add PostgreSQL setup section:
-   ```markdown
-   ## Using PostgreSQL for Benchmarks (Optional)
-
-   By default, Compass uses JSON files for benchmark data. For production
-   deployments or when using real benchmark data, you can configure PostgreSQL.
-
-   ### Prerequisites
-   - Docker (for local PostgreSQL)
-   - Real benchmark SQL dump (downstream only - not in public repo)
-
-   ### Setup
-
-   1. Start PostgreSQL:
-      ```bash
-      make postgres-start
-      ```
-
-   2. Load benchmark data (if you have the SQL dump):
-      ```bash
-      # Place integ-oct-29.sql in data/ directory
-      make postgres-load
-      ```
-
-   3. Configure Compass to use PostgreSQL:
-      ```bash
-      export BENCHMARK_SOURCE=postgresql
-      export DATABASE_URL=postgresql://postgres:compass@localhost:5432/integ
-      ```
-
-   4. Run Compass normally:
-      ```bash
-      make run
-      ```
-
-   ### Switching Back to JSON
-
-   ```bash
-   unset BENCHMARK_SOURCE
-   # or
-   export BENCHMARK_SOURCE=json
-   ```
-   ```
-
-2. `README.md` - Add note about data sources:
-   ```markdown
-   ## Data Sources
-
-   Compass supports two benchmark data sources:
-
-   - **JSON** (default): Synthetic benchmark data included in the repository
-   - **PostgreSQL** (optional): Real benchmark data for production use
-
-   See [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for PostgreSQL setup.
-   ```
-
-3. `.gitignore` - Ensure SQL files are ignored:
-   ```
-   # PostgreSQL dumps (downstream only)
-   *.sql
-   data/*.sql
-   ```
-
-### Phase 6e: Integration
-
-**Files to Update**:
-1. `backend/src/recommendation/capacity_planner.py`
-   - Use `get_benchmark_repository()` instead of direct JSON access
-
-2. `backend/src/knowledge_base/benchmarks.py`
-   - Refactor to use repository pattern
-
-3. All other files that access benchmark data
+3. **`docs/DEVELOPER_GUIDE.md`** (if exists, or create)
+   - PostgreSQL setup instructions
+   - How to load synthetic vs real data
+   - How to query traffic patterns
+   - Development workflow
 
 **Validation**:
-- [ ] JSON backend works (default)
-- [ ] PostgreSQL backend works with real data
-- [ ] Environment variable switching works
-- [ ] All tests pass with both backends
-- [ ] Performance is acceptable
+- [ ] All unit tests pass
+- [ ] Integration tests pass with synthetic data
+- [ ] Integration tests pass with real data (downstream)
+- [ ] Documentation is clear and complete
+- [ ] UI correctly displays new use cases and traffic profiles
 
 ---
 
 ## Key Design Decisions
 
-### 1. Field Naming: TPOT → ITL
-**Decision**: Use ITL (Inter-Token Latency) everywhere to match SQL database.
+### 1. PostgreSQL for All Environments
+**Decision**: Use PostgreSQL for both upstream (open-source) and downstream (production), not JSON.
 
 **Rationale**:
-- SQL database uses `itl_*` fields
-- ITL is more technically accurate (measures time between tokens during decode)
-- Standardizing on one term reduces confusion
+- Single code path - simpler implementation
+- More realistic testing upstream
+- PostgreSQL is free/open-source, easy to run via Docker
+- Eliminates need for abstraction layer
+- Easier to share real (unencumbered) benchmark data in future
 
-### 2. E2E Latency Calculation
-**Decision**: Use pre-calculated E2E values from benchmarks.
-
-**Rationale**:
-- E2E is already calculated in SQL database
-- Faster than dynamic calculation
-- More consistent across data sources
-- E2E = TTFT + (output_tokens × ITL) is simple enough to pre-calculate
-
-### 3. Fuzzy Matching Strategy
-**Decision**: Always use closest match, log distance for debugging.
+### 2. Traffic Profile-Based Exact Matching
+**Decision**: Match on exact `(prompt_tokens, output_tokens)` values, not fuzzy matching on `mean_*` values.
 
 **Rationale**:
-- Better UX than rejecting requests
-- Distance logging enables debugging
-- Users can see how close the match is
-- Future: Parametric models will eliminate need for fuzzy matching
+- GuideLLM benchmarks use 4 fixed traffic profiles (512→256, 1024→1024, 4096→512, 10240→1536)
+- 1,990 "unique" patterns are just natural variance around these 4 targets
+- Exact matching on `prompt_tokens`/`output_tokens` is simpler and faster than fuzzy distance calculations
+- Eliminates complexity of distance metrics and logging
+- Can add more profiles in future if needed
 
-### 4. Data Source Architecture
-**Decision**: Abstract repository pattern with JSON default, PostgreSQL optional.
+### 3. Experience-Driven SLOs with p95
+**Decision**: Use p95 percentiles for SLO targets, organized by experience class.
 
 **Rationale**:
-- JSON works for upstream/open-source demos
-- PostgreSQL required for production/downstream with real data
-- Abstraction allows easy switching
-- No breaking changes to existing code
+- p95 is more conservative than p90, provides better UX guarantees
+- Experience classes (instant, conversational, interactive, deferred, batch) capture user expectations better than arbitrary thresholds
+- Same traffic profile can have different SLO requirements (e.g., code completion needs tighter latency than content generation)
+- Aligns with industry best practices for user-facing services
+
+### 4. Use Case → Traffic Profile Mapping
+**Decision**: Map 9 use cases to 4 traffic profiles, allowing multiple use cases per profile.
+
+**Rationale**:
+- Traffic profiles are computational patterns (what the workload *is*)
+- Use cases are user intentions (what the workload is *for*)
+- This separation allows flexible SLO assignment
+- Users think in terms of use cases; system optimizes by traffic profile
+
+### 5. Pre-Calculated E2E Latency
+**Decision**: Use pre-calculated `e2e_p95` from benchmarks instead of dynamic calculation.
+
+**Rationale**:
+- E2E already calculated in database from real benchmark runs
+- More accurate than TTFT + (tokens × ITL) formula (accounts for batching, scheduling, etc.)
+- Faster query performance (no computation needed)
+- Consistent across all data sources
 
 ---
 
 ## Testing Strategy
 
-### Phase 2-4 Testing (JSON only)
-- [ ] Unit tests for ITL rename
-- [ ] Unit tests for fuzzy matching algorithm
-- [ ] Integration tests with new schema
-- [ ] UI testing for ITL display
+### Unit Tests
+- [ ] PostgreSQL connection and query functions
+- [ ] Traffic profile matching logic
+- [ ] p95 SLO filtering
+- [ ] slo_templates.json parsing
+- [ ] Benchmark data loader script
 
-### Phase 6 Testing (PostgreSQL)
-- [ ] Unit tests for repository abstraction
-- [ ] Integration tests with PostgreSQL
-- [ ] Integration tests with JSON (ensure no regression)
-- [ ] Environment variable switching tests
-- [ ] Performance tests (JSON vs PostgreSQL)
+### Integration Tests
+- [ ] End-to-end workflow with synthetic data
+- [ ] Use case selection → traffic profile → benchmark lookup → recommendation
+- [ ] SLO compliance checking with p95 values
+- [ ] YAML generation with new schema
+- [ ] Deployment workflow
+
+### System Tests
+- [ ] UI displays new use cases correctly
+- [ ] All 9 use cases work end-to-end
+- [ ] PostgreSQL performance is acceptable
+- [ ] Real data integration (downstream only)
 
 ---
 
 ## Rollout Plan
 
 ### For Upstream (Open Source)
-1. Merge Phases 1-5 (JSON improvements)
-2. Merge Phase 6 (PostgreSQL support as optional)
-3. Document PostgreSQL as "optional for production"
+1. Complete Phases 2-6
+2. Load synthetic data into PostgreSQL
+3. Update all documentation
+4. Ensure `make dev` works with PostgreSQL
+5. Provide clear setup instructions in README
 
 ### For Downstream (Production)
 1. Pull upstream changes
-2. Add `integ-oct-29.sql` to `data/` directory (gitignored)
-3. Configure PostgreSQL via environment variables
-4. Run `make postgres-start && make postgres-load`
-5. Test with real data
+2. Run `make postgres-start`
+3. Load real data: `make postgres-load-real`
+4. Verify traffic profiles match expectations
+5. Run integration tests
+6. Deploy to production
 
 ---
 
 ## Migration Checklist
 
-- [x] Phase 1: Schema migration
-- [ ] Phase 2: TPOT → ITL rename
-- [ ] Phase 3: Pre-calculated E2E
-- [ ] Phase 4: Fuzzy matching
-- [ ] Phase 5: Architecture docs
-- [ ] Phase 6a: Add PostgreSQL dependencies
-- [ ] Phase 6b: Abstraction layer
-- [ ] Phase 6c: Makefile updates
-- [ ] Phase 6d: Documentation
-- [ ] Phase 6e: Integration
+- [x] Phase 1: Infrastructure setup and PostgreSQL analysis
+- [ ] Phase 2: Update SLO templates and use case definitions
+- [ ] Phase 3: Update synthetic benchmark data
+- [ ] Phase 4: Create PostgreSQL data loader
+- [ ] Phase 5: Update code to use PostgreSQL and traffic profiles
+- [ ] Phase 6: Testing and documentation
 - [ ] All tests passing
 - [ ] Documentation complete
-- [ ] Ready for downstream testing
+- [ ] Ready for production use
 
 ---
 
-## Context for Future Work
+## Future Enhancements (Phase 2+)
 
-### Current State (After Phase 1)
-- benchmarks.json has 120 entries with SQL-aligned schema
-- Fields renamed: model_hf_repo, hardware, hardware_count, itl_*
-- Traffic characteristics added: mean_input_tokens, mean_output_tokens
-- E2E latency pre-calculated: e2e_mean, e2e_p90, e2e_p99
+### Parametric Performance Models
+Develop regression models for each (model, GPU, hardware_count) configuration to predict TTFT, ITL, and E2E latency for arbitrary traffic profiles.
 
-### Next Steps
-Start with Phase 2: Rename TPOT to ITL in all code files (see file list above).
+**Approach**:
+- Train models: f(prompt_tokens, output_tokens) → (ttft_p95, itl_p95, e2e_p95)
+- Use existing benchmark data as training set
+- Interpolate for in-range predictions
+- Provide confidence intervals
 
-### Important Notes
-- Real SQL data file (integ-oct-29.sql) is 760KB, ~1500-2500 entries
-- Cannot be published upstream due to legal restrictions
-- Must be kept downstream only (.gitignore)
-- JSON data scaled to similar magnitudes for realistic demos
+**Benefits**:
+- Support arbitrary traffic profiles beyond the 4 GuideLLM defaults
+- More accurate predictions for edge cases
+- Continuous improvement as more benchmarks collected
+
+### Additional Traffic Profiles
+As more benchmark data becomes available, add support for:
+- (256, 128) - Very short interactions
+- (2048, 512) - Medium-long summarization
+- Custom user-defined profiles
 
 ---
 
-*Last Updated: 2025-10-29*
-*Status: Phase 1 Complete*
+## Summary
+
+This migration plan transitions Compass to use PostgreSQL with traffic profile-based exact matching:
+
+- **4 GuideLLM traffic profiles** replace arbitrary token lengths
+- **9 experience-driven use cases** map to these profiles
+- **p95 SLO targets** provide better UX guarantees
+- **PostgreSQL for all environments** simplifies architecture
+- **Exact matching** eliminates fuzzy logic complexity
+
+The result is a cleaner, faster, more maintainable system aligned with real-world benchmark data and user experience expectations.
+
+---
+
+*Last Updated: 2025-10-30*
+*Status: Phase 1 Complete, Ready for Phase 2*
