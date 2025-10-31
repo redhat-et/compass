@@ -6,7 +6,7 @@ This document tracks the migration to support PostgreSQL benchmarks with traffic
 
 **Goal**: Enable Compass to use real benchmark data from PostgreSQL for both upstream and downstream, using exact matching on GuideLLM traffic profiles (prompt_tokens, output_tokens).
 
-**Status**: Phases 1-4 complete, Phase 5 partially complete (schema + knowledge_base done), recommendation engine + UI remaining (2025-10-30)
+**Status**: Phases 1-5 complete, Phase 6 (testing) in progress (2025-10-31)
 
 **Key Discovery**: The real database contains benchmarks organized around 4 GuideLLM traffic profiles (512→256, 1024→1024, 4096→512, 10240→1536), eliminating the need for fuzzy matching. We can use exact matching on `prompt_tokens` and `output_tokens` fields.
 
@@ -308,9 +308,15 @@ def load_benchmarks():
    - Updated all metrics, summaries, and performance displays
 
 **Commits**:
-- `8221f06` - "Update schema to use p95, traffic profiles, and experience classes"
-- `9450d2d` - "Update knowledge base to use PostgreSQL and new schema"
+- `b6262b5` - "Update schema to use p95, traffic profiles, and experience classes"
+- `da0b8a4` - "Update knowledge base to use PostgreSQL and new schema"
+- `7877b91` - "Update recommendation engine and document migration progress"
 - `1e89432` - "Complete Phase 5: Update UI and workflow for p95/ITL terminology"
+- `02b3e38` - "Update migration plan to reflect Phase 5 completion"
+- `f34601f` - "Fix intent extraction and add conversational error messages"
+- `27382d6` - "Add graceful no-config handling and fix model catalog mismatch"
+- `fdd8c6d` - "Fix deployment generator and tests for p95/ITL migration"
+- `1b90c30` - "Update simulator and catalog to support all 40 benchmark models"
 
 **Validation**:
 - [x] Code connects to PostgreSQL successfully
@@ -318,8 +324,13 @@ def load_benchmarks():
 - [x] SLO filtering works with p95 values
 - [x] All backend code updated to use p95/ITL terminology
 - [x] UI updated to use p95/ITL terminology and new use cases
-- [ ] No performance regressions (testing in Phase 6)
-- [ ] All tests pass (testing in Phase 6)
+- [x] Deployment generator and templates updated for p95/ITL
+- [x] All test files updated for new schema
+- [x] Simulator updated for PostgreSQL schema and all 40 models
+- [x] Model catalog expanded from 10 to 40 models
+- [x] Error handling improved with graceful no-config scenarios
+- [ ] Full test suite passing (Phase 6)
+- [ ] Performance validation (Phase 6)
 
 ---
 
@@ -341,10 +352,11 @@ def load_benchmarks():
    - SLO compliance checking
    - Recommendation generation
 
-3. **Files to Update**:
-   - `tests/test_recommendation_workflow.py` - Update for new SLO structure
-   - `tests/test_yaml_generation.py` - Update for traffic profiles
-   - Add `tests/test_postgresql_integration.py` - New PostgreSQL tests
+3. **Files Updated**:
+   - ✅ `tests/test_recommendation_workflow.py` - Updated for p95/ITL schema
+   - ✅ `tests/test_yaml_generation.py` - Updated for traffic profiles and new GPU types
+   - ✅ `tests/test_simulator_deployment.py` - Updated for new schema
+   - [ ] Add `tests/test_postgresql_integration.py` - New PostgreSQL tests (Phase 6)
 
 **Documentation Updates**:
 
@@ -370,7 +382,17 @@ def load_benchmarks():
 - [ ] Integration tests pass with synthetic data
 - [ ] Integration tests pass with real data (downstream)
 - [ ] Documentation is clear and complete
-- [ ] UI correctly displays new use cases and traffic profiles
+- [x] UI correctly displays new use cases and traffic profiles
+
+**Manual Testing Completed** (2025-10-31):
+- [x] End-to-end workflow with UI (chatbot, code generation, etc.)
+- [x] No-config scenarios with graceful error handling
+- [x] Intent extraction with experience_class validation
+- [x] Deployment generator with p95/ITL fields
+- [x] Simulator deployment with new schema
+- [x] All 9 use cases accessible from UI
+- [x] Traffic profile display in specifications tab
+- [x] Performance/Cost/YAML tabs handle no-config gracefully
 
 ---
 
@@ -474,7 +496,7 @@ def load_benchmarks():
 - [x] Phase 2: Update SLO templates and use case definitions (Commit: 91bceff)
 - [x] Phase 3: Update synthetic benchmark data (Commit: 7df745a)
 - [x] Phase 4: Create PostgreSQL data loader (Commit: 9115a2d)
-- [x] Phase 5: Update code to use PostgreSQL and traffic profiles (Commits: 8221f06, 9450d2d, 1e89432)
+- [x] Phase 5: Update code to use PostgreSQL and traffic profiles (Commits: b6262b5, da0b8a4, 7877b91, 1e89432, 02b3e38, f34601f, 27382d6, fdd8c6d, 1b90c30)
   - [x] Update context_intent/schema.py
   - [x] Update knowledge_base/benchmarks.py
   - [x] Update knowledge_base/slo_templates.py
@@ -482,17 +504,22 @@ def load_benchmarks():
   - [x] Update recommendation/traffic_profile.py
   - [x] Update orchestration/workflow.py
   - [x] Update UI (ui/app.py)
+  - [x] Update deployment generator and templates (deployment/generator.py, templates/*.j2)
+  - [x] Update all test files (test_recommendation_workflow.py, test_yaml_generation.py, test_simulator_deployment.py)
+  - [x] Update simulator (simulator/simulator_service.py, simulator/Dockerfile)
+  - [x] Expand model catalog from 10 to 40 models (data/model_catalog.json)
+  - [x] Add graceful error handling for no-config scenarios
 - [ ] Phase 6: Testing and documentation
   - [ ] Write unit tests for PostgreSQL queries
   - [ ] Write integration tests
   - [ ] Update ARCHITECTURE.md
   - [ ] Update README.md
   - [ ] Create/update DEVELOPER_GUIDE.md
-- [ ] All tests passing
-- [ ] Documentation complete
-- [ ] Ready for production use
+- [ ] All tests passing (Phase 6 remaining)
+- [ ] Documentation complete (Phase 6 remaining)
+- [x] Ready for manual testing and validation
 
-**Total Commits**: 8 commits on `postgres` branch
+**Total Commits**: 15 commits on `postgres` branch
 
 ---
 
@@ -536,33 +563,52 @@ The result is a cleaner, faster, more maintainable system aligned with real-worl
 
 ## Summary of Progress (2025-10-31)
 
-**Commits Made** (8 total on postgres branch):
-1. `c917c35` - Add PostgreSQL migration plan and ignore SQL files
-2. `3018359` - Revise PostgreSQL migration plan for traffic profile-based matching
-3. `91bceff` - Update SLO templates with traffic profiles and experience classes
-4. `7df745a` - Update synthetic benchmarks to use 4 GuideLLM traffic profiles
-5. `9115a2d` - Create PostgreSQL benchmark loader script
-6. `8221f06` - Update schema to use p95, traffic profiles, and experience classes
-7. `9450d2d` - Update knowledge base to use PostgreSQL and new schema
-8. `1e89432` - Complete Phase 5: Update UI and workflow for p95/ITL terminology
+**Commits Made** (15 total on postgres branch):
+1. `651a832` - Update benchmarks.json to SQL-aligned schema with traffic profiles
+2. `b5325ff` - Add doc describing Use Cases, Traffic Profiles and SLOs
+3. `54d6e02` - Revise PostgreSQL migration plan for traffic profile-based matching
+4. `d4600f9` - Update SLO templates with traffic profiles and experience classes
+5. `4edb181` - Update synthetic benchmarks to use 4 GuideLLM traffic profiles
+6. `fa67450` - Create PostgreSQL benchmark loader script
+7. `b6262b5` - Update schema to use p95, traffic profiles, and experience classes
+8. `da0b8a4` - Update knowledge base to use PostgreSQL and new schema
+9. `7877b91` - Update recommendation engine and document migration progress
+10. `1e89432` - Complete Phase 5: Update UI and workflow for p95/ITL terminology
+11. `02b3e38` - Update migration plan to reflect Phase 5 completion
+12. `f34601f` - Fix intent extraction and add conversational error messages
+13. `27382d6` - Add graceful no-config handling and fix model catalog mismatch
+14. `fdd8c6d` - Fix deployment generator and tests for p95/ITL migration
+15. `1b90c30` - Update simulator and catalog to support all 40 benchmark models
 
 **What We Accomplished**:
 - ✅ Phase 1: PostgreSQL infrastructure setup and real data analysis
 - ✅ Phase 2: Updated SLO templates (9 use cases with traffic profiles)
 - ✅ Phase 3: Updated synthetic benchmarks (96 benchmarks, 4 traffic profiles)
 - ✅ Phase 4: Created PostgreSQL data loader script
-- ✅ Phase 5: Updated all backend code and UI (schema, knowledge_base, recommendation engine, orchestration, workflow, UI)
+- ✅ Phase 5: Complete migration to PostgreSQL and p95/ITL terminology
+  - All core schemas updated (p90→p95, TPOT→ITL)
+  - Knowledge base migrated to PostgreSQL with connection pooling
+  - Recommendation engine using exact traffic profile matching
+  - UI updated with 9 new use cases and p95/ITL display
+  - Deployment generator and all templates updated
+  - All test files updated for new schema
+  - Simulator updated for PostgreSQL schema
+  - Model catalog expanded from 10 to 40 models
+  - Graceful error handling for no-config scenarios
 
-**Ready for Next Session**:
-- Database is loaded with synthetic data
-- All core data structures updated to use p95 and traffic profiles
-- Backend recommendation engine complete
-- UI fully updated with new use cases, p95/ITL terminology, and traffic profiles
-- Testing and documentation remaining (Phase 6)
+**Current State**:
+- ✅ Database loaded with synthetic data (96 benchmarks)
+- ✅ All backend code migrated to PostgreSQL with p95/ITL
+- ✅ UI fully functional with new use cases and terminology
+- ✅ Deployment and YAML generation working
+- ✅ Simulator supports all 40 models
+- ✅ Manual testing shows end-to-end workflow working
+- [ ] Automated test suite needs updating (Phase 6)
+- [ ] Documentation needs final updates (Phase 6)
 
-**Branch**: All changes pushed to GitHub on the `postgres` branch
+**Branch**: All changes committed to `postgres` branch (ready to merge after Phase 6)
 
 ---
 
 *Last Updated: 2025-10-31*
-*Status: Phase 5 Complete, Phase 6 (Testing & Documentation) Remaining*
+*Status: Phase 5 Complete (15 commits), Phase 6 In Progress (manual testing done, automated tests pending)*
