@@ -1,27 +1,20 @@
 """Capacity planning and GPU configuration recommendation.
 
-IMPORTANT LIMITATIONS (Phase 1 POC):
-Current benchmark data uses point estimates assuming typical conditions:
-- Input tokens: ~150 (average)
-- Output tokens: ~200 (average)
-- Request pattern: steady (non-bursty)
+IMPORTANT: PostgreSQL Migration (Phase 1):
+- Uses traffic profile-based exact matching on (prompt_tokens, output_tokens)
+- Queries benchmarks by exact traffic profile (512→256, 1024→1024, 4096→512, 10240→1536)
+- Filters by p95 SLO compliance (TTFT, ITL, E2E)
+- Uses pre-calculated e2e_p95 from benchmarks (not dynamic calculation)
+
+Benchmarks collected using GuideLLM with fixed traffic profiles:
 - Batching: vLLM continuous batching (dynamic, auto-configured)
 - KV cache: enabled (vLLM default)
+- Request pattern: steady-state load
 
-In reality, performance varies significantly with:
-1. Input/output token lengths (longer → higher latency, lower throughput)
-2. Concurrency levels and request arrival patterns (bursty traffic degrades tail latencies)
-3. KV cache efficiency (prefix caching effectiveness depends on prompt similarity)
-4. vLLM configuration tuning for specific workload patterns
-
-TODO (Phase 2): Implement multi-dimensional benchmark lookups
-- Store benchmarks for varying input/output token distributions
-- Interpolate between benchmark points for non-exact matches
-- Model queueing effects and concurrency impact on latency
-- Account for traffic burstiness and KV cache hit rates
-- Consider parametric models (regression-based) for continuous prediction
-
-See data/benchmarks.json _metadata for detailed benchmark conditions.
+TODO (Phase 2+): Parametric Performance Models
+- Train regression models: f(prompt_tokens, output_tokens) → (ttft_p95, itl_p95, e2e_p95)
+- Support arbitrary traffic profiles beyond the 4 GuideLLM defaults
+- Interpolate for in-range predictions with confidence intervals
 """
 
 import logging
@@ -66,61 +59,72 @@ class CapacityPlanner:
         """
         Plan GPU capacity for a model to meet requirements.
 
+        Uses PostgreSQL to query benchmarks matching exact traffic profile,
+        then filters by p95 SLO compliance.
+
         Args:
             model: Selected model
-            traffic_profile: Traffic characteristics
-            slo_targets: SLO targets
+            traffic_profile: Traffic characteristics (prompt_tokens, output_tokens)
+            slo_targets: p95 SLO targets
             intent: Original deployment intent
 
         Returns:
             DeploymentRecommendation if feasible config found, None otherwise
         """
-        # Get all benchmarks for this model
-        model_benchmarks = self.benchmark_repo.get_benchmarks_for_model(model.model_id)
+        # Query PostgreSQL for configurations meeting SLO targets
+        # This returns benchmarks that:
+        # 1. Match exact traffic profile (prompt_tokens, output_tokens)
+        # 2. Meet p95 SLO targets (TTFT, ITL, E2E)
+        # 3. Meet minimum QPS requirement
+        matching_configs = self.benchmark_repo.find_configurations_meeting_slo(
+            prompt_tokens=traffic_profile.prompt_tokens,
+            output_tokens=traffic_profile.output_tokens,
+            ttft_p95_max_ms=slo_targets.ttft_p95_target_ms,
+            itl_p95_max_ms=slo_targets.itl_p95_target_ms,
+            e2e_p95_max_ms=slo_targets.e2e_p95_target_ms,
+            min_qps=0,  # No minimum QPS filter (we'll scale with replicas)
+        )
 
-        if not model_benchmarks:
-            logger.warning(f"No benchmarks found for model {model.model_id}")
+        if not matching_configs:
+            logger.warning(
+                f"No configurations found meeting SLO for traffic profile "
+                f"({traffic_profile.prompt_tokens}→{traffic_profile.output_tokens})"
+            )
             return None
 
-        # Find configurations that meet SLO targets
+        # Filter to only this model
+        model_configs = [
+            bench for bench in matching_configs if bench.model_hf_repo == model.model_id
+        ]
+
+        if not model_configs:
+            logger.warning(f"No SLO-compliant configurations found for model {model.model_id}")
+            return None
+
+        # Build viable configurations with cost
         viable_configs = []
 
-        for bench in model_benchmarks:
-            # Check if this benchmark meets SLO requirements (TTFT and TPOT)
-            if not self._meets_slo_targets(bench, slo_targets):
-                continue
-
-            # Calculate E2E latency estimate
-            predicted_e2e = self._estimate_e2e_latency(bench, traffic_profile)
-
-            # Check if E2E also meets target
-            if predicted_e2e > slo_targets.e2e_p90_target_ms:
-                logger.debug(
-                    f"Skipping {bench.gpu_type} TP={bench.tensor_parallel}: "
-                    f"E2E {predicted_e2e}ms > target {slo_targets.e2e_p90_target_ms}ms"
-                )
-                continue
-
+        for bench in model_configs:
             # Calculate required replicas to handle traffic
             replicas = self._calculate_required_replicas(
-                bench.max_qps, traffic_profile.expected_qps
+                bench.requests_per_second, traffic_profile.expected_qps or 1.0
             )
 
             # Create GPU config
             gpu_config = GPUConfig(
-                gpu_type=bench.gpu_type,
-                gpu_count=bench.tensor_parallel * replicas,
-                tensor_parallel=bench.tensor_parallel,
+                gpu_type=bench.hardware,
+                gpu_count=bench.hardware_count * replicas,
+                tensor_parallel=bench.hardware_count,
                 replicas=replicas,
             )
 
             # Calculate cost
             cost_per_hour = self.catalog.calculate_gpu_cost(
-                bench.gpu_type, gpu_config.gpu_count, hours_per_month=1
+                bench.hardware, gpu_config.gpu_count, hours_per_month=1
             )
 
             if cost_per_hour is None:
-                logger.warning(f"Could not calculate cost for {bench.gpu_type}")
+                logger.warning(f"Could not calculate cost for {bench.hardware}")
                 continue
 
             cost_per_month = cost_per_hour * 730  # ~30 days
@@ -133,10 +137,10 @@ class CapacityPlanner:
                 model_id=model.model_id,
                 model_name=model.name,
                 gpu_config=gpu_config,
-                predicted_ttft_p90_ms=bench.ttft_p90_ms,
-                predicted_tpot_p90_ms=bench.tpot_p90_ms,
-                predicted_e2e_p90_ms=predicted_e2e,
-                predicted_throughput_qps=bench.max_qps * replicas,
+                predicted_ttft_p95_ms=int(bench.ttft_p95) if bench.ttft_p95 else 0,
+                predicted_itl_p95_ms=int(bench.itl_p95) if bench.itl_p95 else 0,
+                predicted_e2e_p95_ms=int(bench.e2e_p95) if bench.e2e_p95 else 0,
+                predicted_throughput_qps=bench.requests_per_second * replicas,
                 cost_per_hour_usd=cost_per_hour,
                 cost_per_month_usd=cost_per_month,
                 meets_slo=True,
@@ -149,7 +153,7 @@ class CapacityPlanner:
             logger.warning(f"No viable configurations found for {model.name}")
             return None
 
-        # Sort by cost and budget constraint
+        # Sort by cost
         viable_configs.sort(key=lambda x: x[1])
 
         # Return best configuration based on budget constraint
@@ -162,9 +166,9 @@ class CapacityPlanner:
                     "model_name": rec.model_name,
                     "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
-                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
+                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
+                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -174,13 +178,6 @@ class CapacityPlanner:
             ]
 
         return best_recommendation
-
-    def _meets_slo_targets(self, bench: BenchmarkData, slo: SLOTargets) -> bool:
-        """Check if benchmark meets SLO targets."""
-        return (
-            bench.ttft_p90_ms <= slo.ttft_p90_target_ms
-            and bench.tpot_p90_ms <= slo.tpot_p90_target_ms
-        )
 
     def _calculate_required_replicas(self, qps_per_replica: float, required_qps: float) -> int:
         """
@@ -199,34 +196,6 @@ class CapacityPlanner:
 
         replicas = math.ceil(required_capacity / qps_per_replica)
         return max(1, replicas)
-
-    def _estimate_e2e_latency(self, bench: BenchmarkData, traffic_profile: TrafficProfile) -> int:
-        """
-        Estimate end-to-end latency for streaming inference.
-
-        For streaming mode (typical for LLM deployments), E2E latency is dominated
-        by TTFT and a small number of initial tokens, not the full generation.
-        Users perceive latency as "time until useful response starts appearing".
-
-        Args:
-            bench: Benchmark data
-            traffic_profile: Traffic characteristics
-
-        Returns:
-            Estimated E2E p90 latency (ms)
-        """
-        # For streaming: E2E ≈ TTFT + (first ~20 tokens × TPOT)
-        # This represents the time until the user has a meaningful response
-        ttft = bench.ttft_p90_ms
-        tpot = bench.tpot_p90_ms
-
-        # Use first 20 tokens as "perceived latency"
-        # (users typically start reading after this much content)
-        perceived_gen_tokens = min(20, traffic_profile.generation_tokens_mean)
-
-        e2e_p90 = ttft + (tpot * perceived_gen_tokens)
-
-        return e2e_p90
 
     def _generate_reasoning(
         self,
@@ -259,9 +228,9 @@ class CapacityPlanner:
             )
 
         # Performance
-        reasons.append(
-            f"Expected performance: TTFT={bench.ttft_p90_ms}ms, TPOT={bench.tpot_p90_ms}ms"
-        )
+        ttft_p95 = int(bench.ttft_p95) if bench.ttft_p95 else 0
+        itl_p95 = int(bench.itl_p95) if bench.itl_p95 else 0
+        reasons.append(f"Expected performance: TTFT={ttft_p95}ms (p95), ITL={itl_p95}ms (p95)")
 
         return ". ".join(reasons)
 
@@ -289,6 +258,6 @@ class CapacityPlanner:
             # Return most performant (likely most expensive)
             # Sort by predicted latency instead of cost
             configs_by_perf = sorted(
-                configs, key=lambda x: (x[0].predicted_ttft_p90_ms + x[0].predicted_tpot_p90_ms)
+                configs, key=lambda x: (x[0].predicted_ttft_p95_ms + x[0].predicted_itl_p95_ms)
             )
             return configs_by_perf[0][0]

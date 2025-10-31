@@ -76,9 +76,13 @@ class RecommendationWorkflow:
         logger.info("Step 2: Generating traffic profile and SLO targets")
         traffic_profile = self.traffic_generator.generate_profile(intent)
         slo_targets = self.traffic_generator.generate_slo_targets(intent)
-        logger.info(f"Traffic profile: {traffic_profile.expected_qps} QPS")
         logger.info(
-            f"SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, TPOT={slo_targets.tpot_p90_target_ms}ms"
+            f"Traffic profile: ({traffic_profile.prompt_tokens}→{traffic_profile.output_tokens}), "
+            f"{traffic_profile.expected_qps} QPS"
+        )
+        logger.info(
+            f"SLO targets (p95): TTFT={slo_targets.ttft_p95_target_ms}ms, "
+            f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
         )
 
         # Step 3: Recommend models
@@ -135,9 +139,9 @@ class RecommendationWorkflow:
                     "model_name": rec.model_name,
                     "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
-                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
+                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
+                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -182,7 +186,7 @@ class RecommendationWorkflow:
         logger.info(
             f"Specs: {intent.use_case}, {intent.user_count} users, "
             f"{traffic_profile.expected_qps} QPS, "
-            f"TTFT target={slo_targets.ttft_p90_target_ms}ms"
+            f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
         )
 
         # Step 1: Recommend models based on edited intent
