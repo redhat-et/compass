@@ -24,11 +24,13 @@ class TrafficProfileGenerator:
         """
         Generate traffic profile from deployment intent.
 
+        Uses traffic profile from SLO templates aligned with GuideLLM configurations.
+
         Args:
             intent: Deployment intent
 
         Returns:
-            TrafficProfile with estimated characteristics
+            TrafficProfile with exact GuideLLM traffic profile
         """
         # Get base template for use case
         template = self.slo_repo.get_template(intent.use_case)
@@ -40,28 +42,27 @@ class TrafficProfileGenerator:
         # Calculate expected QPS based on user count and request frequency
         expected_qps = self._estimate_qps(
             user_count=intent.user_count,
-            requests_per_user_per_day=template.requests_per_user_per_day or 10,
+            requests_per_user_per_day=10,  # Default assumption
             latency_requirement=intent.latency_requirement,
         )
 
         return TrafficProfile(
-            prompt_tokens_mean=template.prompt_tokens_mean,
-            prompt_tokens_variance=template.prompt_tokens_variance,
-            generation_tokens_mean=template.generation_tokens_mean,
-            generation_tokens_variance=template.generation_tokens_variance,
+            prompt_tokens=template.prompt_tokens,
+            output_tokens=template.output_tokens,
             expected_qps=expected_qps,
-            requests_per_user_per_day=template.requests_per_user_per_day,
         )
 
     def generate_slo_targets(self, intent: DeploymentIntent) -> SLOTargets:
         """
         Generate SLO targets from deployment intent.
 
+        Uses p95 SLO targets from templates, optionally adjusted for latency requirement.
+
         Args:
             intent: Deployment intent
 
         Returns:
-            SLOTargets with target latencies
+            SLOTargets with p95 target latencies
         """
         # Get base template for use case
         template = self.slo_repo.get_template(intent.use_case)
@@ -72,19 +73,19 @@ class TrafficProfileGenerator:
 
         # Adjust SLO targets based on latency requirement
         ttft_target = self._adjust_slo_for_latency(
-            template.ttft_p90_target_ms, intent.latency_requirement
+            template.ttft_p95_target_ms, intent.latency_requirement
         )
-        tpot_target = self._adjust_slo_for_latency(
-            template.tpot_p90_target_ms, intent.latency_requirement
+        itl_target = self._adjust_slo_for_latency(
+            template.itl_p95_target_ms, intent.latency_requirement
         )
         e2e_target = self._adjust_slo_for_latency(
-            template.e2e_p90_target_ms, intent.latency_requirement
+            template.e2e_p95_target_ms, intent.latency_requirement
         )
 
         return SLOTargets(
-            ttft_p90_target_ms=ttft_target,
-            tpot_p90_target_ms=tpot_target,
-            e2e_p90_target_ms=e2e_target,
+            ttft_p95_target_ms=ttft_target,
+            itl_p95_target_ms=itl_target,
+            e2e_p95_target_ms=e2e_target,
         )
 
     def _estimate_qps(
@@ -149,27 +150,25 @@ class TrafficProfileGenerator:
 
     def _generate_default_profile(self, intent: DeploymentIntent) -> TrafficProfile:
         """Generate default profile when no template available."""
-        # Conservative defaults
+        # Conservative defaults - use most common traffic profile (512→256)
         default_qps = intent.user_count * 0.01  # 1% of users active concurrently
 
         return TrafficProfile(
-            prompt_tokens_mean=300,
-            prompt_tokens_variance=150,
-            generation_tokens_mean=200,
-            generation_tokens_variance=100,
+            prompt_tokens=512,
+            output_tokens=256,
             expected_qps=default_qps,
-            requests_per_user_per_day=10,
         )
 
     def _generate_default_slo(self, intent: DeploymentIntent) -> SLOTargets:
         """Generate default SLO targets when no template available."""
+        # Using p95 targets for different latency requirements
         slo_map = {
-            "very_high": (150, 40, 1500),
-            "high": (250, 60, 3000),
-            "medium": (500, 80, 5000),
-            "low": (1000, 100, 10000),
+            "very_high": (100, 20, 5000),  # ttft, itl, e2e
+            "high": (150, 25, 7000),
+            "medium": (300, 30, 25000),
+            "low": (600, 40, 60000),
         }
 
-        ttft, tpot, e2e = slo_map.get(intent.latency_requirement, (500, 80, 5000))
+        ttft, itl, e2e = slo_map.get(intent.latency_requirement, (300, 30, 25000))
 
-        return SLOTargets(ttft_p90_target_ms=ttft, tpot_p90_target_ms=tpot, e2e_p90_target_ms=e2e)
+        return SLOTargets(ttft_p95_target_ms=ttft, itl_p95_target_ms=itl, e2e_p95_target_ms=e2e)
