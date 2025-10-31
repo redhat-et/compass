@@ -115,7 +115,24 @@ class RecommendationWorkflow:
                 logger.info("  ✗ No viable configuration found")
 
         if not viable_recommendations:
-            raise ValueError("No viable deployment configurations found meeting SLO targets")
+            # Build helpful error message with context
+            error_msg = (
+                f"No viable deployment configurations found meeting SLO targets.\n\n"
+                f"**What I understood:**\n"
+                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
+                f"- Scale: {intent.user_count:,} users\n"
+                f"- Latency requirement: {intent.latency_requirement}\n"
+                f"- Budget: {intent.budget_constraint}\n\n"
+                f"**What I'm looking for:**\n"
+                f"- Traffic profile: {traffic_profile.prompt_tokens} prompt tokens → {traffic_profile.output_tokens} output tokens\n"
+                f"- Expected load: {traffic_profile.expected_qps} queries/second\n"
+                f"- SLO targets (p95): TTFT ≤ {slo_targets.ttft_p95_target_ms}ms, "
+                f"ITL ≤ {slo_targets.itl_p95_target_ms}ms, E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
+                f"None of these models can meet the SLO targets with available hardware configurations. "
+                f"Try relaxing latency requirements or considering a different use case."
+            )
+            raise ValueError(error_msg)
 
         # Step 5: Select best recommendation and populate alternatives
         # Sort by model score (higher is better) then by cost (lower is better)
@@ -219,7 +236,20 @@ class RecommendationWorkflow:
                 logger.info("  ✗ No viable configuration found")
 
         if not viable_recommendations:
-            raise ValueError("No viable deployment configurations found meeting SLO targets")
+            # Build helpful error message with context for re-recommendation
+            error_msg = (
+                f"No viable deployment configurations found meeting SLO targets.\n\n"
+                f"**Your specifications:**\n"
+                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
+                f"- Scale: {intent.user_count:,} users\n"
+                f"- Traffic profile: {traffic_profile.prompt_tokens} → {traffic_profile.output_tokens} tokens\n"
+                f"- Expected load: {traffic_profile.expected_qps} queries/second\n"
+                f"- SLO targets (p95): TTFT ≤ {slo_targets.ttft_p95_target_ms}ms, "
+                f"ITL ≤ {slo_targets.itl_p95_target_ms}ms, E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
+                f"Try relaxing SLO targets or adjusting traffic parameters."
+            )
+            raise ValueError(error_msg)
 
         # Step 3: Select best recommendation and populate alternatives
         viable_recommendations.sort(key=lambda x: (-x[1], x[0].cost_per_month_usd))
