@@ -188,13 +188,13 @@ def load_benchmarks():
 
 ---
 
-## Phase 5: Update Code to Use PostgreSQL and Traffic Profiles ⏳ IN PROGRESS
+## Phase 5: Update Code to Use PostgreSQL and Traffic Profiles ✅ COMPLETED
 
 **Objective**: Migrate code from JSON to PostgreSQL with traffic profile-based queries
 
 **Decision**: Use PostgreSQL for all environments (upstream and downstream). Query by exact match on `(model_hf_repo, hardware, hardware_count, prompt_tokens, output_tokens)`, then filter by p95 SLO compliance.
 
-**Progress**: Schema and knowledge_base modules complete. Recommendation engine and UI updates remaining.
+**Status**: Complete (2025-10-31)
 
 **Files to Update**:
 
@@ -284,37 +284,42 @@ def load_benchmarks():
    - Changed to p95 SLO targets
    - Added helper methods for filtering by traffic profile/experience class
 
-4. ⏳ **`backend/src/recommendation/capacity_planner.py`** - IN PROGRESS
+4. ✅ **`backend/src/recommendation/capacity_planner.py`** - COMPLETED
    - Updated to use PostgreSQL queries via `find_configurations_meeting_slo()`
    - Uses pre-calculated e2e_p95 from benchmarks
    - Updated field names (p90→p95, tpot→itl)
    - Removed dynamic E2E calculation logic
 
-5. ⏳ **`backend/src/recommendation/traffic_profile.py`** - IN PROGRESS
+5. ✅ **`backend/src/recommendation/traffic_profile.py`** - COMPLETED
    - Updated to use traffic profiles from templates (prompt_tokens, output_tokens)
    - Changed to p95 SLO targets
    - Updated default values
 
-6. ⏳ **`backend/src/orchestration/workflow.py`** - IN PROGRESS
+6. ✅ **`backend/src/orchestration/workflow.py`** - COMPLETED
    - Updated logging to show p95 and itl terminology
    - Updated alternative options to use p95 fields
+   - Fixed validate_recommendation() method to use p95/itl fields
 
-7. ⏳ **`ui/app.py`** - TODO
-   - Update use case selector to show new use cases
-   - Display traffic profile in UI
-   - Update SLO display to show p95 (not p90)
-   - Rename "TPOT" → "ITL" throughout UI
+7. ✅ **`ui/app.py`** - COMPLETED
+   - Updated use case selector to show 9 new use cases from traffic_and_slos.md
+   - Updated traffic profile fields (prompt_tokens, output_tokens)
+   - Updated SLO display to show p95 (not p90)
+   - Renamed "TPOT" → "ITL" throughout UI
+   - Updated all metrics, summaries, and performance displays
 
 **Commits**:
 - `8221f06` - "Update schema to use p95, traffic profiles, and experience classes"
 - `9450d2d` - "Update knowledge base to use PostgreSQL and new schema"
+- `1e89432` - "Complete Phase 5: Update UI and workflow for p95/ITL terminology"
 
 **Validation**:
 - [x] Code connects to PostgreSQL successfully
 - [x] Benchmark queries return correct results
 - [x] SLO filtering works with p95 values
-- [ ] No performance regressions (not yet tested)
-- [ ] All tests pass (not yet tested)
+- [x] All backend code updated to use p95/ITL terminology
+- [x] UI updated to use p95/ITL terminology and new use cases
+- [ ] No performance regressions (testing in Phase 6)
+- [ ] All tests pass (testing in Phase 6)
 
 ---
 
@@ -469,14 +474,14 @@ def load_benchmarks():
 - [x] Phase 2: Update SLO templates and use case definitions (Commit: 91bceff)
 - [x] Phase 3: Update synthetic benchmark data (Commit: 7df745a)
 - [x] Phase 4: Create PostgreSQL data loader (Commit: 9115a2d)
-- [x] Phase 5: Update code to use PostgreSQL and traffic profiles (Commits: 8221f06, 9450d2d)
+- [x] Phase 5: Update code to use PostgreSQL and traffic profiles (Commits: 8221f06, 9450d2d, 1e89432)
   - [x] Update context_intent/schema.py
   - [x] Update knowledge_base/benchmarks.py
   - [x] Update knowledge_base/slo_templates.py
   - [x] Update recommendation/capacity_planner.py
   - [x] Update recommendation/traffic_profile.py
   - [x] Update orchestration/workflow.py
-  - [ ] Update UI (ui/app.py)
+  - [x] Update UI (ui/app.py)
 - [ ] Phase 6: Testing and documentation
   - [ ] Write unit tests for PostgreSQL queries
   - [ ] Write integration tests
@@ -487,7 +492,7 @@ def load_benchmarks():
 - [ ] Documentation complete
 - [ ] Ready for production use
 
-**Total Commits**: 7 commits on `postgres` branch
+**Total Commits**: 8 commits on `postgres` branch
 
 ---
 
@@ -529,9 +534,9 @@ The result is a cleaner, faster, more maintainable system aligned with real-worl
 
 ---
 
-## Summary of Progress (2025-10-30)
+## Summary of Progress (2025-10-31)
 
-**Commits Made** (7 total on postgres branch):
+**Commits Made** (8 total on postgres branch):
 1. `c917c35` - Add PostgreSQL migration plan and ignore SQL files
 2. `3018359` - Revise PostgreSQL migration plan for traffic profile-based matching
 3. `91bceff` - Update SLO templates with traffic profiles and experience classes
@@ -539,24 +544,25 @@ The result is a cleaner, faster, more maintainable system aligned with real-worl
 5. `9115a2d` - Create PostgreSQL benchmark loader script
 6. `8221f06` - Update schema to use p95, traffic profiles, and experience classes
 7. `9450d2d` - Update knowledge base to use PostgreSQL and new schema
+8. `1e89432` - Complete Phase 5: Update UI and workflow for p95/ITL terminology
 
 **What We Accomplished**:
 - ✅ Phase 1: PostgreSQL infrastructure setup and real data analysis
 - ✅ Phase 2: Updated SLO templates (9 use cases with traffic profiles)
 - ✅ Phase 3: Updated synthetic benchmarks (96 benchmarks, 4 traffic profiles)
 - ✅ Phase 4: Created PostgreSQL data loader script
-- ✅ Phase 5: Updated backend code (schema, knowledge_base, recommendation engine, orchestration)
+- ✅ Phase 5: Updated all backend code and UI (schema, knowledge_base, recommendation engine, orchestration, workflow, UI)
 
 **Ready for Next Session**:
 - Database is loaded with synthetic data
 - All core data structures updated to use p95 and traffic profiles
 - Backend recommendation engine complete
-- UI updates remaining (ui/app.py)
-- Testing and documentation remaining
+- UI fully updated with new use cases, p95/ITL terminology, and traffic profiles
+- Testing and documentation remaining (Phase 6)
 
 **Branch**: All changes pushed to GitHub on the `postgres` branch
 
 ---
 
-*Last Updated: 2025-10-30*
-*Status: Phase 5 Nearly Complete, UI + Testing Remaining*
+*Last Updated: 2025-10-31*
+*Status: Phase 5 Complete, Phase 6 (Testing & Documentation) Remaining*
