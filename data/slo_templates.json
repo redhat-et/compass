@@ -44,16 +44,16 @@
       "use_case": "Detailed Code Generation",
       "description": "Multi-function or multi-file code synthesis",
       "traffic_profile": {
-        "prompt_tokens": 1024,
-        "output_tokens": 1024
+        "prompt_tokens": 512,
+        "output_tokens": 256
       },
-      "experience_class": "interactive",
+      "experience_class": "conversational",
       "slo_targets": {
         "ttft_p95_ms": 300,
         "itl_p95_ms": 30,
-        "e2e_p95_ms": 25000
+        "e2e_p95_ms": 8000
       },
-      "rationale": "Users tolerate short delay for larger outputs; quality prioritized over immediacy",
+      "rationale": "Users tolerate short delay for code generation; quality prioritized over immediacy",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "medium",
@@ -64,14 +64,14 @@
       "use_case": "Translation / Paraphrasing",
       "description": "Language conversion or rewriting",
       "traffic_profile": {
-        "prompt_tokens": 1024,
-        "output_tokens": 1024
+        "prompt_tokens": 512,
+        "output_tokens": 256
       },
-      "experience_class": "deferred",
+      "experience_class": "conversational",
       "slo_targets": {
         "ttft_p95_ms": 400,
         "itl_p95_ms": 35,
-        "e2e_p95_ms": 35000
+        "e2e_p95_ms": 10000
       },
       "rationale": "Non-interactive; a few-second delay acceptable",
       "business_context": {
@@ -80,18 +80,18 @@
         "throughput_priority": "high"
       }
     },
-    "content_creation": {
+    "content_generation": {
       "use_case": "Content Generation / Writing Assistant",
       "description": "Blog posts, marketing copy, creative writing",
       "traffic_profile": {
-        "prompt_tokens": 1024,
-        "output_tokens": 1024
+        "prompt_tokens": 512,
+        "output_tokens": 256
       },
-      "experience_class": "deferred",
+      "experience_class": "interactive",
       "slo_targets": {
         "ttft_p95_ms": 500,
         "itl_p95_ms": 35,
-        "e2e_p95_ms": 40000
+        "e2e_p95_ms": 12000
       },
       "rationale": "Emphasis on completeness and coherence over latency",
       "business_context": {

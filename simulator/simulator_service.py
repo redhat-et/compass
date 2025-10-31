@@ -34,9 +34,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Load configuration from environment
-MODEL_NAME = os.getenv("MODEL_NAME", "mistralai/Mistral-7B-Instruct-v0.3")
+MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
-GPU_TYPE = os.getenv("GPU_TYPE", "NVIDIA-L4")
+GPU_TYPE = os.getenv("GPU_TYPE", "L4")
 PORT = int(os.getenv("PORT", "8080"))
 
 app = FastAPI(
@@ -109,11 +109,10 @@ class BenchmarkLoader:
         model_short = self._normalize_model_name(MODEL_NAME)
 
         for bench in self.benchmarks:
-            # Support both "model" and "model_id" field names
-            bench_model_id = bench.get("model_id") or bench.get("model", "")
+            bench_model_id = bench.get("model_hf_repo", "")
             bench_model = self._normalize_model_name(bench_model_id)
-            bench_gpu = bench.get("gpu_type", "")
-            bench_tp = bench.get("tensor_parallel", 1)
+            bench_gpu = bench.get("hardware", "")
+            bench_tp = bench.get("hardware_count", 1)
 
             if (model_short in bench_model and
                 GPU_TYPE in bench_gpu and
@@ -136,28 +135,37 @@ class BenchmarkLoader:
     def _default_benchmark(self) -> Dict[str, float]:
         """Default benchmark values when no match found"""
         return {
-            "model": MODEL_NAME,
-            "gpu_type": GPU_TYPE,
-            "tensor_parallel": TENSOR_PARALLEL_SIZE,
-            "ttft_p50_ms": 100.0,
-            "ttft_p90_ms": 150.0,
-            "ttft_p99_ms": 200.0,
-            "tpot_p50_ms": 30.0,
-            "tpot_p90_ms": 45.0,
-            "tpot_p99_ms": 60.0,
-            "throughput_tokens_per_sec": 500.0,
-            "throughput_requests_per_sec": 10.0
+            "model_hf_repo": MODEL_NAME,
+            "hardware": GPU_TYPE,
+            "hardware_count": TENSOR_PARALLEL_SIZE,
+            "ttft_mean": 100.0,
+            "ttft_p90": 150.0,
+            "ttft_p95": 175.0,
+            "ttft_p99": 200.0,
+            "itl_mean": 30.0,
+            "itl_p90": 45.0,
+            "itl_p95": 52.5,
+            "itl_p99": 60.0,
+            "e2e_mean": 500.0,
+            "e2e_p90": 750.0,
+            "e2e_p95": 875.0,
+            "e2e_p99": 1000.0,
+            "tokens_per_second": 500.0,
+            "requests_per_second": 10.0
         }
 
-    def get_ttft(self, percentile: str = "p50") -> float:
+    def get_ttft(self, percentile: str = "mean") -> float:
         """Get TTFT for given percentile in seconds"""
-        key = f"ttft_{percentile}_ms"
-        return self.model_perf.get(key, 100.0) / 1000.0
+        # Schema uses 'mean', 'p90', 'p95', 'p99' (values in ms)
+        key = f"ttft_{percentile}"
+        value_ms = self.model_perf.get(key, 100.0)
+        return value_ms / 1000.0
 
-    def get_tpot(self, percentile: str = "p50") -> float:
-        """Get TPOT for given percentile in seconds"""
-        key = f"tpot_{percentile}_ms"
-        return self.model_perf.get(key, 30.0) / 1000.0
+    def get_itl(self, percentile: str = "mean") -> float:
+        """Get ITL (Inter-Token Latency) for given percentile in seconds"""
+        key = f"itl_{percentile}"
+        value_ms = self.model_perf.get(key, 30.0)
+        return value_ms / 1000.0
 
 
 class CannedResponses:
@@ -222,8 +230,8 @@ logger.info(f"vLLM Simulator initialized:")
 logger.info(f"  Model: {MODEL_NAME}")
 logger.info(f"  GPU Type: {GPU_TYPE}")
 logger.info(f"  Tensor Parallel Size: {TENSOR_PARALLEL_SIZE}")
-logger.info(f"  TTFT p50: {benchmark_loader.get_ttft('p50')*1000:.1f}ms")
-logger.info(f"  TPOT p50: {benchmark_loader.get_tpot('p50')*1000:.1f}ms")
+logger.info(f"  TTFT mean: {benchmark_loader.get_ttft('mean')*1000:.1f}ms")
+logger.info(f"  ITL mean: {benchmark_loader.get_itl('mean')*1000:.1f}ms")
 
 
 @app.get("/")
@@ -266,18 +274,18 @@ def create_completion(request: CompletionRequest):
     """Create text completion (matches OpenAI API)"""
     logger.info(f"Completion request: prompt_length={len(request.prompt)}, max_tokens={request.max_tokens}")
 
-    # Simulate TTFT (Time to First Token)
-    ttft = benchmark_loader.get_ttft("p50")
+    # Simulate TTFT (Time to First Token) - use mean for typical performance
+    ttft = benchmark_loader.get_ttft("mean")
     time.sleep(ttft)
 
     # Get canned response
     response_text = CannedResponses.get_response(request.prompt)
 
-    # Simulate TPOT (Time Per Output Token) for remaining tokens
+    # Simulate ITL (Inter-Token Latency) for remaining tokens
     # Approximate tokens in response
     estimated_tokens = len(response_text.split())
-    tpot = benchmark_loader.get_tpot("p50")
-    time.sleep(tpot * min(estimated_tokens, request.max_tokens))
+    itl = benchmark_loader.get_itl("mean")
+    time.sleep(itl * min(estimated_tokens, request.max_tokens))
 
     # Build response matching OpenAI format
     return {
@@ -310,17 +318,17 @@ def create_chat_completion(request: ChatCompletionRequest):
 
     logger.info(f"Chat completion request: messages={len(request.messages)}, max_tokens={request.max_tokens}")
 
-    # Simulate TTFT
-    ttft = benchmark_loader.get_ttft("p50")
+    # Simulate TTFT - use mean for typical performance
+    ttft = benchmark_loader.get_ttft("mean")
     time.sleep(ttft)
 
     # Get canned response
     response_text = CannedResponses.get_response(last_message)
 
-    # Simulate TPOT
+    # Simulate ITL (Inter-Token Latency)
     estimated_tokens = len(response_text.split())
-    tpot = benchmark_loader.get_tpot("p50")
-    time.sleep(tpot * min(estimated_tokens, request.max_tokens))
+    itl = benchmark_loader.get_itl("mean")
+    time.sleep(itl * min(estimated_tokens, request.max_tokens))
 
     return {
         "id": f"chatcmpl-{uuid.uuid4()}",
@@ -354,19 +362,23 @@ def metrics():
     # Counter for total requests (simulated)
     total_requests = 1000
 
+    # Get metrics using new field names
+    ttft_mean = perf.get('ttft_mean', 100.0)
+    itl_mean = perf.get('itl_mean', 30.0)
+
     metrics_text = f"""# HELP vllm_time_to_first_token_seconds Time to first token
 # TYPE vllm_time_to_first_token_seconds histogram
-vllm_time_to_first_token_seconds_sum {perf.get('ttft_p50_ms', 100) * total_requests / 1000}
+vllm_time_to_first_token_seconds_sum {ttft_mean * total_requests / 1000}
 vllm_time_to_first_token_seconds_count {total_requests}
 
 # HELP vllm_time_per_output_token_seconds Time per output token
 # TYPE vllm_time_per_output_token_seconds histogram
-vllm_time_per_output_token_seconds_sum {perf.get('tpot_p50_ms', 30) * total_requests / 1000}
+vllm_time_per_output_token_seconds_sum {itl_mean * total_requests / 1000}
 vllm_time_per_output_token_seconds_count {total_requests}
 
 # HELP vllm_request_duration_seconds Request duration
 # TYPE vllm_request_duration_seconds histogram
-vllm_request_duration_seconds_sum {(perf.get('ttft_p50_ms', 100) + perf.get('tpot_p50_ms', 30) * 50) * total_requests / 1000}
+vllm_request_duration_seconds_sum {(ttft_mean + itl_mean * 50) * total_requests / 1000}
 vllm_request_duration_seconds_count {total_requests}
 
 # HELP vllm_prompt_tokens_total Total prompt tokens processed
