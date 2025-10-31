@@ -19,9 +19,9 @@ COPY data/benchmarks.json /app/data/benchmarks.json
 EXPOSE 8080
 
 # Set default environment variables
-ENV MODEL_NAME="mistralai/Mistral-7B-Instruct-v0.3"
+ENV MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 ENV TENSOR_PARALLEL_SIZE="1"
-ENV GPU_TYPE="NVIDIA-L4"
+ENV GPU_TYPE="L4"
 ENV PORT="8080"
 
 # Health check

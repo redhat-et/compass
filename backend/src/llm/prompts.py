@@ -4,7 +4,7 @@ INTENT_EXTRACTION_SCHEMA = """
 Expected JSON schema:
 {
   "use_case": "chatbot_conversational|code_completion|code_generation_detailed|translation|content_generation|summarization_short|document_analysis_rag|long_document_summarization|research_legal_analysis",
-  "experience_class": "interactive|balanced|batch",
+  "experience_class": "instant|conversational|interactive|deferred|batch",
   "user_count": <integer>,
   "latency_requirement": "very_high|high|medium|low",
   "throughput_priority": "very_high|high|medium|low",
@@ -25,9 +25,11 @@ Use case descriptions:
 - research_legal_analysis: Research/legal document analysis (very long prompts, detailed analysis)
 
 Experience class guidance:
-- interactive: Real-time user interaction (chatbot, code completion) - needs very low latency
-- balanced: Mix of interactivity and quality (translation, content generation, summarization)
-- batch: Background/batch processing (long document analysis, research) - quality over speed
+- instant: Extremely low latency required (<200ms TTFT) - code completion, autocomplete
+- conversational: Real-time user interaction (chatbots, interactive tools) - low latency needed
+- interactive: User waiting but can tolerate slight delay (RAG Q&A, content generation) - balanced
+- deferred: User can wait for quality (long summarization, detailed analysis) - quality over speed
+- batch: Background/async processing (research, legal analysis) - optimize for quality and cost
 """
 
 
