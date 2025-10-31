@@ -150,20 +150,58 @@ async def get_recommendation(request: RecommendationRequest):
             )
         logger.info("=" * 80)
 
-        recommendation = workflow.generate_recommendation(
+        # Always generate specification first (this cannot fail)
+        specification = workflow.generate_specification(
             user_message=request.user_message, conversation_history=request.conversation_history
-        )
+        )[0]
 
-        # Validate recommendation
-        is_valid = workflow.validate_recommendation(recommendation)
-        if not is_valid:
-            logger.warning("Generated recommendation failed validation")
+        # Try to find viable recommendations
+        try:
+            recommendation = workflow.generate_recommendation(
+                user_message=request.user_message, conversation_history=request.conversation_history
+            )
 
-        return RecommendationResponse(
-            recommendation=recommendation,
-            success=True,
-            message="Recommendation generated successfully",
-        )
+            # Validate recommendation
+            is_valid = workflow.validate_recommendation(recommendation)
+            if not is_valid:
+                logger.warning("Generated recommendation failed validation")
+
+            return RecommendationResponse(
+                recommendation=recommendation,
+                success=True,
+                message="Recommendation generated successfully",
+            )
+
+        except ValueError as e:
+            # No viable configurations found - return specification only
+            logger.warning(f"No viable configurations found: {e}")
+
+            # Create a partial recommendation with specification but no config
+            from ..context_intent.schema import DeploymentRecommendation
+
+            partial_recommendation = DeploymentRecommendation(
+                intent=specification.intent,
+                traffic_profile=specification.traffic_profile,
+                slo_targets=specification.slo_targets,
+                model_id=None,
+                model_name=None,
+                gpu_config=None,
+                predicted_ttft_p95_ms=None,
+                predicted_itl_p95_ms=None,
+                predicted_e2e_p95_ms=None,
+                predicted_throughput_qps=None,
+                cost_per_hour_usd=None,
+                cost_per_month_usd=None,
+                meets_slo=False,
+                reasoning=str(e),  # Include the detailed error message
+                alternative_options=None,
+            )
+
+            return RecommendationResponse(
+                recommendation=partial_recommendation,
+                success=True,
+                message="Specification generated, but no viable configurations found",
+            )
 
     except Exception as e:
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
@@ -226,32 +264,74 @@ async def simple_recommend(request: SimpleRecommendationRequest):
     try:
         logger.info(f"Received UI recommendation request: {request.message[:100]}...")
 
-        recommendation = workflow.generate_recommendation(
+        # Always generate specification first (this cannot fail)
+        specification = workflow.generate_specification(
             user_message=request.message, conversation_history=None
-        )
+        )[0]
 
-        # Auto-generate deployment YAML
+        # Try to find viable recommendations
         try:
-            yaml_result = deployment_generator.generate_all(
-                recommendation=recommendation, namespace="default"
+            recommendation = workflow.generate_recommendation(
+                user_message=request.message, conversation_history=None
             )
-            deployment_id = yaml_result["deployment_id"]
-            yaml_files = yaml_result["files"]
-            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
-            yaml_generated = True
-        except Exception as yaml_error:
-            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
-            deployment_id = None
-            yaml_files = {}
-            yaml_generated = False
 
-        # Return recommendation as dict with YAML info
-        result = recommendation.model_dump()
-        result["deployment_id"] = deployment_id
-        result["yaml_generated"] = yaml_generated
-        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+            # Auto-generate deployment YAML
+            try:
+                yaml_result = deployment_generator.generate_all(
+                    recommendation=recommendation, namespace="default"
+                )
+                deployment_id = yaml_result["deployment_id"]
+                yaml_files = yaml_result["files"]
+                logger.info(
+                    f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}"
+                )
+                yaml_generated = True
+            except Exception as yaml_error:
+                logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+                deployment_id = None
+                yaml_files = {}
+                yaml_generated = False
 
-        return result
+            # Return recommendation as dict with YAML info
+            result = recommendation.model_dump()
+            result["deployment_id"] = deployment_id
+            result["yaml_generated"] = yaml_generated
+            result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+            return result
+
+        except ValueError as e:
+            # No viable configurations found - return specification only
+            logger.warning(f"No viable configurations found: {e}")
+
+            # Create a partial recommendation with specification but no config
+            from ..context_intent.schema import DeploymentRecommendation
+
+            partial_recommendation = DeploymentRecommendation(
+                intent=specification.intent,
+                traffic_profile=specification.traffic_profile,
+                slo_targets=specification.slo_targets,
+                model_id=None,
+                model_name=None,
+                gpu_config=None,
+                predicted_ttft_p95_ms=None,
+                predicted_itl_p95_ms=None,
+                predicted_e2e_p95_ms=None,
+                predicted_throughput_qps=None,
+                cost_per_hour_usd=None,
+                cost_per_month_usd=None,
+                meets_slo=False,
+                reasoning=str(e),  # Include the detailed error message
+                alternative_options=None,
+            )
+
+            # No YAML for partial recommendations
+            result = partial_recommendation.model_dump()
+            result["deployment_id"] = None
+            result["yaml_generated"] = False
+            result["yaml_files"] = []
+
+            return result
 
     except Exception as e:
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
@@ -281,36 +361,105 @@ async def re_recommend(request: ReRecommendationRequest):
         logger.info("Received re-recommendation request with edited specifications")
         logger.debug(f"Edited specs: {request.specifications}")
 
-        # Re-run recommendation workflow with edited specifications
-        recommendation = workflow.generate_recommendation_from_specs(request.specifications)
-
-        # Auto-generate deployment YAML
+        # Try to find viable recommendations with edited specs
         try:
-            yaml_result = deployment_generator.generate_all(
-                recommendation=recommendation, namespace="default"
+            # Re-run recommendation workflow with edited specifications
+            recommendation = workflow.generate_recommendation_from_specs(request.specifications)
+
+            # Auto-generate deployment YAML
+            try:
+                yaml_result = deployment_generator.generate_all(
+                    recommendation=recommendation, namespace="default"
+                )
+                deployment_id = yaml_result["deployment_id"]
+                yaml_files = yaml_result["files"]
+                logger.info(
+                    f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}"
+                )
+                yaml_generated = True
+            except Exception as yaml_error:
+                logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+                deployment_id = None
+                yaml_files = {}
+                yaml_generated = False
+
+            # Return recommendation as dict with YAML info
+            result = recommendation.model_dump()
+            result["deployment_id"] = deployment_id
+            result["yaml_generated"] = yaml_generated
+            result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+            logger.info(
+                f"Re-recommendation complete: {recommendation.model_name} on "
+                f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
             )
-            deployment_id = yaml_result["deployment_id"]
-            yaml_files = yaml_result["files"]
-            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
-            yaml_generated = True
-        except Exception as yaml_error:
-            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
-            deployment_id = None
-            yaml_files = {}
-            yaml_generated = False
 
-        # Return recommendation as dict with YAML info
-        result = recommendation.model_dump()
-        result["deployment_id"] = deployment_id
-        result["yaml_generated"] = yaml_generated
-        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+            return result
 
-        logger.info(
-            f"Re-recommendation complete: {recommendation.model_name} on "
-            f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
-        )
+        except ValueError as e:
+            # No viable configurations found - return partial recommendation
+            logger.warning(f"No viable configurations found with edited specs: {e}")
 
-        return result
+            # Extract specifications from request
+            from ..context_intent.schema import (
+                DeploymentIntent,
+                DeploymentRecommendation,
+                SLOTargets,
+                TrafficProfile,
+            )
+
+            # Infer experience_class if not provided
+            intent_data = request.specifications["intent"].copy()
+            if "experience_class" not in intent_data or not intent_data.get("experience_class"):
+                use_case = intent_data.get("use_case", "")
+                if use_case == "code_completion":
+                    intent_data["experience_class"] = "instant"
+                elif use_case in [
+                    "chatbot_conversational",
+                    "code_generation_detailed",
+                    "translation",
+                    "content_generation",
+                    "summarization_short",
+                ]:
+                    intent_data["experience_class"] = "conversational"
+                elif use_case == "document_analysis_rag":
+                    intent_data["experience_class"] = "interactive"
+                elif use_case == "long_document_summarization":
+                    intent_data["experience_class"] = "deferred"
+                elif use_case == "research_legal_analysis":
+                    intent_data["experience_class"] = "batch"
+                else:
+                    intent_data["experience_class"] = "conversational"
+
+            intent = DeploymentIntent(**intent_data)
+            traffic_profile = TrafficProfile(**request.specifications["traffic_profile"])
+            slo_targets = SLOTargets(**request.specifications["slo_targets"])
+
+            partial_recommendation = DeploymentRecommendation(
+                intent=intent,
+                traffic_profile=traffic_profile,
+                slo_targets=slo_targets,
+                model_id=None,
+                model_name=None,
+                gpu_config=None,
+                predicted_ttft_p95_ms=None,
+                predicted_itl_p95_ms=None,
+                predicted_e2e_p95_ms=None,
+                predicted_throughput_qps=None,
+                cost_per_hour_usd=None,
+                cost_per_month_usd=None,
+                meets_slo=False,
+                reasoning=str(e),
+                alternative_options=None,
+            )
+
+            # No YAML for partial recommendations
+            result = partial_recommendation.model_dump()
+            result["deployment_id"] = None
+            result["yaml_generated"] = False
+            result["yaml_files"] = []
+
+            return result
 
     except Exception as e:
         logger.error(f"Failed to re-generate recommendation: {e}", exc_info=True)
@@ -344,8 +493,32 @@ async def regenerate_and_recommend(request: RegenerateRequest):
         logger.info("Received regenerate-and-recommend request with edited requirements")
         logger.debug(f"Edited intent: {request.intent}")
 
+        # Infer experience_class if not provided
+        intent_data = request.intent.copy()
+        if "experience_class" not in intent_data or not intent_data.get("experience_class"):
+            # Use the same inference logic as the extractor
+            use_case = intent_data.get("use_case", "")
+            if use_case == "code_completion":
+                intent_data["experience_class"] = "instant"
+            elif use_case in [
+                "chatbot_conversational",
+                "code_generation_detailed",
+                "translation",
+                "content_generation",
+                "summarization_short",
+            ]:
+                intent_data["experience_class"] = "conversational"
+            elif use_case == "document_analysis_rag":
+                intent_data["experience_class"] = "interactive"
+            elif use_case == "long_document_summarization":
+                intent_data["experience_class"] = "deferred"
+            elif use_case == "research_legal_analysis":
+                intent_data["experience_class"] = "batch"
+            else:
+                intent_data["experience_class"] = "conversational"  # Default
+
         # Parse intent into schema
-        intent = DeploymentIntent(**request.intent)
+        intent = DeploymentIntent(**intent_data)
 
         # Generate traffic profile and SLO targets from intent
         from ..recommendation.traffic_profile import TrafficProfileGenerator
@@ -356,11 +529,11 @@ async def regenerate_and_recommend(request: RegenerateRequest):
 
         logger.info(
             f"Regenerated traffic profile: {traffic_profile.expected_qps} QPS, "
-            f"{traffic_profile.prompt_tokens_mean} prompt tokens"
+            f"{traffic_profile.prompt_tokens}→{traffic_profile.output_tokens} tokens"
         )
         logger.info(
-            f"Regenerated SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, "
-            f"TPOT={slo_targets.tpot_p90_target_ms}ms"
+            f"Regenerated SLO targets (p95): TTFT={slo_targets.ttft_p95_target_ms}ms, "
+            f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
         )
 
         # Build specifications dict
@@ -370,36 +543,72 @@ async def regenerate_and_recommend(request: RegenerateRequest):
             "slo_targets": slo_targets.model_dump(),
         }
 
-        # Re-run recommendation workflow with regenerated specifications
-        recommendation = workflow.generate_recommendation_from_specs(specifications)
-
-        # Auto-generate deployment YAML
+        # Try to find viable recommendations with regenerated specifications
         try:
-            yaml_result = deployment_generator.generate_all(
-                recommendation=recommendation, namespace="default"
+            # Re-run recommendation workflow with regenerated specifications
+            recommendation = workflow.generate_recommendation_from_specs(specifications)
+
+            # Auto-generate deployment YAML
+            try:
+                yaml_result = deployment_generator.generate_all(
+                    recommendation=recommendation, namespace="default"
+                )
+                deployment_id = yaml_result["deployment_id"]
+                yaml_files = yaml_result["files"]
+                logger.info(
+                    f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}"
+                )
+                yaml_generated = True
+            except Exception as yaml_error:
+                logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
+                deployment_id = None
+                yaml_files = {}
+                yaml_generated = False
+
+            # Return recommendation as dict with YAML info
+            result = recommendation.model_dump()
+            result["deployment_id"] = deployment_id
+            result["yaml_generated"] = yaml_generated
+            result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+
+            logger.info(
+                f"Regenerate-and-recommend complete: {recommendation.model_name} on "
+                f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
             )
-            deployment_id = yaml_result["deployment_id"]
-            yaml_files = yaml_result["files"]
-            logger.info(f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}")
-            yaml_generated = True
-        except Exception as yaml_error:
-            logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
-            deployment_id = None
-            yaml_files = {}
-            yaml_generated = False
 
-        # Return recommendation as dict with YAML info
-        result = recommendation.model_dump()
-        result["deployment_id"] = deployment_id
-        result["yaml_generated"] = yaml_generated
-        result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
+            return result
 
-        logger.info(
-            f"Regenerate-and-recommend complete: {recommendation.model_name} on "
-            f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
-        )
+        except ValueError as e:
+            # No viable configurations found - return partial recommendation
+            logger.warning(f"No viable configurations found with regenerated specs: {e}")
 
-        return result
+            from ..context_intent.schema import DeploymentRecommendation
+
+            partial_recommendation = DeploymentRecommendation(
+                intent=intent,
+                traffic_profile=traffic_profile,
+                slo_targets=slo_targets,
+                model_id=None,
+                model_name=None,
+                gpu_config=None,
+                predicted_ttft_p95_ms=None,
+                predicted_itl_p95_ms=None,
+                predicted_e2e_p95_ms=None,
+                predicted_throughput_qps=None,
+                cost_per_hour_usd=None,
+                cost_per_month_usd=None,
+                meets_slo=False,
+                reasoning=str(e),
+                alternative_options=None,
+            )
+
+            # No YAML for partial recommendations
+            result = partial_recommendation.model_dump()
+            result["deployment_id"] = None
+            result["yaml_generated"] = False
+            result["yaml_files"] = []
+
+            return result
 
     except Exception as e:
         logger.error(f"Failed to regenerate and recommend: {e}", exc_info=True)

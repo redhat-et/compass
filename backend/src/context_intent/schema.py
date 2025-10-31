@@ -86,26 +86,47 @@ class DeploymentRecommendation(BaseModel):
     traffic_profile: TrafficProfile
     slo_targets: SLOTargets
 
-    # Recommended configuration
-    model_id: str = Field(..., description="Recommended model identifier")
-    model_name: str = Field(..., description="Human-readable model name")
-    gpu_config: GPUConfig
+    # Recommended configuration (None when no viable config found)
+    model_id: str | None = Field(None, description="Recommended model identifier")
+    model_name: str | None = Field(None, description="Human-readable model name")
+    gpu_config: GPUConfig | None = None
 
-    # Performance predictions
-    predicted_ttft_p95_ms: int
-    predicted_itl_p95_ms: int
-    predicted_e2e_p95_ms: int
-    predicted_throughput_qps: float
+    # Performance predictions (None when no viable config found)
+    predicted_ttft_p95_ms: int | None = None
+    predicted_itl_p95_ms: int | None = None
+    predicted_e2e_p95_ms: int | None = None
+    predicted_throughput_qps: float | None = None
 
-    # Cost estimation
-    cost_per_hour_usd: float
-    cost_per_month_usd: float
+    # Cost estimation (None when no viable config found)
+    cost_per_hour_usd: float | None = None
+    cost_per_month_usd: float | None = None
 
     # Metadata
-    meets_slo: bool = Field(..., description="Whether configuration meets SLO targets")
-    reasoning: str = Field(..., description="Explanation of recommendation choice")
+    meets_slo: bool = Field(False, description="Whether configuration meets SLO targets")
+    reasoning: str = Field(..., description="Explanation of recommendation choice or error message")
     alternative_options: list[dict] | None = Field(
         default=None, description="Alternative configurations with trade-offs"
+    )
+
+
+class DeploymentSpecification(BaseModel):
+    """
+    Deployment specification generated from user intent.
+
+    This is always generated successfully, even if no viable configurations exist.
+    Contains the extracted intent, traffic profile, and SLO targets.
+    """
+
+    # User intent
+    intent: DeploymentIntent
+
+    # Generated specifications
+    traffic_profile: TrafficProfile
+    slo_targets: SLOTargets
+
+    # Models that will be evaluated
+    models_to_evaluate: list[str] | None = Field(
+        default=None, description="Models that match the use case"
     )
 
 

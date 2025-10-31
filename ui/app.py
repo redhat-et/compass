@@ -496,6 +496,21 @@ def render_chat_interface():
 def format_recommendation_summary(rec: dict[str, Any]) -> str:
     """Format recommendation as a chat message."""
 
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        # No viable configuration found
+        summary = f"""
+I've analyzed your requirements:
+
+{rec['reasoning']}
+
+👉 Review the **Specifications** tab to see what I understood from your request, then adjust your SLO targets or requirements to find viable configurations.
+"""
+        return summary.strip()
+
+    # Has viable configuration
     meets_slo = rec.get("meets_slo", False)
     slo_status = "✅ Meets SLO" if meets_slo else "⚠️ Does not meet SLO"
 
@@ -549,6 +564,25 @@ def render_recommendation():
 
 def render_overview_tab(rec: dict[str, Any]):
     """Render overview tab with key information."""
+
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        # No viable configuration found - show friendly message
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.markdown("### 💡 What you can do:")
+        st.markdown("""
+        1. **Review the Specifications tab** to see what Compass understood from your request
+        2. **Relax your SLO targets** in the Specifications tab and click "Save & Re-Evaluate"
+        3. **Adjust traffic parameters** (expected QPS, token lengths) if they seem too high
+        4. **Try a different use case** that may have less stringent latency requirements
+        """)
+        st.markdown("---")
+        st.markdown("### 📝 Details")
+        st.markdown(rec.get("reasoning", "No additional details available"))
+        return
 
     # SLO Status Badge
     meets_slo = rec.get("meets_slo", False)
@@ -1038,6 +1072,31 @@ def render_specifications_tab(rec: dict[str, Any]):
 def render_performance_tab(rec: dict[str, Any]):
     """Render performance tab with detailed metrics."""
 
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.markdown("### 📝 SLO Targets")
+        st.markdown(
+            "These are the performance targets Compass is searching for, based on your requirements:"
+        )
+        slo = rec["slo_targets"]
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("TTFT p95 Target", f"{slo['ttft_p95_target_ms']}ms")
+        with col2:
+            st.metric("ITL p95 Target", f"{slo['itl_p95_target_ms']}ms")
+        with col3:
+            st.metric("E2E p95 Target", f"{slo['e2e_p95_target_ms']}ms")
+
+        st.markdown("---")
+        st.info(
+            "💡 Try relaxing these targets in the **Specifications** tab and clicking **Save & Re-Evaluate**"
+        )
+        return
+
     st.markdown("### 📊 Predicted Performance")
 
     slo = rec["slo_targets"]
@@ -1104,6 +1163,27 @@ def render_performance_tab(rec: dict[str, Any]):
 
 def render_cost_tab(rec: dict[str, Any]):
     """Render cost tab with pricing details."""
+
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.info(
+            """
+            **Cannot estimate cost without a viable GPU configuration.**
+
+            Cost estimates depend on:
+            - GPU type (L4, A100, H100, etc.)
+            - Number of GPUs needed
+            - Tensor parallelism configuration
+            - Number of replicas
+
+            💡 Adjust your requirements in the **Specifications** tab to find configurations that meet your SLO targets.
+            """
+        )
+        return
 
     st.markdown("### 💰 Cost Breakdown")
 
@@ -1235,13 +1315,26 @@ def regenerate_and_recommend(edited_specs: dict[str, Any]):
                 st.session_state.deployed_to_cluster = False
                 st.session_state.deployment_id = None
 
-                st.success(
-                    "✅ Traffic Profile and SLO Targets regenerated! New recommendation generated."
+                # Check if we got a viable config or just a spec
+                has_config = (
+                    new_recommendation.get("model_name") is not None
+                    and new_recommendation.get("gpu_config") is not None
                 )
-                st.info(
-                    f"**New Recommendation:** {new_recommendation['model_name']} on "
-                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
-                )
+
+                if has_config:
+                    st.success(
+                        "✅ Traffic Profile and SLO Targets regenerated! New recommendation generated."
+                    )
+                    st.info(
+                        f"**New Recommendation:** {new_recommendation['model_name']} on "
+                        f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                    )
+                else:
+                    st.warning(
+                        "⚠️ Specification regenerated, but no viable configurations found meeting SLO targets."
+                    )
+                    st.info("Review the **Specifications** tab and adjust your requirements.")
+
                 st.rerun()
             else:
                 st.error(f"Failed to regenerate: {response.text}")
@@ -1277,11 +1370,24 @@ def re_recommend_with_specs(edited_specs: dict[str, Any]):
                 st.session_state.deployed_to_cluster = False
                 st.session_state.deployment_id = None
 
-                st.success("✅ Re-evaluation complete! New recommendation generated.")
-                st.info(
-                    f"**New Recommendation:** {new_recommendation['model_name']} on "
-                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                # Check if we got a viable config or just a spec
+                has_config = (
+                    new_recommendation.get("model_name") is not None
+                    and new_recommendation.get("gpu_config") is not None
                 )
+
+                if has_config:
+                    st.success("✅ Re-evaluation complete! New recommendation generated.")
+                    st.info(
+                        f"**New Recommendation:** {new_recommendation['model_name']} on "
+                        f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                    )
+                else:
+                    st.warning(
+                        "⚠️ Re-evaluation complete, but no viable configurations found meeting SLO targets."
+                    )
+                    st.info("Review the **Specifications** tab and adjust your SLO targets.")
+
                 st.rerun()
             else:
                 st.error(f"Failed to re-evaluate: {response.text}")
@@ -1715,6 +1821,27 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
     """Render YAML preview tab showing generated deployment files."""
 
     st.markdown("### 📄 Deployment YAML Files")
+
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.info(
+            """
+            **Cannot generate deployment YAML without a viable configuration.**
+
+            YAML deployment files require:
+            - Model selection (which LLM to deploy)
+            - GPU configuration (type, count, tensor parallelism)
+            - Resource requests and limits
+            - Autoscaling parameters
+
+            💡 Adjust your requirements in the **Specifications** tab to find configurations that can be deployed.
+            """
+        )
+        return
 
     # Check if YAML was auto-generated
     if not rec.get("yaml_generated", False):
