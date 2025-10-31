@@ -239,9 +239,9 @@ class RecommendationWorkflow:
                     "model_name": rec.model_name,
                     "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
-                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
+                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
+                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -273,26 +273,26 @@ class RecommendationWorkflow:
             return False
 
         # Check TTFT
-        if recommendation.predicted_ttft_p90_ms > recommendation.slo_targets.ttft_p90_target_ms:
+        if recommendation.predicted_ttft_p95_ms > recommendation.slo_targets.ttft_p95_target_ms:
             logger.warning(
-                f"TTFT {recommendation.predicted_ttft_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.ttft_p90_target_ms}ms"
+                f"TTFT {recommendation.predicted_ttft_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.ttft_p95_target_ms}ms"
             )
             return False
 
-        # Check TPOT
-        if recommendation.predicted_tpot_p90_ms > recommendation.slo_targets.tpot_p90_target_ms:
+        # Check ITL
+        if recommendation.predicted_itl_p95_ms > recommendation.slo_targets.itl_p95_target_ms:
             logger.warning(
-                f"TPOT {recommendation.predicted_tpot_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.tpot_p90_target_ms}ms"
+                f"ITL {recommendation.predicted_itl_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.itl_p95_target_ms}ms"
             )
             return False
 
         # Check E2E
-        if recommendation.predicted_e2e_p90_ms > recommendation.slo_targets.e2e_p90_target_ms:
+        if recommendation.predicted_e2e_p95_ms > recommendation.slo_targets.e2e_p95_target_ms:
             logger.warning(
-                f"E2E {recommendation.predicted_e2e_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.e2e_p90_target_ms}ms"
+                f"E2E {recommendation.predicted_e2e_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.e2e_p95_target_ms}ms"
             )
             return False
 
