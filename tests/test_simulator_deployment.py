@@ -39,51 +39,51 @@ def test_simulator_deployment():
     print("\n1. Creating test deployment recommendation...")
 
     intent = DeploymentIntent(
-        use_case="code_generation",
+        use_case="code_generation_detailed",
+        experience_class="conversational",
         user_count=100,
         latency_requirement="high",
         throughput_priority="medium",
-        cost_sensitivity="medium",
-        description="Test deployment for simulator"
+        budget_constraint="moderate",
+        domain_specialization=["general"],
+        additional_context="Test deployment for simulator"
     )
 
     slo = SLOTargets(
-        ttft_p50_target_ms=100,
-        ttft_p90_target_ms=200,
-        ttft_p99_target_ms=300,
-        tpot_p50_target_ms=30,
-        tpot_p90_target_ms=50,
-        tpot_p99_target_ms=70,
-        e2e_p90_target_ms=2000,
-        throughput_target_rps=10
+        ttft_p95_target_ms=200,
+        itl_p95_target_ms=50,
+        e2e_p95_target_ms=2000
     )
 
     traffic = TrafficProfile(
         expected_qps=5.0,
-        prompt_tokens_mean=150,
-        generation_tokens_mean=200,
-        concurrent_users=50
+        prompt_tokens=512,
+        output_tokens=256
     )
 
     gpu_config = GPUConfig(
-        gpu_type="NVIDIA-L4",
+        gpu_type="L4",
         gpu_count=1,
         tensor_parallel=1,
-        data_parallel=1
+        replicas=1
     )
 
     recommendation = DeploymentRecommendation(
-        model_id="mistralai/Mistral-7B-Instruct-v0.3",
-        model_name="Mistral 7B Instruct v0.3",
-        model_size_b=7,
         intent=intent,
-        slo=slo,
-        traffic=traffic,
+        traffic_profile=traffic,
+        slo_targets=slo,
+        model_id="meta-llama/Llama-3.1-8B-Instruct",
+        model_name="Llama 3.1 8B Instruct",
         gpu_config=gpu_config,
-        reasoning="Testing simulator deployment",
-        estimated_monthly_cost=100.0,
+        predicted_ttft_p95_ms=150,
+        predicted_itl_p95_ms=40,
+        predicted_e2e_p95_ms=1800,
+        predicted_throughput_qps=10.0,
+        cost_per_hour_usd=0.50,
+        cost_per_month_usd=365.0,
         meets_slo=True,
-        confidence=0.95
+        reasoning="Testing simulator deployment",
+        alternative_options=None
     )
 
     print(f"   Model: {recommendation.model_name}")
