@@ -30,6 +30,17 @@ Compass follows a **4-stage conversational flow**:
 
 The system is composed of eight core components:
 
+1. **Conversational Interface Layer** - Natural language dialogue to capture user intent
+2. **Context & Intent Engine** - Extract structured deployment specifications from conversation
+3. **Recommendation Engine** - Generate model and GPU configuration recommendations
+4. **Deployment Automation Engine** - Generate and deploy production-ready Kubernetes configurations
+5. **Knowledge Base & Benchmarking Data Store** - Store model benchmarks, SLO templates, and deployment outcomes
+6. **LLM Backend** - Power conversational AI interactions
+7. **Orchestration & Workflow Engine** - Coordinate multi-step recommendation flows
+8. **Basic Inference Observability** - Monitor deployed models and enable basic inference testing
+
+Each component is discussed in detail below.
+
 ### Conversational Interface Layer
 **Purpose**: Natural language dialogue to capture user intent
 
@@ -223,9 +234,9 @@ USE_CASE_TEMPLATES = {
 **Purpose**: Suggest model, hardware, and SLO configurations based on captured context and deployment specifications
 
 **Technology Options**:
-- **Rule-based decision tree + LLM augmentation** - Hybrid approach with explainability
-- **Vector similarity search (FAISS/Pinecone) + retrieval** - Match context to known deployment patterns
-- **Custom ML model** - Train on historical deployment data (future iteration)
+- **Rule-based decision tree + LLM augmentation** - Hybrid approach with explainability (Phase 1)
+- **Vector similarity search (FAISS/Pinecone) + retrieval** - Match context to known deployment patterns (Phase 2+)
+- **Custom ML model** - Train on historical deployment data (Phase 3+)
 
 **Sub-Components**:
 
@@ -238,20 +249,26 @@ Translates high-level use case descriptions into concrete traffic characteristic
 - Business context
 
 **Outputs**:
-- Prompt/generation length estimates (Phase 1: averages, Phase 2: distributions)
+- Prompt/generation length estimates (Phase 1: simple averages)
 - QPS estimates (steady-state and peak)
-- Burstiness patterns
-- Request heterogeneity profile
+- Burstiness patterns (Phase 3+)
+- Request heterogeneity profile (Phase 3+: track variety/diversity of request sizes)
 
-**Implementation Approach (Phase 1)**:
+**Implementation Approach (Phase 1 - POC)**:
 - Rule-based heuristics using use case templates
-- LLM-assisted estimation for edge cases
 - Simple point estimates (mean values only)
 
-**Phase 2 Enhancements**:
-- Full statistical distributions
+**Phase 2 Enhancements (MVP)**:
 - Industry benchmark lookup from Knowledge Base
+- Fixed traffic profiles aligned with GuideLLM benchmarks
+
+**Phase 3+ Enhancements (Future Work)**:
+- Full statistical distributions (mean, variance, percentiles)
+- Burstiness pattern characterization
+- Request heterogeneity profiling (track mix of short/long requests)
+- Impact analysis on batching efficiency and latency variance
 - Pattern learning from historical deployments
+- LLM-assisted estimation for edge cases
 
 #### 3b. Model Recommendation Engine
 Filters and ranks models based on task compatibility and user constraints.
@@ -332,8 +349,9 @@ def calculate_capacity(
     """
 
     # Phase 2 enhancements:
-    # - Optimize batch size for throughput/latency trade-off
     # - Consider auto-scaling (min/max GPU count)
+    # Phase 3+ enhancements
+    # - Optimize batch size for throughput/latency trade-off
     # - Advanced tensor parallelism optimization
     # - Queueing theory models for latency under load
 ```
@@ -374,29 +392,12 @@ def calculate_capacity(
 ### Deployment Automation Engine
 **Purpose**: Generate production-ready configs and trigger deployment
 
-**Technology Options**:
-- **Jinja2 templating + Python** - Generate KServe/vLLM YAML from templates
+**Phase 1 (POC) - Current Implementation**:
+
+**Technology Stack**:
+- **Jinja2 templating** - Generate KServe/vLLM YAML from templates
 - **Kubernetes Python client** - Direct K8s API interaction for deployment
-- **ArgoCD/Flux GitOps** - Push generated configs to Git for automated sync
-- **Go + native Kubernetes client** - For advanced use cases requiring tighter K8s integration (Phase 2+)
-
-**Phase 1 Recommendation: Python**
-
-For the initial 3-month iteration, we recommend Python for these reasons:
-- **Stack consistency**: Entire system uses Python (LangChain, Chainlit, LLM interactions)
-- **Rapid development**: Jinja2 templating is native and highly productive
-- **Mature client library**: Kubernetes Python client is feature-complete and well-maintained
-- **Team expertise**: Likely more Python experience on AI-focused teams
-- **Sufficient performance**: Not building performance-critical controllers or watch loops
-
-**Phase 2+ Consideration: Go**
-
-Consider migrating to Go if requirements evolve to include:
-- **Custom Kubernetes operators**: Building CRDs with reconciliation loops
-- **Advanced watch patterns**: Complex event-driven K8s resource management
-- **Performance optimization**: High-volume deployment operations
-- **Native K8s ecosystem**: Tighter integration with controller-runtime and operator-sdk
-- **Smaller container footprint**: No Python runtime overhead
+- **Python** - All deployment automation logic
 
 **Outputs**:
 - KServe InferenceService YAML
@@ -475,13 +476,14 @@ Comprehensive performance metrics for model + GPU combinations.
 
 **Phase 1 POC Simplification**: Current implementation uses point estimates under typical conditions (150 input tokens, 200 output tokens, steady traffic). Benchmarks are collected using vLLM default configuration with dynamic batching enabled. This is sufficient for demonstrating the workflow but lacks precision for production use.
 
-**Phase 2+ Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
+**Phase 2 Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
 - Input/output token lengths (longer prompts/generations affect latency and throughput)
+
+**Phase 3+ Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
 - Concurrency levels and traffic patterns (bursty vs steady affects tail latencies)
 - KV cache efficiency (prefix caching reduces TTFT for similar prompts)
 - Different vLLM configuration tunings for specific workload patterns
-
-The system should interpolate between benchmark points or use parametric models (regression-based) for continuous prediction when exact traffic matches aren't available.
+- Interpolate between benchmark points or use parametric models (regression-based) for continuous prediction when exact traffic matches aren't available.
 
 **Benchmark Schema**:
 ```json
@@ -539,7 +541,7 @@ See `backend/src/recommendation/capacity_planner.py::_estimate_e2e_latency()` fo
 
 This follows industry best practices - vLLM, HuggingFace, and NVIDIA benchmarks report TTFT/TPOT/throughput but not E2E, as E2E is workload-specific.
 
-**Phase 2+ Enhancement**: Improve calculation model to account for:
+**Phase 3+ Enhancement**: Improve calculation model to account for:
 - Queueing delays under high load
 - Concurrency effects on tail latencies
 - Streaming-aware user perception (first chunk vs full completion)
@@ -554,7 +556,7 @@ GPU specifications, availability, and pricing.
 
 This allows quick iteration but requires code changes to update pricing. Future phases should extract to separate data files for easier maintenance and support for external data source integration (see Future Enhancements section).
 
-**Phase 2+ Target Schema**:
+**Phase 2 Target Schema**:
 ```json
 {
   "gpu_type": "NVIDIA-A100-80GB",
@@ -574,7 +576,7 @@ Pricing information for different GPU types.
 
 **Phase 1 Implementation Note**: Cost data is embedded in `DeploymentGenerator.GPU_PRICING` for simplicity. Currently assumes cloud rental pricing model only. Future phases should externalize and expand to support multiple deployment models (see Future Enhancements section).
 
-**Phase 2+ Target Schema**:
+**Phase 2 Target Schema**:
 ```json
 {
   "gpu_type": "NVIDIA-A100-80GB",
@@ -687,7 +689,7 @@ resources:
 {% endif %}
 ```
 
-#### 6g. Deployment Outcomes
+#### 6g. Deployment Outcomes (Phase 3+)
 Historical data from real deployments for continuous learning.
 
 ```json
@@ -740,111 +742,109 @@ Historical data from real deployments for continuous learning.
 ### Orchestration & Workflow Engine
 **Purpose**: Coordinate multi-step flows (conversation → recommendation → deployment)
 
-**Technology Options**:
-- **LangGraph** - State machine for LLM workflows
-- **Temporal** - Robust workflow orchestration with retries/compensation
-- **Custom FastAPI + state management** - Lightweight for initial iteration
+**Phase 1 (POC) - Current Implementation**:
+- **FastAPI** - REST API endpoints (`backend/src/api/routes.py`)
+- **Python workflow class** - Simple orchestration (`backend/src/orchestration/workflow.py`)
+- **In-memory state** - Streamlit session state for UI interactions
+- Synchronous execution of workflow steps
+- No retry logic or error compensation
 
 **Workflow States**:
-1. Context Collection
-2. Recommendation Generation
-3. Interactive Exploration
-4. Configuration Finalization
-5. Deployment Execution
-6. Post-Deployment Validation
+1. Context Collection - Extract deployment intent from user input
+2. Recommendation Generation - Generate model and GPU recommendations
+3. Interactive Exploration - Allow user to review/edit specifications
+4. Configuration Finalization - User confirms deployment specs
+5. Deployment Execution - Generate YAML and deploy to Kubernetes
+6. Post-Deployment Validation - Basic health checks and inference testing
+
+**Phase 2 (MVP) - Planned Enhancements**:
+
+This workflow needs to be enhanced for production use. Possible technology options include:
+- **LangGraph** - State machine for LLM workflows with built-in persistence
+- **Temporal** - Robust workflow orchestration with retries, compensation, and observability
+- **Enhanced FastAPI + async workflows** - Add async execution, persistent state, retry logic
 
 ---
 
-### Inference Observability & SLO Monitoring
-**Purpose**: Monitor deployed inference systems to validate SLO compliance and enable feedback loop to improve recommendations
+### Basic Inference Observability
+**Purpose**: Provide visibility into deployed inference systems and enable basic sanity testing
 
-**Technology Options**:
-- **OpenTelemetry + Prometheus + Grafana** - Standard observability stack for metrics
-- **Observability Platform** - Integrate with Kubernetes monitoring ecosystem
-- **Custom metrics exporters** - vLLM/KServe-specific instrumentation
+**Phase 1 (POC) - Current Implementation**:
+
+**Technology Choices**:
+- **Kubernetes API** - Query cluster state and pod status
+- **Direct HTTP requests** - Test inference endpoints
+- **Streamlit dashboard** - Display deployment status and test results
 
 **Key Responsibilities**:
 
+#### Deployment Status Monitoring
+Show what instances have been deployed:
+- **Cluster connectivity**: Verify Kubernetes cluster is accessible
+- **Pod status**: Show running/pending/failed inference services
+- **Service endpoints**: Display accessible inference URLs
+- **Basic health checks**: Verify pods are Ready and Serving
+
+#### Basic Inference Testing
+Enable sanity testing by sending queries:
+- **Manual query interface**: Send test prompts to deployed models
+- **Response validation**: Verify model generates reasonable outputs
+- **Simple latency measurement**: Show basic response times (not statistical SLO tracking)
+- **Error detection**: Display failures or timeout errors
+
+**Dashboard Example** (Current Implementation):
+```
+┌─────────────────────────────────────────────────────────┐
+│ Deployed Models                                         │
+├─────────────────────────────────────────────────────────┤
+│ Name: llama3-8b-chatbot                                 │
+│ Status: ✓ Ready (2/2 pods running)                      │
+│ Endpoint: http://llama3-8b-chatbot.default.svc         │
+│                                                         │
+│ Test Inference:                                         │
+│ Prompt: "What is the capital of France?"                │
+│ Response: "The capital of France is Paris..."           │
+│ Latency: ~450ms                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Phase 3+ Future Enhancements** (Advanced SLO Monitoring):
+
+The following features are planned for future phases but not currently implemented:
+
 #### SLO Compliance Monitoring
-Track whether deployed models meet their predicted SLO targets:
-- **TTFT (Time to First Token)**: p50, p90, p99 latencies
-- **TPOT (Time Per Output Token)**: p50, p90, p99 latencies
-- **E2E Latency**: Full request-response time at p50, p90, p99
-- **Throughput**: Actual requests/sec and tokens/sec vs predicted
-- **Quality**: Model accuracy/quality metrics if available
+- **TTFT/ITL/E2E Latency**: p50, p95, p99 percentile tracking
+- **Throughput metrics**: Actual requests/sec and tokens/sec vs predicted
 - **Reliability**: Uptime, error rates, timeout rates
+- **Alerting**: Proactive alerts when SLOs are violated
 
 #### Resource Utilization Metrics
-Monitor efficiency of GPU allocation:
 - **GPU utilization**: Compute usage per GPU (target: >80% for cost efficiency)
 - **GPU memory usage**: VRAM consumption vs available
 - **Batch efficiency**: Average batch size achieved
 - **Request queue depth**: Backlog indicating capacity constraints
-- **Token throughput per GPU**: Measure of effective GPU usage
 
 #### Cost Tracking
-Validate cost predictions and identify optimization opportunities:
 - **Actual cost per hour/month**: Compare to predicted
 - **Cost per 1k tokens**: Unit economics
-- **Cost per request**: Overhead analysis
 - **Idle GPU time**: Identify overprovisioning
 
 #### Traffic Pattern Analysis
-Understand actual workload vs predictions:
-- **Prompt length distribution**: Actual vs predicted (mean, p90, max)
-- **Generation length distribution**: Actual vs predicted
+- **Prompt/output length distribution**: Actual vs predicted
 - **QPS patterns**: Steady-state, peak, burstiness
 - **Temporal patterns**: Diurnal cycles, weekday/weekend differences
-- **Request heterogeneity**: Mix of short/long requests
 
-**Integration Points**:
-- **vLLM metrics endpoint**: Native Prometheus metrics for inference stats
-- **KServe ServiceMonitor**: Kubernetes-native metrics collection
-- **Grafana dashboards**: Pre-configured for SLO visualization
-- **Alerting**: Proactive alerts when SLOs are violated or GPUs underutilized
-
-**Feedback Loop to Knowledge Base**:
+#### Feedback Loop to Knowledge Base
 - Store actual performance metrics in Deployment Outcomes
-- Compare predicted vs actual TTFT, TPOT, throughput, cost
+- Compare predicted vs actual TTFT, ITL, throughput, cost
 - Identify systematic biases in predictions
 - Update benchmark data and recommendation logic
 - Enable continuous improvement of capacity planning accuracy
 
-**Dashboard Example**:
-```
-┌─────────────────────────────────────────────────────────┐
-│ Deployment: chatbot-prod-llama3-8b                      │
-├─────────────────────────────────────────────────────────┤
-│ SLO Compliance (Last 7 days):                           │
-│   TTFT p90:    185ms ✓ (target: 200ms)                  │
-│   TPOT p90:     48ms ✓ (target: 50ms)                   │
-│   E2E p90:    1850ms ✓ (target: 2000ms)                 │
-│   Throughput:  122 rps ✓ (target: 100 rps)              │
-│   Uptime:     99.94% ✓ (target: 99.9%)                  │
-│                                                         │
-│ Resource Utilization:                                   │
-│   GPU Usage:     78% ⚠️ (2x L4, could optimize)         │
-│   GPU Memory:    14.2 / 24 GB per GPU                   │
-│   Avg Batch:     18 requests                            │
-│                                                         │
-│ Cost Analysis:                                          │
-│   Actual:       $812/month (predicted: $800)            │
-│   Per 1k tok:   $0.042 (predicted: $0.040)              │
-│                                                         │
-│ Traffic Patterns:                                       │
-│   Avg Prompt:   165 tokens (predicted: 150)             │
-│   Avg Gen:      220 tokens (predicted: 200)             │
-│   Peak QPS:     95 (predicted: 100)                     │
-│                                                         │
-│ Recommendation: GPU utilization below 80%.              │
-│ Consider downsizing to 1x L4 to reduce cost by 50%.     │
-└─────────────────────────────────────────────────────────┘
-```
-
-**Assistant Performance Metrics** (secondary focus):
-- Recommendation acceptance rate
-- Time-to-deployment
-- Specification edit frequency (indicates auto-generation accuracy)
+**Technology for Phase 3+**:
+- **OpenTelemetry + Prometheus + Grafana** - Standard observability stack for metrics
+- **vLLM metrics endpoint** - Native Prometheus metrics for inference stats
+- **KServe ServiceMonitor** - Kubernetes-native metrics collection
 
 ---
 
@@ -1075,8 +1075,8 @@ The Deployment Automation Engine supports toggling between simulator and real vL
 - System uptime (target: 99.9%)
 
 ### Business Impact
-- Reduction in overprovisioning (measure GPU utilization)
 - Increase in AI adoption (measure deployments/month)
+- Reduction in overprovisioning (measure GPU utilization)
 - Customer retention (measure engagement with assistant)
 
 ---
