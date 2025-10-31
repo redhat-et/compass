@@ -66,11 +66,29 @@ def prepare_benchmark_for_insert(benchmark):
     prepared['id'] = str(uuid.uuid4())
     prepared['config_id'] = generate_config_id(benchmark)
 
-    # Add required fields with defaults
+    # Add required fields with defaults (matching real data schema)
     prepared['type'] = 'local'  # benchmark type
+    prepared['provider'] = None  # Optional field
     prepared['jbenchmark_created_at'] = datetime.now()
     prepared['created_at'] = datetime.now()
     prepared['updated_at'] = datetime.now()
+    prepared['loaded_at'] = None  # Optional field
+
+    # Optional fields that may not be in synthetic data
+    prepared.setdefault('huggingface_prompt_dataset', None)
+    prepared.setdefault('entrypoint', None)
+    prepared.setdefault('docker_image', None)
+    prepared.setdefault('tps_mean', None)
+    prepared.setdefault('tps_p90', None)
+    prepared.setdefault('tps_p95', None)
+    prepared.setdefault('tps_p99', None)
+    prepared.setdefault('prompt_tokens_min', None)
+    prepared.setdefault('prompt_tokens_max', None)
+    prepared.setdefault('output_tokens_min', None)
+    prepared.setdefault('output_tokens_max', None)
+    prepared.setdefault('profiler_type', None)
+    prepared.setdefault('profiler_image', None)
+    prepared.setdefault('profiler_tag', None)
 
     return prepared
 
@@ -86,72 +104,104 @@ def insert_benchmarks(conn, benchmarks):
     # Prepare benchmarks with required fields
     prepared_benchmarks = [prepare_benchmark_for_insert(b) for b in benchmarks]
 
-    # Prepare insert query
+    # Prepare insert query (all fields from real schema)
     insert_query = """
         INSERT INTO exported_summaries (
             id,
             config_id,
             model_hf_repo,
+            provider,
             type,
-            hardware,
-            hardware_count,
-            framework,
-            framework_version,
-            mean_input_tokens,
-            mean_output_tokens,
-            prompt_tokens,
-            prompt_tokens_stdev,
-            output_tokens,
-            output_tokens_stdev,
             ttft_mean,
             ttft_p90,
             ttft_p95,
             ttft_p99,
-            itl_mean,
-            itl_p90,
-            itl_p95,
-            itl_p99,
             e2e_mean,
             e2e_p90,
             e2e_p95,
             e2e_p99,
+            itl_mean,
+            itl_p90,
+            itl_p95,
+            itl_p99,
+            tps_mean,
+            tps_p90,
+            tps_p95,
+            tps_p99,
+            hardware,
+            hardware_count,
+            framework,
             requests_per_second,
             tokens_per_second,
+            mean_input_tokens,
+            mean_output_tokens,
+            huggingface_prompt_dataset,
             jbenchmark_created_at,
+            entrypoint,
+            docker_image,
+            framework_version,
             created_at,
-            updated_at
+            updated_at,
+            loaded_at,
+            prompt_tokens,
+            prompt_tokens_stdev,
+            prompt_tokens_min,
+            prompt_tokens_max,
+            output_tokens,
+            output_tokens_min,
+            output_tokens_max,
+            output_tokens_stdev,
+            profiler_type,
+            profiler_image,
+            profiler_tag
         ) VALUES (
             %(id)s,
             %(config_id)s,
             %(model_hf_repo)s,
+            %(provider)s,
             %(type)s,
-            %(hardware)s,
-            %(hardware_count)s,
-            %(framework)s,
-            %(framework_version)s,
-            %(mean_input_tokens)s,
-            %(mean_output_tokens)s,
-            %(prompt_tokens)s,
-            %(prompt_tokens_stdev)s,
-            %(output_tokens)s,
-            %(output_tokens_stdev)s,
             %(ttft_mean)s,
             %(ttft_p90)s,
             %(ttft_p95)s,
             %(ttft_p99)s,
-            %(itl_mean)s,
-            %(itl_p90)s,
-            %(itl_p95)s,
-            %(itl_p99)s,
             %(e2e_mean)s,
             %(e2e_p90)s,
             %(e2e_p95)s,
             %(e2e_p99)s,
+            %(itl_mean)s,
+            %(itl_p90)s,
+            %(itl_p95)s,
+            %(itl_p99)s,
+            %(tps_mean)s,
+            %(tps_p90)s,
+            %(tps_p95)s,
+            %(tps_p99)s,
+            %(hardware)s,
+            %(hardware_count)s,
+            %(framework)s,
             %(requests_per_second)s,
             %(tokens_per_second)s,
+            %(mean_input_tokens)s,
+            %(mean_output_tokens)s,
+            %(huggingface_prompt_dataset)s,
             %(jbenchmark_created_at)s,
+            %(entrypoint)s,
+            %(docker_image)s,
+            %(framework_version)s,
             %(created_at)s,
-            %(updated_at)s
+            %(updated_at)s,
+            %(loaded_at)s,
+            %(prompt_tokens)s,
+            %(prompt_tokens_stdev)s,
+            %(prompt_tokens_min)s,
+            %(prompt_tokens_max)s,
+            %(output_tokens)s,
+            %(output_tokens_min)s,
+            %(output_tokens_max)s,
+            %(output_tokens_stdev)s,
+            %(profiler_type)s,
+            %(profiler_image)s,
+            %(profiler_tag)s
         );
     """
 

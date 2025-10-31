@@ -318,7 +318,7 @@ postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSO
 	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py
 	@echo "$(GREEN)✓ Synthetic data loaded$(NC)"
 
-postgres-load-real: postgres-start ## Load real benchmark data from SQL dump
+postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
 	@echo "$(BLUE)Loading real benchmark data from integ-oct-29.sql...$(NC)"
 	@if [ ! -f data/integ-oct-29.sql ]; then \
 		echo "$(RED)✗ data/integ-oct-29.sql not found$(NC)"; \
@@ -327,10 +327,21 @@ postgres-load-real: postgres-start ## Load real benchmark data from SQL dump
 	fi
 	@# Copy dump file into container temporarily
 	@docker cp data/integ-oct-29.sql compass-postgres:/tmp/integ-oct-29.sql
-	@# Restore using pg_restore
-	@docker exec compass-postgres pg_restore -U postgres -d compass -v /tmp/integ-oct-29.sql || true
+	@# Restore data only (schema already created by postgres-init)
+	@docker exec compass-postgres pg_restore -U postgres -d compass --data-only /tmp/integ-oct-29.sql 2>&1 | grep -v "ERROR.*cloudsqlsuperuser" || true
 	@# Clean up
 	@docker exec compass-postgres rm /tmp/integ-oct-29.sql
+	@# Show statistics
+	@echo ""
+	@echo "$(BLUE)📊 Database Statistics:$(NC)"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(*) as total_benchmarks FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT model_hf_repo) as num_models FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT hardware) as num_hardware_types FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT (prompt_tokens, output_tokens)) as num_traffic_profiles FROM exported_summaries WHERE prompt_tokens IS NOT NULL;" | grep -v "^-" | grep -v "row"
 	@echo "$(GREEN)✓ Real benchmark data loaded$(NC)"
 
 postgres-shell: ## Open PostgreSQL shell
