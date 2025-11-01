@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Load configuration from environment
 MODEL_NAME = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
 TENSOR_PARALLEL_SIZE = int(os.getenv("TENSOR_PARALLEL_SIZE", "1"))
-GPU_TYPE = os.getenv("GPU_TYPE", "L4")
+GPU_TYPE = os.getenv("GPU_TYPE", "H100")
 PORT = int(os.getenv("PORT", "8080"))
 
 app = FastAPI(
