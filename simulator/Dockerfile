@@ -21,7 +21,7 @@ EXPOSE 8080
 # Set default environment variables
 ENV MODEL_NAME="meta-llama/Llama-3.1-8B-Instruct"
 ENV TENSOR_PARALLEL_SIZE="1"
-ENV GPU_TYPE="L4"
+ENV GPU_TYPE="H100"
 ENV PORT="8080"
 
 # Health check

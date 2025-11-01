@@ -22,12 +22,12 @@ class DeploymentGenerator:
     # GPU pricing (USD per hour) - representative cloud pricing
     # Keys match hardware names from benchmark database
     GPU_PRICING = {
-        "L4": 0.50,
-        "A100-40": 3.00,
-        "A100-80": 4.50,
+        "NVIDIA-L4": 0.50,
+        "NVIDIA-A10G": 1.00,
+        "NVIDIA-A100-40GB": 3.00,
+        "NVIDIA-A100-80GB": 4.50,
         "H100": 8.00,
         "H200": 10.00,
-        "B200": 12.00,
     }
 
     # vLLM version to use
