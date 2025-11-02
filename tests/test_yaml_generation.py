@@ -36,7 +36,8 @@ def create_test_recommendation() -> DeploymentRecommendation:
     """Create a test recommendation for a chatbot deployment."""
 
     intent = DeploymentIntent(
-        use_case="chatbot",
+        use_case="chatbot_conversational",
+        experience_class="conversational",
         user_count=5000,
         latency_requirement="high",
         throughput_priority="high",
@@ -45,19 +46,19 @@ def create_test_recommendation() -> DeploymentRecommendation:
     )
 
     traffic_profile = TrafficProfile(
-        prompt_tokens_mean=150,
-        generation_tokens_mean=200,
+        prompt_tokens=512,
+        output_tokens=256,
         expected_qps=50.0
     )
 
     slo_targets = SLOTargets(
-        ttft_p90_target_ms=200,
-        tpot_p90_target_ms=50,
-        e2e_p90_target_ms=2000
+        ttft_p95_target_ms=200,
+        itl_p95_target_ms=50,
+        e2e_p95_target_ms=2000
     )
 
     gpu_config = GPUConfig(
-        gpu_type="NVIDIA-A100-80GB",
+        gpu_type="A100-80",
         gpu_count=2,
         tensor_parallel=2,
         replicas=1
@@ -70,16 +71,17 @@ def create_test_recommendation() -> DeploymentRecommendation:
         model_id="meta-llama/Llama-3.1-8B-Instruct",
         model_name="Llama 3.1 8B Instruct",
         gpu_config=gpu_config,
-        predicted_ttft_p90_ms=185,
-        predicted_tpot_p90_ms=48,
-        predicted_e2e_p90_ms=1850,
+        predicted_ttft_p95_ms=185,
+        predicted_itl_p95_ms=48,
+        predicted_e2e_p95_ms=1850,
         predicted_throughput_qps=122.0,
-        cost_per_hour_usd=8.20,
-        cost_per_month_usd=5986.0,
+        cost_per_hour_usd=9.00,
+        cost_per_month_usd=6570.0,
         meets_slo=True,
         reasoning="Llama 3.1 8B Instruct provides excellent latency for chatbot use cases. "
-                  "2x A100-80GB GPUs in tensor parallel configuration meets all SLO targets "
-                  "with headroom for traffic spikes. Cost-effective for 5000 concurrent users."
+                  "2x A100-80 GPUs in tensor parallel configuration meets all SLO targets "
+                  "with headroom for traffic spikes. Cost-effective for 5000 concurrent users.",
+        alternative_options=None
     )
 
     return recommendation

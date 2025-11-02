@@ -3,7 +3,8 @@
 INTENT_EXTRACTION_SCHEMA = """
 Expected JSON schema:
 {
-  "use_case": "chatbot|customer_service|summarization|code_generation|content_creation|qa_retrieval|batch_analytics",
+  "use_case": "chatbot_conversational|code_completion|code_generation_detailed|translation|content_generation|summarization_short|document_analysis_rag|long_document_summarization|research_legal_analysis",
+  "experience_class": "instant|conversational|interactive|deferred|batch",
   "user_count": <integer>,
   "latency_requirement": "very_high|high|medium|low",
   "throughput_priority": "very_high|high|medium|low",
@@ -11,6 +12,24 @@ Expected JSON schema:
   "domain_specialization": ["general"|"code"|"multilingual"|"enterprise"],
   "additional_context": "<any other relevant details mentioned>"
 }
+
+Use case descriptions:
+- chatbot_conversational: Real-time conversational chatbots (short prompts, short responses)
+- code_completion: Fast code completion/autocomplete (short prompts, short completions)
+- code_generation_detailed: Detailed code generation with explanations (medium prompts, long responses)
+- translation: Document translation (medium prompts, medium responses)
+- content_generation: Content creation, marketing copy (medium prompts, medium responses)
+- summarization_short: Short document summarization (medium prompts, short summaries)
+- document_analysis_rag: RAG-based document Q&A (long prompts with context, medium responses)
+- long_document_summarization: Long document summarization (very long prompts, medium summaries)
+- research_legal_analysis: Research/legal document analysis (very long prompts, detailed analysis)
+
+Experience class guidance:
+- instant: Extremely low latency required (<200ms TTFT) - code completion, autocomplete
+- conversational: Real-time user interaction (chatbots, interactive tools) - low latency needed
+- interactive: User waiting but can tolerate slight delay (RAG Q&A, content generation) - balanced
+- deferred: User can wait for quality (long summarization, detailed analysis) - quality over speed
+- batch: Background/async processing (research, legal analysis) - optimize for quality and cost
 """
 
 

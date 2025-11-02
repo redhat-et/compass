@@ -39,6 +39,57 @@ class RecommendationWorkflow:
         self.model_recommender = model_recommender or ModelRecommender()
         self.capacity_planner = capacity_planner or CapacityPlanner()
 
+    def generate_specification(
+        self, user_message: str, conversation_history: list[ConversationMessage] | None = None
+    ) -> tuple:
+        """
+        Generate deployment specification from user message.
+
+        This always succeeds and returns the specification even if no viable
+        configurations exist.
+
+        Returns:
+            Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets, model_candidates)
+        """
+        from ..context_intent.schema import DeploymentSpecification
+
+        logger.info("Step 1: Extracting deployment intent")
+        intent = self.intent_extractor.extract_intent(user_message, conversation_history)
+        intent = self.intent_extractor.infer_missing_fields(intent)
+        logger.info(
+            f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency"
+        )
+
+        logger.info("Step 2: Generating traffic profile and SLO targets")
+        traffic_profile = self.traffic_generator.generate_profile(intent)
+        slo_targets = self.traffic_generator.generate_slo_targets(intent)
+        logger.info(
+            f"Traffic profile: ({traffic_profile.prompt_tokens}→{traffic_profile.output_tokens}), "
+            f"{traffic_profile.expected_qps} QPS"
+        )
+        logger.info(
+            f"SLO targets (p95): TTFT={slo_targets.ttft_p95_target_ms}ms, "
+            f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
+        )
+
+        logger.info("Step 3: Recommending models")
+        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
+
+        if not model_candidates:
+            logger.warning(f"No suitable models found for use case: {intent.use_case}")
+            model_candidates = []
+
+        models_to_evaluate = [m.name for m, _ in model_candidates] if model_candidates else []
+
+        specification = DeploymentSpecification(
+            intent=intent,
+            traffic_profile=traffic_profile,
+            slo_targets=slo_targets,
+            models_to_evaluate=models_to_evaluate if models_to_evaluate else None,
+        )
+
+        return specification, intent, traffic_profile, slo_targets, model_candidates
+
     def generate_recommendation(
         self, user_message: str, conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentRecommendation:
@@ -64,26 +115,10 @@ class RecommendationWorkflow:
         """
         logger.info("Starting recommendation workflow")
 
-        # Step 1: Extract intent
-        logger.info("Step 1: Extracting deployment intent")
-        intent = self.intent_extractor.extract_intent(user_message, conversation_history)
-        intent = self.intent_extractor.infer_missing_fields(intent)
-        logger.info(
-            f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency"
+        # Generate specification first (always succeeds)
+        specification, intent, traffic_profile, slo_targets, model_candidates = (
+            self.generate_specification(user_message, conversation_history)
         )
-
-        # Step 2: Generate traffic profile and SLO targets
-        logger.info("Step 2: Generating traffic profile and SLO targets")
-        traffic_profile = self.traffic_generator.generate_profile(intent)
-        slo_targets = self.traffic_generator.generate_slo_targets(intent)
-        logger.info(f"Traffic profile: {traffic_profile.expected_qps} QPS")
-        logger.info(
-            f"SLO targets: TTFT={slo_targets.ttft_p90_target_ms}ms, TPOT={slo_targets.tpot_p90_target_ms}ms"
-        )
-
-        # Step 3: Recommend models
-        logger.info("Step 3: Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
 
         if not model_candidates:
             raise ValueError(f"No suitable models found for use case: {intent.use_case}")
@@ -111,7 +146,24 @@ class RecommendationWorkflow:
                 logger.info("  ✗ No viable configuration found")
 
         if not viable_recommendations:
-            raise ValueError("No viable deployment configurations found meeting SLO targets")
+            # Build helpful error message with context
+            error_msg = (
+                f"No viable deployment configurations found meeting SLO targets.\n\n"
+                f"**What I understood:**\n"
+                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
+                f"- Scale: {intent.user_count:,} users\n"
+                f"- Latency requirement: {intent.latency_requirement}\n"
+                f"- Budget: {intent.budget_constraint}\n\n"
+                f"**What I'm looking for:**\n"
+                f"- Traffic profile: {traffic_profile.prompt_tokens} prompt tokens → {traffic_profile.output_tokens} output tokens\n"
+                f"- Expected load: {traffic_profile.expected_qps} queries/second\n"
+                f"- SLO targets (p95): TTFT ≤ {slo_targets.ttft_p95_target_ms}ms, "
+                f"ITL ≤ {slo_targets.itl_p95_target_ms}ms, E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
+                f"None of these models can meet the SLO targets with available hardware configurations. "
+                f"Try relaxing latency requirements or considering a different use case."
+            )
+            raise ValueError(error_msg)
 
         # Step 5: Select best recommendation and populate alternatives
         # Sort by model score (higher is better) then by cost (lower is better)
@@ -135,9 +187,9 @@ class RecommendationWorkflow:
                     "model_name": rec.model_name,
                     "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
-                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
+                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
+                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -174,15 +226,39 @@ class RecommendationWorkflow:
 
         logger.info("Starting re-recommendation workflow with edited specifications")
 
+        # Infer experience_class if not provided in intent
+        intent_data = specifications["intent"].copy()
+        if "experience_class" not in intent_data or not intent_data.get("experience_class"):
+            # Use the same inference logic as the extractor
+            use_case = intent_data.get("use_case", "")
+            if use_case == "code_completion":
+                intent_data["experience_class"] = "instant"
+            elif use_case in [
+                "chatbot_conversational",
+                "code_generation_detailed",
+                "translation",
+                "content_generation",
+                "summarization_short",
+            ]:
+                intent_data["experience_class"] = "conversational"
+            elif use_case == "document_analysis_rag":
+                intent_data["experience_class"] = "interactive"
+            elif use_case == "long_document_summarization":
+                intent_data["experience_class"] = "deferred"
+            elif use_case == "research_legal_analysis":
+                intent_data["experience_class"] = "batch"
+            else:
+                intent_data["experience_class"] = "conversational"  # Default
+
         # Parse specifications into proper schema objects
-        intent = DeploymentIntent(**specifications["intent"])
+        intent = DeploymentIntent(**intent_data)
         traffic_profile = TrafficProfile(**specifications["traffic_profile"])
         slo_targets = SLOTargets(**specifications["slo_targets"])
 
         logger.info(
             f"Specs: {intent.use_case}, {intent.user_count} users, "
             f"{traffic_profile.expected_qps} QPS, "
-            f"TTFT target={slo_targets.ttft_p90_target_ms}ms"
+            f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
         )
 
         # Step 1: Recommend models based on edited intent
@@ -215,7 +291,20 @@ class RecommendationWorkflow:
                 logger.info("  ✗ No viable configuration found")
 
         if not viable_recommendations:
-            raise ValueError("No viable deployment configurations found meeting SLO targets")
+            # Build helpful error message with context for re-recommendation
+            error_msg = (
+                f"No viable deployment configurations found meeting SLO targets.\n\n"
+                f"**Your specifications:**\n"
+                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
+                f"- Scale: {intent.user_count:,} users\n"
+                f"- Traffic profile: {traffic_profile.prompt_tokens} → {traffic_profile.output_tokens} tokens\n"
+                f"- Expected load: {traffic_profile.expected_qps} queries/second\n"
+                f"- SLO targets (p95): TTFT ≤ {slo_targets.ttft_p95_target_ms}ms, "
+                f"ITL ≤ {slo_targets.itl_p95_target_ms}ms, E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
+                f"Try relaxing SLO targets or adjusting traffic parameters."
+            )
+            raise ValueError(error_msg)
 
         # Step 3: Select best recommendation and populate alternatives
         viable_recommendations.sort(key=lambda x: (-x[1], x[0].cost_per_month_usd))
@@ -235,9 +324,9 @@ class RecommendationWorkflow:
                     "model_name": rec.model_name,
                     "model_id": rec.model_id,
                     "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p90_ms": rec.predicted_ttft_p90_ms,
-                    "predicted_tpot_p90_ms": rec.predicted_tpot_p90_ms,
-                    "predicted_e2e_p90_ms": rec.predicted_e2e_p90_ms,
+                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
+                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
+                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
                     "predicted_throughput_qps": rec.predicted_throughput_qps,
                     "cost_per_hour_usd": rec.cost_per_hour_usd,
                     "cost_per_month_usd": rec.cost_per_month_usd,
@@ -269,26 +358,26 @@ class RecommendationWorkflow:
             return False
 
         # Check TTFT
-        if recommendation.predicted_ttft_p90_ms > recommendation.slo_targets.ttft_p90_target_ms:
+        if recommendation.predicted_ttft_p95_ms > recommendation.slo_targets.ttft_p95_target_ms:
             logger.warning(
-                f"TTFT {recommendation.predicted_ttft_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.ttft_p90_target_ms}ms"
+                f"TTFT {recommendation.predicted_ttft_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.ttft_p95_target_ms}ms"
             )
             return False
 
-        # Check TPOT
-        if recommendation.predicted_tpot_p90_ms > recommendation.slo_targets.tpot_p90_target_ms:
+        # Check ITL
+        if recommendation.predicted_itl_p95_ms > recommendation.slo_targets.itl_p95_target_ms:
             logger.warning(
-                f"TPOT {recommendation.predicted_tpot_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.tpot_p90_target_ms}ms"
+                f"ITL {recommendation.predicted_itl_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.itl_p95_target_ms}ms"
             )
             return False
 
         # Check E2E
-        if recommendation.predicted_e2e_p90_ms > recommendation.slo_targets.e2e_p90_target_ms:
+        if recommendation.predicted_e2e_p95_ms > recommendation.slo_targets.e2e_p95_target_ms:
             logger.warning(
-                f"E2E {recommendation.predicted_e2e_p90_ms}ms exceeds target "
-                f"{recommendation.slo_targets.e2e_p90_target_ms}ms"
+                f"E2E {recommendation.predicted_e2e_p95_ms}ms exceeds target "
+                f"{recommendation.slo_targets.e2e_p95_target_ms}ms"
             )
             return False
 

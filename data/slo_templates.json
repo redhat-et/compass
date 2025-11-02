@@ -1,149 +1,182 @@
 {
   "use_cases": {
-    "chatbot": {
-      "name": "Chatbot / Conversational AI",
-      "description": "Interactive chat applications requiring low latency responses",
+    "chatbot_conversational": {
+      "use_case": "Chatbot / Q&A",
+      "description": "Conversational assistants, customer support, knowledge search",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "conversational",
       "slo_targets": {
-        "ttft_p90_target_ms": 200,
-        "tpot_p90_target_ms": 50,
-        "e2e_p90_target_ms": 10150
+        "ttft_p95_ms": 150,
+        "itl_p95_ms": 25,
+        "e2e_p95_ms": 7000
       },
-      "typical_traffic": {
-        "prompt_tokens_mean": 150,
-        "prompt_tokens_variance": 50,
-        "generation_tokens_mean": 200,
-        "generation_tokens_variance": 80,
-        "requests_per_user_per_day": 20
-      },
+      "rationale": "Highly interactive; perceived responsiveness drives satisfaction",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "high",
         "throughput_priority": "medium"
       }
     },
-    "customer_service": {
-      "name": "Customer Service Assistant",
-      "description": "Customer support chatbot with strict latency requirements",
+    "code_completion": {
+      "use_case": "Code Completion / Copilot",
+      "description": "Inline IDE completions, command suggestions",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "instant",
       "slo_targets": {
-        "ttft_p90_target_ms": 150,
-        "tpot_p90_target_ms": 40,
-        "e2e_p90_target_ms": 10110
+        "ttft_p95_ms": 100,
+        "itl_p95_ms": 20,
+        "e2e_p95_ms": 5000
       },
-      "typical_traffic": {
-        "prompt_tokens_mean": 200,
-        "prompt_tokens_variance": 100,
-        "generation_tokens_mean": 250,
-        "generation_tokens_variance": 120,
-        "requests_per_user_per_day": 5
-      },
+      "rationale": "Sub-200 ms first-token latency essential for fluid typing experience",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "very_high",
         "throughput_priority": "medium"
       }
     },
-    "summarization": {
-      "name": "Document Summarization",
-      "description": "Batch or interactive document summarization tasks",
+    "code_generation_detailed": {
+      "use_case": "Detailed Code Generation",
+      "description": "Multi-function or multi-file code synthesis",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "conversational",
       "slo_targets": {
-        "ttft_p90_target_ms": 500,
-        "tpot_p90_target_ms": 80,
-        "e2e_p90_target_ms": 32420
+        "ttft_p95_ms": 300,
+        "itl_p95_ms": 30,
+        "e2e_p95_ms": 8000
       },
-      "typical_traffic": {
-        "prompt_tokens_mean": 2000,
-        "prompt_tokens_variance": 800,
-        "generation_tokens_mean": 400,
-        "generation_tokens_variance": 150,
-        "requests_per_user_per_day": 10
-      },
-      "business_context": {
-        "user_facing": false,
-        "latency_sensitivity": "medium",
-        "throughput_priority": "high"
-      }
-    },
-    "code_generation": {
-      "name": "Code Generation / Copilot",
-      "description": "Interactive code completion and generation",
-      "slo_targets": {
-        "ttft_p90_target_ms": 250,
-        "tpot_p90_target_ms": 60,
-        "e2e_p90_target_ms": 18190
-      },
-      "typical_traffic": {
-        "prompt_tokens_mean": 500,
-        "prompt_tokens_variance": 300,
-        "generation_tokens_mean": 300,
-        "generation_tokens_variance": 200,
-        "requests_per_user_per_day": 50
-      },
-      "business_context": {
-        "user_facing": true,
-        "latency_sensitivity": "high",
-        "throughput_priority": "medium"
-      }
-    },
-    "content_creation": {
-      "name": "Content Creation / Writing Assistant",
-      "description": "Long-form content generation for marketing, blog posts, etc.",
-      "slo_targets": {
-        "ttft_p90_target_ms": 400,
-        "tpot_p90_target_ms": 70,
-        "e2e_p90_target_ms": 56330
-      },
-      "typical_traffic": {
-        "prompt_tokens_mean": 300,
-        "prompt_tokens_variance": 150,
-        "generation_tokens_mean": 800,
-        "generation_tokens_variance": 400,
-        "requests_per_user_per_day": 15
-      },
+      "rationale": "Users tolerate short delay for code generation; quality prioritized over immediacy",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "medium",
         "throughput_priority": "medium"
       }
     },
-    "qa_retrieval": {
-      "name": "Question Answering / RAG",
-      "description": "Retrieval-augmented generation for knowledge bases",
+    "translation": {
+      "use_case": "Translation / Paraphrasing",
+      "description": "Language conversion or rewriting",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "conversational",
       "slo_targets": {
-        "ttft_p90_target_ms": 300,
-        "tpot_p90_target_ms": 55,
-        "e2e_p90_target_ms": 11245
+        "ttft_p95_ms": 400,
+        "itl_p95_ms": 35,
+        "e2e_p95_ms": 10000
       },
-      "typical_traffic": {
-        "prompt_tokens_mean": 800,
-        "prompt_tokens_variance": 400,
-        "generation_tokens_mean": 200,
-        "generation_tokens_variance": 100,
-        "requests_per_user_per_day": 30
-      },
+      "rationale": "Non-interactive; a few-second delay acceptable",
       "business_context": {
         "user_facing": true,
-        "latency_sensitivity": "high",
+        "latency_sensitivity": "medium",
         "throughput_priority": "high"
       }
     },
-    "batch_analytics": {
-      "name": "Batch Analytics / Classification",
-      "description": "High-throughput batch processing with relaxed latency",
+    "content_generation": {
+      "use_case": "Content Generation / Writing Assistant",
+      "description": "Blog posts, marketing copy, creative writing",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "interactive",
       "slo_targets": {
-        "ttft_p90_target_ms": 1000,
-        "tpot_p90_target_ms": 100,
-        "e2e_p90_target_ms": 10900
+        "ttft_p95_ms": 500,
+        "itl_p95_ms": 35,
+        "e2e_p95_ms": 12000
       },
-      "typical_traffic": {
-        "prompt_tokens_mean": 400,
-        "prompt_tokens_variance": 200,
-        "generation_tokens_mean": 100,
-        "generation_tokens_variance": 50,
-        "requests_per_user_per_day": 1000
-      },
+      "rationale": "Emphasis on completeness and coherence over latency",
       "business_context": {
-        "user_facing": false,
+        "user_facing": true,
         "latency_sensitivity": "low",
+        "throughput_priority": "medium"
+      }
+    },
+    "summarization_short": {
+      "use_case": "Summarization (Short Doc)",
+      "description": "Summarize medium-length text (articles, emails)",
+      "traffic_profile": {
+        "prompt_tokens": 4096,
+        "output_tokens": 512
+      },
+      "experience_class": "interactive",
+      "slo_targets": {
+        "ttft_p95_ms": 600,
+        "itl_p95_ms": 30,
+        "e2e_p95_ms": 18000
+      },
+      "rationale": "Prefill-heavy; user can wait briefly for summary",
+      "business_context": {
+        "user_facing": true,
+        "latency_sensitivity": "medium",
+        "throughput_priority": "high"
+      }
+    },
+    "document_analysis_rag": {
+      "use_case": "Document Analysis / RAG Q&A",
+      "description": "Context retrieval, long-document reasoning",
+      "traffic_profile": {
+        "prompt_tokens": 4096,
+        "output_tokens": 512
+      },
+      "experience_class": "interactive",
+      "slo_targets": {
+        "ttft_p95_ms": 600,
+        "itl_p95_ms": 30,
+        "e2e_p95_ms": 18000
+      },
+      "rationale": "Prefill cost dominates; responsiveness helps iterative Q&A",
+      "business_context": {
+        "user_facing": true,
+        "latency_sensitivity": "medium",
+        "throughput_priority": "high"
+      }
+    },
+    "long_document_summarization": {
+      "use_case": "Long Document Summarization",
+      "description": "Summarize multi-page reports or papers",
+      "traffic_profile": {
+        "prompt_tokens": 10240,
+        "output_tokens": 1536
+      },
+      "experience_class": "deferred",
+      "slo_targets": {
+        "ttft_p95_ms": 1000,
+        "itl_p95_ms": 40,
+        "e2e_p95_ms": 60000
+      },
+      "rationale": "User expects processing delay; prioritize throughput",
+      "business_context": {
+        "user_facing": true,
+        "latency_sensitivity": "low",
+        "throughput_priority": "high"
+      }
+    },
+    "research_legal_analysis": {
+      "use_case": "Research / Legal / Multi-Document Q&A",
+      "description": "Analytical reasoning across large corpora",
+      "traffic_profile": {
+        "prompt_tokens": 10240,
+        "output_tokens": 1536
+      },
+      "experience_class": "batch",
+      "slo_targets": {
+        "ttft_p95_ms": 2000,
+        "itl_p95_ms": 45,
+        "e2e_p95_ms": 80000
+      },
+      "rationale": "Asynchronous processing; cost and throughput optimized",
+      "business_context": {
+        "user_facing": false,
+        "latency_sensitivity": "very_low",
         "throughput_priority": "very_high"
       }
     }
