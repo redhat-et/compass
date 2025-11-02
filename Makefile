@@ -373,16 +373,16 @@ test: test-unit ## Run all tests
 
 test-unit: ## Run unit tests
 	@echo "$(BLUE)Running unit tests...$(NC)"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m "not integration and not e2e"
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m "not integration and not e2e"
 
 test-integration: setup-ollama ## Run integration tests (requires Ollama)
 	@echo "$(BLUE)Running integration tests...$(NC)"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m integration
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m integration
 
 test-e2e: ## Run end-to-end tests (requires cluster)
 	@echo "$(BLUE)Running end-to-end tests...$(NC)"
 	@kubectl cluster-info > /dev/null 2>&1 || (echo "$(RED)✗ Kubernetes cluster not accessible$(NC). Run: make cluster-start" && exit 1)
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m e2e
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m e2e
 
 test-workflow: setup-ollama ## Run workflow integration test
 	@echo "$(BLUE)Running workflow test...$(NC)"
