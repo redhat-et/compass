@@ -9,6 +9,7 @@ This script tests the complete deployment flow:
 5. Clean up
 """
 
+import pytest
 import requests
 import time
 import sys
@@ -16,6 +17,7 @@ import sys
 API_BASE_URL = "http://localhost:8000"
 
 
+@pytest.mark.integration
 def test_cluster_status():
     """Test 1: Verify cluster is accessible."""
     print("\n=== Test 1: Cluster Status ===")
@@ -31,6 +33,7 @@ def test_cluster_status():
     return status
 
 
+@pytest.mark.integration
 def test_generate_recommendation():
     """Test 2: Generate a deployment recommendation."""
     print("=== Test 2: Generate Recommendation ===")
@@ -54,6 +57,7 @@ def test_generate_recommendation():
     return recommendation
 
 
+@pytest.mark.integration
 def test_deploy_to_cluster(recommendation):
     """Test 3: Deploy to Kubernetes cluster."""
     print("=== Test 3: Deploy to Kubernetes ===")
@@ -82,6 +86,7 @@ def test_deploy_to_cluster(recommendation):
     return deployment_id
 
 
+@pytest.mark.integration
 def test_deployment_status(deployment_id):
     """Test 4: Check deployment status."""
     print("=== Test 4: Check Deployment Status ===")
@@ -118,6 +123,7 @@ def test_deployment_status(deployment_id):
     return status
 
 
+@pytest.mark.integration
 def test_cleanup(deployment_id):
     """Test 5: Clean up deployment."""
     print("=== Test 5: Cleanup ===")

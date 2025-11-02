@@ -73,3 +73,10 @@ line-ending = "auto"
 # Organize imports into sections
 known-first-party = ["backend", "ui", "simulator"]
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.pytest.ini_options]
+# Register custom pytest marks to avoid warnings
+markers = [
+    "integration: marks tests as integration tests (deselected by default, requires backend running)",
+    "e2e: marks tests as end-to-end tests (deselected by default, requires cluster)",
+]

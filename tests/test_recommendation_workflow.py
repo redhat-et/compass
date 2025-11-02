@@ -2,6 +2,7 @@
 
 import json
 import logging
+import pytest
 from pathlib import Path
 
 from src.orchestration.workflow import RecommendationWorkflow
@@ -14,6 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.integration
 def test_scenario(workflow: RecommendationWorkflow, scenario: dict):
     """Test a single demo scenario."""
     print("\n" + "="*80)
