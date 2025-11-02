@@ -2,6 +2,7 @@
 
 import json
 import logging
+import pytest
 from pathlib import Path
 
 from src.orchestration.workflow import RecommendationWorkflow
@@ -14,6 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+@pytest.mark.integration
 def test_scenario(workflow: RecommendationWorkflow, scenario: dict):
     """Test a single demo scenario."""
     print("\n" + "="*80)
@@ -40,15 +42,15 @@ def test_scenario(workflow: RecommendationWorkflow, scenario: dict):
         print(f"  - Per Month: ${recommendation.cost_per_month_usd:.2f}")
 
         print(f"\nPredicted Performance:")
-        print(f"  - TTFT p90: {recommendation.predicted_ttft_p90_ms}ms (target: {recommendation.slo_targets.ttft_p90_target_ms}ms)")
-        print(f"  - TPOT p90: {recommendation.predicted_tpot_p90_ms}ms (target: {recommendation.slo_targets.tpot_p90_target_ms}ms)")
-        print(f"  - E2E p90: {recommendation.predicted_e2e_p90_ms}ms (target: {recommendation.slo_targets.e2e_p90_target_ms}ms)")
+        print(f"  - TTFT p95: {recommendation.predicted_ttft_p95_ms}ms (target: {recommendation.slo_targets.ttft_p95_target_ms}ms)")
+        print(f"  - ITL p95: {recommendation.predicted_itl_p95_ms}ms (target: {recommendation.slo_targets.itl_p95_target_ms}ms)")
+        print(f"  - E2E p95: {recommendation.predicted_e2e_p95_ms}ms (target: {recommendation.slo_targets.e2e_p95_target_ms}ms)")
         print(f"  - Throughput: {recommendation.predicted_throughput_qps:.1f} QPS")
 
         print(f"\nTraffic Profile:")
         print(f"  - Expected QPS: {recommendation.traffic_profile.expected_qps:.1f}")
-        print(f"  - Avg Prompt: {recommendation.traffic_profile.prompt_tokens_mean} tokens")
-        print(f"  - Avg Generation: {recommendation.traffic_profile.generation_tokens_mean} tokens")
+        print(f"  - Prompt Tokens: {recommendation.traffic_profile.prompt_tokens} tokens")
+        print(f"  - Output Tokens: {recommendation.traffic_profile.output_tokens} tokens")
 
         print(f"\nMeets SLO: {'✅ YES' if recommendation.meets_slo else '❌ NO'}")
         print(f"\nReasoning: {recommendation.reasoning}")

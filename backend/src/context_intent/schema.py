@@ -6,24 +6,19 @@ from pydantic import BaseModel, Field
 
 
 class TrafficProfile(BaseModel):
-    """Traffic characteristics for the deployment."""
+    """GuideLLM traffic profile for the deployment."""
 
-    prompt_tokens_mean: int = Field(..., description="Average prompt length in tokens")
-    prompt_tokens_variance: int | None = Field(None, description="Variance in prompt length")
-    generation_tokens_mean: int = Field(..., description="Average generation length in tokens")
-    generation_tokens_variance: int | None = Field(
-        None, description="Variance in generation length"
-    )
-    expected_qps: float = Field(..., description="Expected queries per second")
-    requests_per_user_per_day: int | None = Field(None, description="User request frequency")
+    prompt_tokens: int = Field(..., description="Target prompt length in tokens (GuideLLM config)")
+    output_tokens: int = Field(..., description="Target output length in tokens (GuideLLM config)")
+    expected_qps: float | None = Field(None, description="Expected queries per second")
 
 
 class SLOTargets(BaseModel):
-    """Service Level Objective targets for the deployment."""
+    """Service Level Objective targets for the deployment (p95 percentiles)."""
 
-    ttft_p90_target_ms: int = Field(..., description="Time to First Token p90 target (ms)")
-    tpot_p90_target_ms: int = Field(..., description="Time Per Output Token p90 target (ms)")
-    e2e_p90_target_ms: int = Field(..., description="End-to-end latency p90 target (ms)")
+    ttft_p95_target_ms: int = Field(..., description="Time to First Token p95 target (ms)")
+    itl_p95_target_ms: int = Field(..., description="Inter-Token Latency p95 target (ms/token)")
+    e2e_p95_target_ms: int = Field(..., description="End-to-end latency p95 target (ms)")
 
 
 class GPUConfig(BaseModel):
@@ -39,14 +34,20 @@ class DeploymentIntent(BaseModel):
     """Extracted deployment requirements from user conversation."""
 
     use_case: Literal[
-        "chatbot",
-        "customer_service",
-        "summarization",
-        "code_generation",
+        "chatbot_conversational",
+        "code_completion",
+        "code_generation_detailed",
+        "translation",
         "content_creation",
-        "qa_retrieval",
-        "batch_analytics",
+        "summarization_short",
+        "document_analysis_rag",
+        "long_document_summarization",
+        "research_legal_analysis",
     ] = Field(..., description="Primary use case type")
+
+    experience_class: Literal["instant", "conversational", "interactive", "deferred", "batch"] = Field(
+        ..., description="User experience class defining latency expectations"
+    )
 
     user_count: int = Field(..., description="Number of users or scale")
 
@@ -85,26 +86,47 @@ class DeploymentRecommendation(BaseModel):
     traffic_profile: TrafficProfile
     slo_targets: SLOTargets
 
-    # Recommended configuration
-    model_id: str = Field(..., description="Recommended model identifier")
-    model_name: str = Field(..., description="Human-readable model name")
-    gpu_config: GPUConfig
+    # Recommended configuration (None when no viable config found)
+    model_id: str | None = Field(None, description="Recommended model identifier")
+    model_name: str | None = Field(None, description="Human-readable model name")
+    gpu_config: GPUConfig | None = None
 
-    # Performance predictions
-    predicted_ttft_p90_ms: int
-    predicted_tpot_p90_ms: int
-    predicted_e2e_p90_ms: int
-    predicted_throughput_qps: float
+    # Performance predictions (None when no viable config found)
+    predicted_ttft_p95_ms: int | None = None
+    predicted_itl_p95_ms: int | None = None
+    predicted_e2e_p95_ms: int | None = None
+    predicted_throughput_qps: float | None = None
 
-    # Cost estimation
-    cost_per_hour_usd: float
-    cost_per_month_usd: float
+    # Cost estimation (None when no viable config found)
+    cost_per_hour_usd: float | None = None
+    cost_per_month_usd: float | None = None
 
     # Metadata
-    meets_slo: bool = Field(..., description="Whether configuration meets SLO targets")
-    reasoning: str = Field(..., description="Explanation of recommendation choice")
+    meets_slo: bool = Field(False, description="Whether configuration meets SLO targets")
+    reasoning: str = Field(..., description="Explanation of recommendation choice or error message")
     alternative_options: list[dict] | None = Field(
         default=None, description="Alternative configurations with trade-offs"
+    )
+
+
+class DeploymentSpecification(BaseModel):
+    """
+    Deployment specification generated from user intent.
+
+    This is always generated successfully, even if no viable configurations exist.
+    Contains the extracted intent, traffic profile, and SLO targets.
+    """
+
+    # User intent
+    intent: DeploymentIntent
+
+    # Generated specifications
+    traffic_profile: TrafficProfile
+    slo_targets: SLOTargets
+
+    # Models that will be evaluated
+    models_to_evaluate: list[str] | None = Field(
+        default=None, description="Models that match the use case"
     )
 
 

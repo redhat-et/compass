@@ -10,49 +10,50 @@ logger = logging.getLogger(__name__)
 class SLOTemplate:
     """SLO template for a specific use case."""
 
-    def __init__(self, use_case: str, data: dict):
-        self.use_case = use_case
-        self.name = data["name"]
+    def __init__(self, use_case_id: str, data: dict):
+        self.use_case_id = use_case_id
+        self.use_case = data["use_case"]
         self.description = data["description"]
 
-        # SLO targets
+        # Traffic profile (GuideLLM configuration)
+        traffic = data["traffic_profile"]
+        self.prompt_tokens = traffic["prompt_tokens"]
+        self.output_tokens = traffic["output_tokens"]
+
+        # Experience class
+        self.experience_class = data["experience_class"]
+
+        # SLO targets (p95)
         slo = data["slo_targets"]
-        self.ttft_p90_target_ms = slo["ttft_p90_target_ms"]
-        self.tpot_p90_target_ms = slo["tpot_p90_target_ms"]
-        self.e2e_p90_target_ms = slo["e2e_p90_target_ms"]
+        self.ttft_p95_target_ms = slo["ttft_p95_ms"]
+        self.itl_p95_target_ms = slo["itl_p95_ms"]
+        self.e2e_p95_target_ms = slo["e2e_p95_ms"]
 
-        # Typical traffic characteristics
-        traffic = data["typical_traffic"]
-        self.prompt_tokens_mean = traffic["prompt_tokens_mean"]
-        self.prompt_tokens_variance = traffic.get("prompt_tokens_variance")
-        self.generation_tokens_mean = traffic["generation_tokens_mean"]
-        self.generation_tokens_variance = traffic.get("generation_tokens_variance")
-        self.requests_per_user_per_day = traffic.get("requests_per_user_per_day")
+        # Rationale and business context
+        self.rationale = data.get("rationale", "")
 
-        # Business context
-        context = data["business_context"]
-        self.user_facing = context["user_facing"]
-        self.latency_sensitivity = context["latency_sensitivity"]
-        self.throughput_priority = context["throughput_priority"]
+        context = data.get("business_context", {})
+        self.user_facing = context.get("user_facing", True)
+        self.latency_sensitivity = context.get("latency_sensitivity", "medium")
+        self.throughput_priority = context.get("throughput_priority", "medium")
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
+            "use_case_id": self.use_case_id,
             "use_case": self.use_case,
-            "name": self.name,
             "description": self.description,
+            "traffic_profile": {
+                "prompt_tokens": self.prompt_tokens,
+                "output_tokens": self.output_tokens,
+            },
+            "experience_class": self.experience_class,
             "slo_targets": {
-                "ttft_p90_target_ms": self.ttft_p90_target_ms,
-                "tpot_p90_target_ms": self.tpot_p90_target_ms,
-                "e2e_p90_target_ms": self.e2e_p90_target_ms,
+                "ttft_p95_ms": self.ttft_p95_target_ms,
+                "itl_p95_ms": self.itl_p95_target_ms,
+                "e2e_p95_ms": self.e2e_p95_target_ms,
             },
-            "typical_traffic": {
-                "prompt_tokens_mean": self.prompt_tokens_mean,
-                "prompt_tokens_variance": self.prompt_tokens_variance,
-                "generation_tokens_mean": self.generation_tokens_mean,
-                "generation_tokens_variance": self.generation_tokens_variance,
-                "requests_per_user_per_day": self.requests_per_user_per_day,
-            },
+            "rationale": self.rationale,
             "business_context": {
                 "user_facing": self.user_facing,
                 "latency_sensitivity": self.latency_sensitivity,
@@ -83,29 +84,60 @@ class SLOTemplateRepository:
         try:
             with open(self.data_path) as f:
                 data = json.load(f)
-                for use_case, template_data in data["use_cases"].items():
-                    self._templates[use_case] = SLOTemplate(use_case, template_data)
+                for use_case_id, template_data in data["use_cases"].items():
+                    self._templates[use_case_id] = SLOTemplate(use_case_id, template_data)
                 logger.info(f"Loaded {len(self._templates)} SLO templates")
         except Exception as e:
             logger.error(f"Failed to load SLO templates from {self.data_path}: {e}")
             raise
 
-    def get_template(self, use_case: str) -> SLOTemplate | None:
+    def get_template(self, use_case_id: str) -> SLOTemplate | None:
         """
         Get SLO template for a specific use case.
 
         Args:
-            use_case: Use case identifier
+            use_case_id: Use case identifier (e.g., 'chatbot_conversational')
 
         Returns:
             SLOTemplate if found, None otherwise
         """
-        return self._templates.get(use_case)
+        return self._templates.get(use_case_id)
 
     def get_all_templates(self) -> dict[str, SLOTemplate]:
         """Get all SLO templates."""
         return self._templates.copy()
 
     def list_use_cases(self) -> list[str]:
-        """Get list of all supported use cases."""
+        """Get list of all supported use case IDs."""
         return list(self._templates.keys())
+
+    def get_templates_by_traffic_profile(self, prompt_tokens: int, output_tokens: int) -> list[SLOTemplate]:
+        """
+        Get all templates that use a specific traffic profile.
+
+        Args:
+            prompt_tokens: Prompt token count
+            output_tokens: Output token count
+
+        Returns:
+            List of templates using this traffic profile
+        """
+        return [
+            template for template in self._templates.values()
+            if template.prompt_tokens == prompt_tokens and template.output_tokens == output_tokens
+        ]
+
+    def get_templates_by_experience_class(self, experience_class: str) -> list[SLOTemplate]:
+        """
+        Get all templates for a specific experience class.
+
+        Args:
+            experience_class: Experience class (instant, conversational, interactive, deferred, batch)
+
+        Returns:
+            List of templates for this experience class
+        """
+        return [
+            template for template in self._templates.values()
+            if template.experience_class == experience_class
+        ]

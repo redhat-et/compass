@@ -275,6 +275,97 @@ clean-deployments: ## Delete all InferenceServices from cluster
 	kubectl delete inferenceservices --all
 	@echo "$(GREEN)✓ All deployments deleted$(NC)"
 
+##@ PostgreSQL Database
+
+postgres-start: ## Start PostgreSQL container for benchmark data
+	@echo "$(BLUE)Starting PostgreSQL...$(NC)"
+	@if docker ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+		if docker ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+			echo "$(YELLOW)PostgreSQL already running$(NC)"; \
+		else \
+			docker start compass-postgres; \
+			echo "$(GREEN)✓ PostgreSQL started$(NC)"; \
+		fi \
+	else \
+		docker run --name compass-postgres -d \
+			-e POSTGRES_PASSWORD=compass \
+			-e POSTGRES_DB=compass \
+			-p 5432:5432 \
+			postgres:16; \
+		sleep 3; \
+		echo "$(GREEN)✓ PostgreSQL started on port 5432$(NC)"; \
+	fi
+	@echo "$(BLUE)Database URL:$(NC) postgresql://postgres:compass@localhost:5432/compass"
+
+postgres-stop: ## Stop PostgreSQL container
+	@echo "$(BLUE)Stopping PostgreSQL...$(NC)"
+	@docker stop compass-postgres 2>/dev/null || true
+	@echo "$(GREEN)✓ PostgreSQL stopped$(NC)"
+
+postgres-remove: postgres-stop ## Stop and remove PostgreSQL container
+	@echo "$(BLUE)Removing PostgreSQL container...$(NC)"
+	@docker rm compass-postgres 2>/dev/null || true
+	@echo "$(GREEN)✓ PostgreSQL container removed$(NC)"
+
+postgres-init: postgres-start ## Initialize PostgreSQL schema
+	@echo "$(BLUE)Initializing PostgreSQL schema...$(NC)"
+	@sleep 2
+	@docker exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
+	@echo "$(GREEN)✓ Schema initialized$(NC)"
+
+postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSON
+	@echo "$(BLUE)Loading synthetic benchmark data...$(NC)"
+	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py
+	@echo "$(GREEN)✓ Synthetic data loaded$(NC)"
+
+postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
+	@echo "$(BLUE)Loading real benchmark data from integ-oct-29.sql...$(NC)"
+	@if [ ! -f data/integ-oct-29.sql ]; then \
+		echo "$(RED)✗ data/integ-oct-29.sql not found$(NC)"; \
+		echo "$(YELLOW)This file is not in version control due to NDA restrictions$(NC)"; \
+		exit 1; \
+	fi
+	@# Copy dump file into container temporarily
+	@docker cp data/integ-oct-29.sql compass-postgres:/tmp/integ-oct-29.sql
+	@# Restore data only (schema already created by postgres-init)
+	@docker exec compass-postgres pg_restore -U postgres -d compass --data-only /tmp/integ-oct-29.sql 2>&1 | grep -v "ERROR.*cloudsqlsuperuser" || true
+	@# Clean up
+	@docker exec compass-postgres rm /tmp/integ-oct-29.sql
+	@# Show statistics
+	@echo ""
+	@echo "$(BLUE)📊 Database Statistics:$(NC)"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(*) as total_benchmarks FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT model_hf_repo) as num_models FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT hardware) as num_hardware_types FROM exported_summaries;" | grep -v "^-" | grep -v "row"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT COUNT(DISTINCT (prompt_tokens, output_tokens)) as num_traffic_profiles FROM exported_summaries WHERE prompt_tokens IS NOT NULL;" | grep -v "^-" | grep -v "row"
+	@echo "$(GREEN)✓ Real benchmark data loaded$(NC)"
+
+postgres-shell: ## Open PostgreSQL shell
+	@docker exec -it compass-postgres psql -U postgres -d compass
+
+postgres-query-traffic: ## Query unique traffic patterns from database
+	@echo "$(BLUE)Querying unique traffic patterns...$(NC)"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT DISTINCT mean_input_tokens, mean_output_tokens, COUNT(*) as num_benchmarks \
+		FROM exported_summaries \
+		GROUP BY mean_input_tokens, mean_output_tokens \
+		ORDER BY mean_input_tokens, mean_output_tokens;"
+
+postgres-query-models: ## Query available models in database
+	@echo "$(BLUE)Querying available models...$(NC)"
+	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT DISTINCT model_hf_repo, hardware, hardware_count, COUNT(*) as num_benchmarks \
+		FROM exported_summaries \
+		GROUP BY model_hf_repo, hardware, hardware_count \
+		ORDER BY model_hf_repo, hardware, hardware_count;"
+
+postgres-reset: postgres-remove postgres-init ## Reset PostgreSQL (remove and reinitialize)
+	@echo "$(GREEN)✓ PostgreSQL reset complete$(NC)"
+
 ##@ Testing
 
 test: test-unit ## Run all tests
@@ -282,16 +373,16 @@ test: test-unit ## Run all tests
 
 test-unit: ## Run unit tests
 	@echo "$(BLUE)Running unit tests...$(NC)"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m "not integration and not e2e"
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m "not integration and not e2e"
 
 test-integration: setup-ollama ## Run integration tests (requires Ollama)
 	@echo "$(BLUE)Running integration tests...$(NC)"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m integration
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m integration
 
 test-e2e: ## Run end-to-end tests (requires cluster)
 	@echo "$(BLUE)Running end-to-end tests...$(NC)"
 	@kubectl cluster-info > /dev/null 2>&1 || (echo "$(RED)✗ Kubernetes cluster not accessible$(NC). Run: make cluster-start" && exit 1)
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest tests/ -v -m e2e
+	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m e2e
 
 test-workflow: setup-ollama ## Run workflow integration test
 	@echo "$(BLUE)Running workflow test...$(NC)"

@@ -20,12 +20,14 @@ class DeploymentGenerator:
     """Generate deployment configurations from recommendations."""
 
     # GPU pricing (USD per hour) - representative cloud pricing
+    # Keys match hardware names from benchmark database
     GPU_PRICING = {
         "NVIDIA-L4": 0.50,
-        "NVIDIA-A10G": 1.20,
-        "NVIDIA-A100-40GB": 3.20,
-        "NVIDIA-A100-80GB": 4.10,
-        "NVIDIA-H100": 8.00,
+        "NVIDIA-A10G": 1.00,
+        "NVIDIA-A100-40GB": 3.00,
+        "NVIDIA-A100-80GB": 4.50,
+        "H100": 8.00,
+        "H200": 10.00,
     }
 
     # vLLM version to use
@@ -129,17 +131,15 @@ class DeploymentGenerator:
         gpu_hourly_rate = self.GPU_PRICING.get(gpu_config.gpu_type, 1.0)
 
         # Determine resource requests based on GPU type
-        if "H100" in gpu_config.gpu_type or "A100" in gpu_config.gpu_type:
+        gpu_type = gpu_config.gpu_type
+        if "H100" in gpu_type or "H200" in gpu_type or "B200" in gpu_type or "A100" in gpu_type:
+            # High-end GPUs: H100, H200, B200, A100-40, A100-80
             cpu_request = "24"
             cpu_limit = "48"
             memory_request = "128Gi"
             memory_limit = "256Gi"
-        elif "A10G" in gpu_config.gpu_type:
-            cpu_request = "12"
-            cpu_limit = "24"
-            memory_request = "64Gi"
-            memory_limit = "128Gi"
-        else:  # L4 and others
+        else:
+            # Entry-level GPUs: L4, etc.
             cpu_request = "8"
             cpu_limit = "16"
             memory_request = "32Gi"
@@ -163,12 +163,12 @@ class DeploymentGenerator:
 
         # Calculate max_num_seqs based on expected QPS and latency
         # Rule of thumb: concurrent requests = QPS × avg_latency_seconds
-        avg_latency_sec = slo.e2e_p90_target_ms / 1000.0
+        avg_latency_sec = slo.e2e_p95_target_ms / 1000.0
         max_num_seqs = max(32, int(traffic.expected_qps * avg_latency_sec * 1.5))
 
         # Max batched tokens (vLLM parameter)
         max_num_batched_tokens = max_num_seqs * (
-            traffic.prompt_tokens_mean + traffic.generation_tokens_mean
+            traffic.prompt_tokens + traffic.output_tokens
         )
 
         context = {
@@ -207,15 +207,15 @@ class DeploymentGenerator:
             "cpu_limit": cpu_limit,
             "memory_request": memory_request,
             "memory_limit": memory_limit,
-            # SLO targets
-            "ttft_target": slo.ttft_p90_target_ms,
-            "tpot_target": slo.tpot_p90_target_ms,
-            "e2e_target": slo.e2e_p90_target_ms,
+            # SLO targets (p95)
+            "ttft_target": slo.ttft_p95_target_ms,
+            "itl_target": slo.itl_p95_target_ms,
+            "e2e_target": slo.e2e_p95_target_ms,
             "target_qps": traffic.expected_qps,
             # Traffic profile
             "expected_qps": traffic.expected_qps,
-            "prompt_tokens_mean": traffic.prompt_tokens_mean,
-            "generation_tokens_mean": traffic.generation_tokens_mean,
+            "prompt_tokens": traffic.prompt_tokens,
+            "output_tokens": traffic.output_tokens,
             # Cost estimation
             "cost_per_hour": recommendation.cost_per_hour_usd,
             "cost_per_month": recommendation.cost_per_month_usd,

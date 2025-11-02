@@ -174,9 +174,9 @@ def get_selected_option():
             selected_rec["model_name"] = alt["model_name"]
             selected_rec["model_id"] = alt["model_id"]
             selected_rec["gpu_config"] = alt["gpu_config"]
-            selected_rec["predicted_ttft_p90_ms"] = alt["predicted_ttft_p90_ms"]
-            selected_rec["predicted_tpot_p90_ms"] = alt["predicted_tpot_p90_ms"]
-            selected_rec["predicted_e2e_p90_ms"] = alt["predicted_e2e_p90_ms"]
+            selected_rec["predicted_ttft_p95_ms"] = alt["predicted_ttft_p95_ms"]
+            selected_rec["predicted_itl_p95_ms"] = alt["predicted_itl_p95_ms"]
+            selected_rec["predicted_e2e_p95_ms"] = alt["predicted_e2e_p95_ms"]
             selected_rec["predicted_throughput_qps"] = alt["predicted_throughput_qps"]
             selected_rec["cost_per_hour_usd"] = alt["cost_per_hour_usd"]
             selected_rec["cost_per_month_usd"] = alt["cost_per_month_usd"]
@@ -496,6 +496,21 @@ def render_chat_interface():
 def format_recommendation_summary(rec: dict[str, Any]) -> str:
     """Format recommendation as a chat message."""
 
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        # No viable configuration found
+        summary = f"""
+I've analyzed your requirements:
+
+{rec['reasoning']}
+
+👉 Review the **Specifications** tab to see what I understood from your request, then adjust your SLO targets or requirements to find viable configurations.
+"""
+        return summary.strip()
+
+    # Has viable configuration
     meets_slo = rec.get("meets_slo", False)
     slo_status = "✅ Meets SLO" if meets_slo else "⚠️ Does not meet SLO"
 
@@ -505,9 +520,9 @@ I've analyzed your requirements and recommend the following solution:
 **{rec['model_name']}** on **{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}**
 
 **Performance:**
-- TTFT p90: {rec['predicted_ttft_p90_ms']}ms
-- TPOT p90: {rec['predicted_tpot_p90_ms']}ms
-- E2E p90: {rec['predicted_e2e_p90_ms']}ms
+- TTFT p95: {rec['predicted_ttft_p95_ms']}ms
+- ITL p95: {rec['predicted_itl_p95_ms']}ms
+- E2E p95: {rec['predicted_e2e_p95_ms']}ms
 - Throughput: {rec['predicted_throughput_qps']:.1f} QPS
 
 **Cost:** ${rec['cost_per_month_usd']:,.2f}/month
@@ -550,6 +565,25 @@ def render_recommendation():
 def render_overview_tab(rec: dict[str, Any]):
     """Render overview tab with key information."""
 
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        # No viable configuration found - show friendly message
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.markdown("### 💡 What you can do:")
+        st.markdown("""
+        1. **Review the Specifications tab** to see what Compass understood from your request
+        2. **Relax your SLO targets** in the Specifications tab and click "Save & Re-Evaluate"
+        3. **Adjust traffic parameters** (expected QPS, token lengths) if they seem too high
+        4. **Try a different use case** that may have less stringent latency requirements
+        """)
+        st.markdown("---")
+        st.markdown("### 📝 Details")
+        st.markdown(rec.get("reasoning", "No additional details available"))
+        return
+
     # SLO Status Badge
     meets_slo = rec.get("meets_slo", False)
     if meets_slo:
@@ -584,13 +618,13 @@ def render_overview_tab(rec: dict[str, Any]):
     metrics_col1, metrics_col2, metrics_col3, metrics_col4 = st.columns(4)
 
     with metrics_col1:
-        st.metric("TTFT p90", f"{rec['predicted_ttft_p90_ms']}ms")
+        st.metric("TTFT p95", f"{rec['predicted_ttft_p95_ms']}ms")
 
     with metrics_col2:
-        st.metric("TPOT p90", f"{rec['predicted_tpot_p90_ms']}ms")
+        st.metric("ITL p95", f"{rec['predicted_itl_p95_ms']}ms")
 
     with metrics_col3:
-        st.metric("E2E p90", f"{rec['predicted_e2e_p90_ms']}ms")
+        st.metric("E2E p95", f"{rec['predicted_e2e_p95_ms']}ms")
 
     with metrics_col4:
         st.metric("Throughput", f"{rec['predicted_throughput_qps']:.1f} QPS")
@@ -623,9 +657,9 @@ def render_overview_tab(rec: dict[str, Any]):
         header_cols[2].markdown("**Model**")
         header_cols[3].markdown("**GPU Config**")
         header_cols[4].markdown("**Replicas**")
-        header_cols[5].markdown("**TTFT p90**")
-        header_cols[6].markdown("**TPOT p90**")
-        header_cols[7].markdown("**E2E p90**")
+        header_cols[5].markdown("**TTFT p95**")
+        header_cols[6].markdown("**ITL p95**")
+        header_cols[7].markdown("**E2E p95**")
         header_cols[8].markdown("**Max QPS**")
         header_cols[9].markdown("**Cost/Month**")
 
@@ -645,9 +679,9 @@ def render_overview_tab(rec: dict[str, Any]):
         cols[2].markdown(rec["model_name"])
         cols[3].markdown(f"{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}")
         cols[4].markdown(f"{rec['gpu_config']['replicas']}")
-        cols[5].markdown(f"{rec['predicted_ttft_p90_ms']}")
-        cols[6].markdown(f"{rec['predicted_tpot_p90_ms']}")
-        cols[7].markdown(f"{rec['predicted_e2e_p90_ms']}")
+        cols[5].markdown(f"{rec['predicted_ttft_p95_ms']}")
+        cols[6].markdown(f"{rec['predicted_itl_p95_ms']}")
+        cols[7].markdown(f"{rec['predicted_e2e_p95_ms']}")
         cols[8].markdown(f"{rec['predicted_throughput_qps']:.0f}")
         cols[9].markdown(f"${rec['cost_per_month_usd']:,.0f}")
 
@@ -671,9 +705,9 @@ def render_overview_tab(rec: dict[str, Any]):
             cols[2].markdown(alt["model_name"])
             cols[3].markdown(f"{alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']}")
             cols[4].markdown(f"{alt['gpu_config']['replicas']}")
-            cols[5].markdown(f"{alt['predicted_ttft_p90_ms']}")
-            cols[6].markdown(f"{alt['predicted_tpot_p90_ms']}")
-            cols[7].markdown(f"{alt['predicted_e2e_p90_ms']}")
+            cols[5].markdown(f"{alt['predicted_ttft_p95_ms']}")
+            cols[6].markdown(f"{alt['predicted_itl_p95_ms']}")
+            cols[7].markdown(f"{alt['predicted_e2e_p95_ms']}")
             cols[8].markdown(f"{alt['predicted_throughput_qps']:.0f}")
             cols[9].markdown(f"${alt['cost_per_month_usd']:,.0f}")
     else:
@@ -722,15 +756,17 @@ def render_specifications_tab(rec: dict[str, Any]):
                 }
                 st.rerun()
 
-    # Define enum options
+    # Define enum options - 9 use cases from traffic_and_slos.md
     use_case_options = [
-        "chatbot",
-        "customer_service",
-        "summarization",
-        "code_generation",
-        "content_creation",
-        "qa_retrieval",
-        "batch_analytics",
+        "chatbot_conversational",
+        "code_completion",
+        "code_generation_detailed",
+        "translation",
+        "content_generation",
+        "summarization_short",
+        "document_analysis_rag",
+        "summarization_long",
+        "research_legal_analysis",
     ]
     latency_options = ["very_high", "high", "medium", "low"]
     throughput_options = ["very_high", "high", "medium", "low"]
@@ -863,8 +899,8 @@ def render_specifications_tab(rec: dict[str, Any]):
                 # Store original values
                 st.session_state.original_traffic = {
                     "expected_qps": traffic["expected_qps"],
-                    "prompt_tokens_mean": traffic["prompt_tokens_mean"],
-                    "generation_tokens_mean": traffic["generation_tokens_mean"],
+                    "prompt_tokens": traffic["prompt_tokens"],
+                    "output_tokens": traffic["output_tokens"],
                 }
                 st.rerun()
 
@@ -882,8 +918,8 @@ def render_specifications_tab(rec: dict[str, Any]):
 
     with col2:
         prompt_tokens = st.number_input(
-            "Avg Prompt Tokens",
-            value=traffic["prompt_tokens_mean"],
+            "Prompt Tokens",
+            value=traffic["prompt_tokens"],
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_traffic,
@@ -891,13 +927,13 @@ def render_specifications_tab(rec: dict[str, Any]):
         )
 
     with col3:
-        generation_tokens = st.number_input(
-            "Avg Generation Tokens",
-            value=traffic["generation_tokens_mean"],
+        output_tokens = st.number_input(
+            "Output Tokens",
+            value=traffic["output_tokens"],
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_traffic,
-            key=f"edit_generation_tokens_{session_key}",
+            key=f"edit_output_tokens_{session_key}",
         )
 
     # Save/Cancel buttons for traffic section
@@ -922,8 +958,8 @@ def render_specifications_tab(rec: dict[str, Any]):
                         "additional_context": intent.get("additional_context"),
                     },
                     "traffic_profile": {
-                        "prompt_tokens_mean": int(prompt_tokens),
-                        "generation_tokens_mean": int(generation_tokens),
+                        "prompt_tokens": int(prompt_tokens),
+                        "output_tokens": int(output_tokens),
                         "expected_qps": float(expected_qps),
                     },
                     "slo_targets": rec["slo_targets"],
@@ -955,17 +991,17 @@ def render_specifications_tab(rec: dict[str, Any]):
                 st.session_state.editing_slo = True
                 # Store original values
                 st.session_state.original_slo = {
-                    "ttft_p90_target_ms": slo["ttft_p90_target_ms"],
-                    "tpot_p90_target_ms": slo["tpot_p90_target_ms"],
-                    "e2e_p90_target_ms": slo["e2e_p90_target_ms"],
+                    "ttft_p95_target_ms": slo["ttft_p95_target_ms"],
+                    "itl_p95_target_ms": slo["itl_p95_target_ms"],
+                    "e2e_p95_target_ms": slo["e2e_p95_target_ms"],
                 }
                 st.rerun()
 
     col1, col2, col3 = st.columns(3)
     with col1:
         ttft_target = st.number_input(
-            "TTFT p90 (ms)",
-            value=slo["ttft_p90_target_ms"],
+            "TTFT p95 (ms)",
+            value=slo["ttft_p95_target_ms"],
             min_value=1,
             step=10,
             disabled=not st.session_state.editing_slo,
@@ -973,19 +1009,19 @@ def render_specifications_tab(rec: dict[str, Any]):
         )
 
     with col2:
-        tpot_target = st.number_input(
-            "TPOT p90 (ms)",
-            value=slo["tpot_p90_target_ms"],
+        itl_target = st.number_input(
+            "ITL p95 (ms)",
+            value=slo["itl_p95_target_ms"],
             min_value=1,
             step=5,
             disabled=not st.session_state.editing_slo,
-            key=f"edit_tpot_target_{session_key}",
+            key=f"edit_itl_target_{session_key}",
         )
 
     with col3:
         e2e_target = st.number_input(
-            "E2E p90 (ms)",
-            value=slo["e2e_p90_target_ms"],
+            "E2E p95 (ms)",
+            value=slo["e2e_p95_target_ms"],
             min_value=1,
             step=50,
             disabled=not st.session_state.editing_slo,
@@ -1012,9 +1048,9 @@ def render_specifications_tab(rec: dict[str, Any]):
                     },
                     "traffic_profile": rec["traffic_profile"],
                     "slo_targets": {
-                        "ttft_p90_target_ms": int(ttft_target),
-                        "tpot_p90_target_ms": int(tpot_target),
-                        "e2e_p90_target_ms": int(e2e_target),
+                        "ttft_p95_target_ms": int(ttft_target),
+                        "itl_p95_target_ms": int(itl_target),
+                        "e2e_p95_target_ms": int(e2e_target),
                     },
                 }
                 re_recommend_with_specs(edited_specs)
@@ -1036,6 +1072,31 @@ def render_specifications_tab(rec: dict[str, Any]):
 def render_performance_tab(rec: dict[str, Any]):
     """Render performance tab with detailed metrics."""
 
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.markdown("### 📝 SLO Targets")
+        st.markdown(
+            "These are the performance targets Compass is searching for, based on your requirements:"
+        )
+        slo = rec["slo_targets"]
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("TTFT p95 Target", f"{slo['ttft_p95_target_ms']}ms")
+        with col2:
+            st.metric("ITL p95 Target", f"{slo['itl_p95_target_ms']}ms")
+        with col3:
+            st.metric("E2E p95 Target", f"{slo['e2e_p95_target_ms']}ms")
+
+        st.markdown("---")
+        st.info(
+            "💡 Try relaxing these targets in the **Specifications** tab and clicking **Save & Re-Evaluate**"
+        )
+        return
+
     st.markdown("### 📊 Predicted Performance")
 
     slo = rec["slo_targets"]
@@ -1044,26 +1105,26 @@ def render_performance_tab(rec: dict[str, Any]):
     st.markdown("#### Time to First Token (TTFT)")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Predicted p90", f"{rec['predicted_ttft_p90_ms']}ms")
+        st.metric("Predicted p95", f"{rec['predicted_ttft_p95_ms']}ms")
     with col2:
-        delta_ms = rec["predicted_ttft_p90_ms"] - slo["ttft_p90_target_ms"]
+        delta_ms = rec["predicted_ttft_p95_ms"] - slo["ttft_p95_target_ms"]
         st.metric(
-            "Target p90",
-            f"{slo['ttft_p90_target_ms']}ms",
+            "Target p95",
+            f"{slo['ttft_p95_target_ms']}ms",
             delta=f"{delta_ms}ms",
             delta_color="inverse",
         )
 
-    # TPOT
-    st.markdown("#### Time Per Output Token (TPOT)")
+    # ITL
+    st.markdown("#### Inter-Token Latency (ITL)")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Predicted p90", f"{rec['predicted_tpot_p90_ms']}ms")
+        st.metric("Predicted p95", f"{rec['predicted_itl_p95_ms']}ms")
     with col2:
-        delta_ms = rec["predicted_tpot_p90_ms"] - slo["tpot_p90_target_ms"]
+        delta_ms = rec["predicted_itl_p95_ms"] - slo["itl_p95_target_ms"]
         st.metric(
-            "Target p90",
-            f"{slo['tpot_p90_target_ms']}ms",
+            "Target p95",
+            f"{slo['itl_p95_target_ms']}ms",
             delta=f"{delta_ms}ms",
             delta_color="inverse",
         )
@@ -1072,12 +1133,12 @@ def render_performance_tab(rec: dict[str, Any]):
     st.markdown("#### End-to-End Latency")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Predicted p90", f"{rec['predicted_e2e_p90_ms']}ms")
+        st.metric("Predicted p95", f"{rec['predicted_e2e_p95_ms']}ms")
     with col2:
-        delta_ms = rec["predicted_e2e_p90_ms"] - slo["e2e_p90_target_ms"]
+        delta_ms = rec["predicted_e2e_p95_ms"] - slo["e2e_p95_target_ms"]
         st.metric(
-            "Target p90",
-            f"{slo['e2e_p90_target_ms']}ms",
+            "Target p95",
+            f"{slo['e2e_p95_target_ms']}ms",
             delta=f"{delta_ms}ms",
             delta_color="inverse",
         )
@@ -1102,6 +1163,27 @@ def render_performance_tab(rec: dict[str, Any]):
 
 def render_cost_tab(rec: dict[str, Any]):
     """Render cost tab with pricing details."""
+
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.info(
+            """
+            **Cannot estimate cost without a viable GPU configuration.**
+
+            Cost estimates depend on:
+            - GPU type (L4, A100, H100, etc.)
+            - Number of GPUs needed
+            - Tensor parallelism configuration
+            - Number of replicas
+
+            💡 Adjust your requirements in the **Specifications** tab to find configurations that meet your SLO targets.
+            """
+        )
+        return
 
     st.markdown("### 💰 Cost Breakdown")
 
@@ -1233,13 +1315,26 @@ def regenerate_and_recommend(edited_specs: dict[str, Any]):
                 st.session_state.deployed_to_cluster = False
                 st.session_state.deployment_id = None
 
-                st.success(
-                    "✅ Traffic Profile and SLO Targets regenerated! New recommendation generated."
+                # Check if we got a viable config or just a spec
+                has_config = (
+                    new_recommendation.get("model_name") is not None
+                    and new_recommendation.get("gpu_config") is not None
                 )
-                st.info(
-                    f"**New Recommendation:** {new_recommendation['model_name']} on "
-                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
-                )
+
+                if has_config:
+                    st.success(
+                        "✅ Traffic Profile and SLO Targets regenerated! New recommendation generated."
+                    )
+                    st.info(
+                        f"**New Recommendation:** {new_recommendation['model_name']} on "
+                        f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                    )
+                else:
+                    st.warning(
+                        "⚠️ Specification regenerated, but no viable configurations found meeting SLO targets."
+                    )
+                    st.info("Review the **Specifications** tab and adjust your requirements.")
+
                 st.rerun()
             else:
                 st.error(f"Failed to regenerate: {response.text}")
@@ -1275,11 +1370,24 @@ def re_recommend_with_specs(edited_specs: dict[str, Any]):
                 st.session_state.deployed_to_cluster = False
                 st.session_state.deployment_id = None
 
-                st.success("✅ Re-evaluation complete! New recommendation generated.")
-                st.info(
-                    f"**New Recommendation:** {new_recommendation['model_name']} on "
-                    f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                # Check if we got a viable config or just a spec
+                has_config = (
+                    new_recommendation.get("model_name") is not None
+                    and new_recommendation.get("gpu_config") is not None
                 )
+
+                if has_config:
+                    st.success("✅ Re-evaluation complete! New recommendation generated.")
+                    st.info(
+                        f"**New Recommendation:** {new_recommendation['model_name']} on "
+                        f"{new_recommendation['gpu_config']['gpu_count']}x {new_recommendation['gpu_config']['gpu_type']}"
+                    )
+                else:
+                    st.warning(
+                        "⚠️ Re-evaluation complete, but no viable configurations found meeting SLO targets."
+                    )
+                    st.info("Review the **Specifications** tab and adjust your SLO targets.")
+
                 st.rerun()
             else:
                 st.error(f"Failed to re-evaluate: {response.text}")
@@ -1713,6 +1821,27 @@ def render_yaml_preview_tab(rec: dict[str, Any]):
     """Render YAML preview tab showing generated deployment files."""
 
     st.markdown("### 📄 Deployment YAML Files")
+
+    # Check if this is a spec-only response (no viable config found)
+    has_config = rec.get("model_name") is not None and rec.get("gpu_config") is not None
+
+    if not has_config:
+        st.error("❌ No viable deployment configurations found meeting SLO targets")
+        st.markdown("---")
+        st.info(
+            """
+            **Cannot generate deployment YAML without a viable configuration.**
+
+            YAML deployment files require:
+            - Model selection (which LLM to deploy)
+            - GPU configuration (type, count, tensor parallelism)
+            - Resource requests and limits
+            - Autoscaling parameters
+
+            💡 Adjust your requirements in the **Specifications** tab to find configurations that can be deployed.
+            """
+        )
+        return
 
     # Check if YAML was auto-generated
     if not rec.get("yaml_generated", False):

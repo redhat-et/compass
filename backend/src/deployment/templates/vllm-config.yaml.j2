@@ -43,15 +43,15 @@ performance_tuning:
   scheduler_policy: "fcfs"  # First-come-first-served
 
 slo_targets:
-  ttft_p90_ms: {{ ttft_target }}
-  tpot_p90_ms: {{ tpot_target }}
-  e2e_p90_ms: {{ e2e_target }}
+  ttft_p95_ms: {{ ttft_target }}
+  itl_p95_ms: {{ itl_target }}
+  e2e_p95_ms: {{ e2e_target }}
   target_qps: {{ target_qps }}
 
 traffic_profile:
   expected_qps: {{ expected_qps }}
-  prompt_tokens_mean: {{ prompt_tokens_mean }}
-  generation_tokens_mean: {{ generation_tokens_mean }}
+  prompt_tokens: {{ prompt_tokens }}
+  output_tokens: {{ output_tokens }}
 
 cost_estimation:
   cost_per_hour_usd: {{ cost_per_hour }}

@@ -15,6 +15,42 @@ This document defines the system architecture for **Compass**, which streamlines
 - Cluster Admins face overprovisioning risks without guidance on aligning workloads to budgets and SLAs
 - Trial-and-error is the default, extending time-to-production and inflating costs
 
+## Development Phases
+
+This architecture has been implemented across three phases:
+
+**Phase 1: POC (Complete)**
+Proof-of-concept implementation demonstrating end-to-end workflow with simplified data models:
+- Core components implemented in Python
+- Synthetic benchmark data (JSON files)
+- Point estimates for traffic (average prompt/output length)
+- p90 SLO metrics (TTFT, TPOT, E2E)
+- Streamlit UI with conversational interface
+- Full deployment automation with KServe/vLLM
+- vLLM simulator for GPU-free development
+- KIND cluster support with basic monitoring
+
+**Phase 2: MVP (In Progress - PostgreSQL Migration)**
+Production-grade implementation with robust data management:
+- **PostgreSQL database** for all benchmark and configuration data
+- **Traffic profile framework**: 4 GuideLLM benchmark configurations
+  - (512→256), (1024→1024), (4096→512), (10240→1536)
+- **Experience-driven SLOs**: Mapping use cases to latency targets
+- **p95 percentiles** for more conservative SLO guarantees (changed from p90)
+- **ITL (Inter-Token Latency)** terminology (changed from TPOT)
+- **Exact traffic matching**: No fuzzy matching on token lengths
+- **Pre-calculated E2E latency** from benchmark data
+- Enhanced recommendation engine with SLO filtering
+
+**Phase 3+: Future Options**
+Advanced features for scale and optimization:
+- Full statistical distributions for traffic profiles (not just point estimates)
+- Multi-dimensional benchmarks (concurrency, batching, KV cache effects)
+- Advanced what-if analysis and simulation (SimPy, Monte Carlo)
+- Continuous learning from deployment outcomes
+- Advanced observability and feedback loops
+- Cost modeling for owned hardware and TCO analysis
+
 ## Solution Approach
 
 Compass follows a **4-stage conversational flow**:
@@ -80,9 +116,9 @@ Each component is discussed in detail below.
 │   Burstiness: Moderate [Edit]               │
 │                                             │
 │ SLO Targets (Suggested):                    │
-│   TTFT (p90): 200ms [Edit]                  │
-│   TPOT (p90): 50ms [Edit]                   │
-│   E2E Latency (p90): 2000ms [Edit]          │
+│   TTFT (p95): 200ms [Edit]                  │
+│   ITL (p95): 50ms [Edit]                    │
+│   E2E Latency (p95): 2000ms [Edit]          │
 │   Throughput: 100 rps [Edit]                │
 │   Quality: High [Edit]                      │
 │   Reliability: 99.9% [Edit]                 │
@@ -109,8 +145,8 @@ Future phases will enable:
 │ Llama-3-8B              │ Llama-3-70B             │              │
 │ 2x NVIDIA L4            │ 4x NVIDIA A100          │              │
 │ $800/month              │ $2400/month             │ +$1600/month │
-│ TTFT p90: 180ms ✓       │ TTFT p90: 150ms ✓       │ -30ms        │
-│ TPOT p90: 45ms ✓        │ TPOT p90: 35ms ✓        │ -10ms        │
+│ TTFT p95: 180ms ✓       │ TTFT p95: 150ms ✓       │ -30ms        │
+│ ITL p95: 45ms ✓         │ ITL p95: 35ms ✓         │ -10ms        │
 │ Quality: High           │ Quality: Very High      │ Better       │
 │ Throughput: 120 rps ✓   │ Throughput: 200 rps ✓   │ +80 rps      │
 └──────────────────────────────────────────────────────────────────┘
@@ -164,9 +200,9 @@ class DeploymentIntent:
     budget: Optional[BudgetConstraint]
 
     # SLOs (auto-suggested from use case template, user-editable)
-    target_ttft_p90_ms: Optional[float]  # Time to First Token
-    target_tpot_p90_ms: Optional[float]  # Time Per Output Token
-    target_e2e_latency_p90_ms: Optional[float]  # End-to-End latency
+    target_ttft_p95_ms: Optional[float]  # Time to First Token
+    target_itl_p95_ms: Optional[float]  # Inter-Token Latency
+    target_e2e_latency_p95_ms: Optional[float]  # End-to-End latency
     target_throughput_rps: Optional[float]  # Requests per second
     quality_threshold: Optional[str]  # "standard", "high", "very_high"
     reliability_target: Optional[float]  # e.g., 99.9% uptime
@@ -186,45 +222,43 @@ class BudgetConstraint:
 The engine maintains templates for common use cases:
 ```python
 USE_CASE_TEMPLATES = {
-    "interactive_chatbot": {
-        "default_slos": {
-            "ttft_p90_ms": 300,
-            "tpot_p90_ms": 50,
-            "e2e_latency_p90_ms": 2000,
-            "quality": "high"
+    "chatbot_conversational": {
+        "traffic_profile": {
+            "prompt_tokens": 512,
+            "output_tokens": 256
         },
-        "traffic_defaults": {
-            "prompt_length_avg": 150,
-            "generation_length_avg": 200,
-            "burstiness_pattern": "moderate"
+        "experience_class": "conversational",
+        "default_slos": {
+            "ttft_p95_ms": 150,
+            "itl_p95_ms": 25,
+            "e2e_latency_p95_ms": 7000
         }
     },
-    "document_summarization": {
-        "default_slos": {
-            "ttft_p90_ms": 1000,
-            "tpot_p90_ms": 100,
-            "e2e_latency_p90_ms": 10000,
-            "quality": "very_high"
+    "code_completion": {
+        "traffic_profile": {
+            "prompt_tokens": 512,
+            "output_tokens": 256
         },
-        "traffic_defaults": {
-            "prompt_length_avg": 2000,
-            "generation_length_avg": 500,
-            "burstiness_pattern": "low"
+        "experience_class": "instant",
+        "default_slos": {
+            "ttft_p95_ms": 100,
+            "itl_p95_ms": 20,
+            "e2e_latency_p95_ms": 5000
         }
     },
-    "code_generation": {
-        "default_slos": {
-            "ttft_p90_ms": 500,
-            "tpot_p90_ms": 75,
-            "e2e_latency_p90_ms": 5000,
-            "quality": "high"
+    "document_analysis_rag": {
+        "traffic_profile": {
+            "prompt_tokens": 4096,
+            "output_tokens": 512
         },
-        "traffic_defaults": {
-            "prompt_length_avg": 300,
-            "generation_length_avg": 400,
-            "burstiness_pattern": "moderate"
+        "experience_class": "interactive",
+        "default_slos": {
+            "ttft_p95_ms": 600,
+            "itl_p95_ms": 30,
+            "e2e_latency_p95_ms": 18000
         }
     }
+    # See data/slo_templates.json for all 9 use cases
 }
 ```
 
@@ -325,11 +359,10 @@ def calculate_capacity(
     1. Query benchmarks: (model, gpu_type, tensor_parallel) -> performance metrics
 
     2. SLO compliance check:
-       - Filter benchmarks where TTFT_p90 > slo.ttft_target (reject)
-       - Filter benchmarks where TPOT_p90 > slo.tpot_target (reject)
-       - Calculate E2E: TTFT + (min(20, gen_tokens) × TPOT) × 1.2
-         (first 20 tokens represent "perceived latency" for streaming)
-       - Filter benchmarks where E2E_p90 > slo.e2e_target (reject)
+       - Filter benchmarks where TTFT_p95 > slo.ttft_target (reject)
+       - Filter benchmarks where ITL_p95 > slo.itl_target (reject)
+       - Use pre-calculated E2E_p95 from benchmark data
+       - Filter benchmarks where E2E_p95 > slo.e2e_target (reject)
 
     3. Replica calculation:
        - required_capacity = traffic_qps × 1.2  (20% headroom for safety)
@@ -384,7 +417,7 @@ def calculate_capacity(
 
 **Overall Recommendation Engine Outputs**:
 - Ranked recommendations combining model + GPU configuration
-- Example: "Llama-3-8B on 2x L4 GPUs: $X/month, meets TTFT<200ms, TPOT<50ms"
+- Example: "Llama-3-8B on 2x L4 GPUs: $X/month, meets TTFT<200ms, ITL<50ms"
 - Detailed trade-off analysis for top 3-5 options
 
 ---
@@ -464,88 +497,115 @@ The POC uses kubectl port-forward for testing individual deployments. Production
 ### Knowledge Base & Benchmarking Data Store
 **Purpose**: Store performance data, industry standards, deployment patterns, and use case templates
 
-**Technology Options**:
-- **PostgreSQL + pgvector** - Relational data + vector search for similarity matching
-- **MongoDB + Atlas Search** - Flexible schema for varied benchmark data
-- **Specialized vector DB (Qdrant/Weaviate)** - Optimized for embedding-based retrieval
+**Technology Implementation**:
+- **Phase 1 (POC)**: JSON files - Simple for rapid prototyping (deprecated)
+- **Phase 2 (MVP - Current)**: **PostgreSQL** - Production-grade relational database
+  - psycopg2 with connection pooling for efficient query execution
+  - Schema defined in `scripts/schema.sql`
+  - RealDictCursor for easy object mapping
+  - Exact traffic matching on (prompt_tokens, output_tokens)
+  - Pre-calculated p95 metrics (TTFT, ITL, E2E) from benchmark data
+  - Implemented in `backend/src/knowledge_base/benchmarks.py`
+- **Phase 3+ Options**: PostgreSQL + pgvector for embedding-based similarity search
 
 **Data Collections**:
 
 #### 6a. Model Benchmarks
 Comprehensive performance metrics for model + GPU combinations.
 
-**Phase 1 POC Simplification**: Current implementation uses point estimates under typical conditions (150 input tokens, 200 output tokens, steady traffic). Benchmarks are collected using vLLM default configuration with dynamic batching enabled. This is sufficient for demonstrating the workflow but lacks precision for production use.
+**Phase 1 POC**: Synthetic JSON data with point estimates (deprecated).
 
-**Phase 2 Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
-- Input/output token lengths (longer prompts/generations affect latency and throughput)
+**Phase 2 MVP (Current)**: PostgreSQL database with structured benchmark data:
+- **Traffic Profile Framework**: Benchmarks organized around 4 GuideLLM standard profiles:
+  - **(512 → 256)**: Medium input, short output - chatbots, Q&A, code completion
+  - **(1024 → 1024)**: Long input, long output - content generation, translation
+  - **(4096 → 512)**: Very long input, short output - summarization, document analysis
+  - **(10240 → 1536)**: Extra-long input, medium output - multi-document analysis
+- **Exact Matching**: Queries require exact (prompt_tokens, output_tokens) match - no fuzzy matching
+- **p95 Metrics**: TTFT, ITL, E2E latency stored as 95th percentile for conservative SLO guarantees
+- **Pre-calculated E2E**: E2E latency stored directly from benchmarks (not dynamically calculated)
+- Benchmarks collected using vLLM default configuration with dynamic batching enabled
+- Database schema: `scripts/schema.sql` (exported_summaries table)
+- See `docs/traffic_and_slos.md` for full traffic profile framework
 
-**Phase 3+ Enhancement**: Implement multi-dimensional benchmarks that capture performance variations across:
+**Phase 3+ Enhancement**: Multi-dimensional benchmarks capturing:
 - Concurrency levels and traffic patterns (bursty vs steady affects tail latencies)
 - KV cache efficiency (prefix caching reduces TTFT for similar prompts)
 - Different vLLM configuration tunings for specific workload patterns
-- Interpolate between benchmark points or use parametric models (regression-based) for continuous prediction when exact traffic matches aren't available.
+- Parametric models for interpolation when exact traffic matches aren't available
 
-**Benchmark Schema**:
+**Benchmark Schema** (PostgreSQL):
+```sql
+-- From scripts/schema.sql
+CREATE TABLE exported_summaries (
+    id SERIAL PRIMARY KEY,
+    model_hf_repo VARCHAR(255) NOT NULL,
+    hardware VARCHAR(100) NOT NULL,
+    hardware_count INTEGER NOT NULL,
+    prompt_tokens INTEGER NOT NULL,        -- Exact traffic profile input
+    output_tokens INTEGER NOT NULL,        -- Exact traffic profile output
+    ttft_p95 NUMERIC(10, 2) NOT NULL,     -- Time to First Token (p95) in ms
+    itl_p95 NUMERIC(10, 2) NOT NULL,      -- Inter-Token Latency (p95) in ms/token
+    e2e_p95 NUMERIC(10, 2) NOT NULL,      -- End-to-End latency (p95) in ms
+    requests_per_second NUMERIC(10, 2),   -- Throughput (QPS)
+    -- Additional metadata fields...
+);
+
+-- Unique constraint ensures one benchmark per configuration + traffic profile
+CREATE UNIQUE INDEX idx_benchmark_config ON exported_summaries(
+    model_hf_repo, hardware, hardware_count,
+    prompt_tokens, output_tokens
+);
+```
+
+**Example Benchmark Data**:
 ```json
 {
-  "model_id": "meta-llama/Llama-3-70b",
-  "gpu_type": "NVIDIA-A100-80GB",
-  "tensor_parallel_degree": 4,
-  "quantization": null,  // or "int8", "int4", "awq"
-  "vllm_config": {
-    "version": "0.6.x",
-    "max_num_seqs": 256,
-    "max_num_batched_tokens": 8192
-  },
-  "metrics": {
-    "throughput_tokens_per_sec": 3500,
-    "throughput_requests_per_sec": 45,
-    "ttft_p50_ms": 95,
-    "ttft_p90_ms": 120,
-    "ttft_p99_ms": 180,
-    "tpot_p50_ms": 12,
-    "tpot_p90_ms": 15,
-    "tpot_p99_ms": 22,
-    "memory_usage_gb": 280,
-    "gpu_utilization_pct": 85
-  },
-  "test_conditions": {
-    "prompt_length_avg": 512,
-    "generation_length_avg": 256,
-    "concurrency": 32
-  },
-  "timestamp": "2025-01-15T00:00:00Z"
+  "model_hf_repo": "meta-llama/Llama-3.1-8B-Instruct",
+  "hardware": "H100",
+  "hardware_count": 1,
+  "prompt_tokens": 512,
+  "output_tokens": 256,
+  "ttft_p95": 45.2,
+  "itl_p95": 12.8,
+  "e2e_p95": 3325.0,
+  "requests_per_second": 25.4,
+  "mean_input_tokens": 512,
+  "mean_output_tokens": 256
 }
 ```
 
-**Important Design Decision - E2E Latency Calculation**:
+**Important Design Decision - E2E Latency Storage**:
 
-End-to-end (E2E) latency is **NOT stored** in benchmarks because it is a **derived metric** that varies significantly based on workload characteristics:
+**Phase 1**: E2E latency was dynamically calculated from TTFT + (tokens × TPOT) because it varied by workload.
 
-- **Generation length**: 50 tokens vs 500 tokens can differ by 10x
-- **Streaming vs non-streaming**: User perception of "completion" differs
-- **Use case**: Chatbot users perceive latency from first tokens; summarization requires full completion
-- **Concurrency and queueing**: E2E increases under load due to queueing delays
+**Phase 2 (Current)**: E2E latency is **PRE-CALCULATED and stored** in benchmark data:
+- Benchmarks use fixed traffic profiles (512→256, 1024→1024, etc.)
+- Each benchmark includes measured `e2e_p95` for that specific traffic pattern
+- This provides **actual measured E2E** under realistic load conditions
+- No need for dynamic calculation - query returns complete metrics
 
-Instead, the system **calculates E2E dynamically** from atomic metrics:
+**Why This Changed**:
+- **Accuracy**: Measured E2E includes real-world effects (batching, queueing, scheduling)
+- **Simplicity**: Direct lookup instead of estimation formulas
+- **Consistency**: All metrics (TTFT, ITL, E2E) at same percentile (p95)
+- **Traffic Profiles**: Fixed GuideLLM profiles mean E2E is consistent per configuration
+
+**Query Pattern** (exact matching):
+```python
+benchmark = repo.get_benchmark(
+    model_hf_repo="meta-llama/Llama-3.1-8B-Instruct",
+    hardware="H100",
+    hardware_count=1,
+    prompt_tokens=512,      # Must match exactly
+    output_tokens=256       # Must match exactly
+)
+# Returns complete metrics: ttft_p95, itl_p95, e2e_p95
 ```
-E2E_p90 = TTFT_p90 + (generation_tokens × TPOT_p90) + adjustments
-```
 
-See `backend/src/recommendation/capacity_planner.py::_estimate_e2e_latency()` for implementation.
-
-**Why TTFT and TPOT are Stored**:
-- **TTFT (Time to First Token)**: Hardware/model characteristic - prefill latency for given prompt length
-- **TPOT (Time Per Output Token)**: Decode step latency - stable per model/GPU combination
-- These are **atomic performance metrics** that can be composed for any workload
-
-This follows industry best practices - vLLM, HuggingFace, and NVIDIA benchmarks report TTFT/TPOT/throughput but not E2E, as E2E is workload-specific.
-
-**Phase 3+ Enhancement**: Improve calculation model to account for:
-- Queueing delays under high load
-- Concurrency effects on tail latencies
-- Streaming-aware user perception (first chunk vs full completion)
-- Non-linear scaling effects at saturation
+**Phase 3+ Enhancement**: Support traffic profiles outside the 4 GuideLLM standards:
+- Parametric models or interpolation for custom (prompt, output) combinations
+- Account for workload-specific factors (streaming, concurrency, queueing)
 
 #### 6b. Hardware Profiles
 GPU specifications, availability, and pricing.
@@ -590,35 +650,47 @@ Pricing information for different GPU types.
 ```
 
 #### 6d. Use Case SLO Templates
-Default SLO targets and traffic profiles for common use cases.
+Maps use cases to traffic profiles and experience-driven SLO targets.
+
+**Phase 2 (Current)**: 9 use cases mapped to 4 GuideLLM traffic profiles with experience classes:
 
 ```json
 {
-  "use_case": "interactive_chatbot",
-  "description": "Real-time conversational assistant for customer support",
-  "default_slos": {
-    "ttft_p90_ms": 300,
-    "tpot_p90_ms": 50,
-    "e2e_latency_p90_ms": 2000,
-    "quality": "high",
-    "reliability_pct": 99.9
+  "use_case": "chatbot_conversational",
+  "description": "Conversational assistants, customer support, Q&A",
+  "traffic_profile": {
+    "prompt_tokens": 512,
+    "output_tokens": 256
   },
-  "traffic_defaults": {
-    "prompt_length_avg": 150,
-    "prompt_length_p90": 300,
-    "generation_length_avg": 200,
-    "generation_length_p90": 500,
-    "burstiness_pattern": "moderate",
-    "typical_concurrency_ratio": 0.1  // 10% of users active simultaneously
+  "experience_class": "conversational",
+  "slo_targets": {
+    "ttft_p95_target_ms": 150,
+    "itl_p95_target_ms": 25,
+    "e2e_p95_target_ms": 7000
   },
-  "recommended_model_characteristics": {
-    "max_latency_priority": true,
-    "min_size": "7B",
-    "max_size": "70B",
-    "quantization_acceptable": true
-  }
+  "rationale": "Highly interactive; perceived responsiveness drives satisfaction"
 }
 ```
+
+**All 9 Use Cases** (see `data/slo_templates.json` and `docs/traffic_and_slos.md`):
+| Use Case | Traffic Profile | Experience Class | TTFT p95 | ITL p95 | E2E p95 |
+|----------|----------------|------------------|----------|---------|---------|
+| chatbot_conversational | 512→256 | Conversational | ≤150ms | ≤25ms | ≤7s |
+| code_completion | 512→256 | Instant | ≤100ms | ≤20ms | ≤5s |
+| code_generation_detailed | 1024→1024 | Interactive | ≤300ms | ≤30ms | ≤25s |
+| translation | 1024→1024 | Deferred | ≤400ms | ≤35ms | ≤35s |
+| content_generation | 1024→1024 | Deferred | ≤500ms | ≤35ms | ≤40s |
+| summarization_short | 4096→512 | Interactive | ≤600ms | ≤30ms | ≤18s |
+| document_analysis_rag | 4096→512 | Interactive | ≤600ms | ≤30ms | ≤18s |
+| long_document_summarization | 10240→1536 | Deferred | ≤1000ms | ≤40ms | ≤60s |
+| research_legal_analysis | 10240→1536 | Batch | ≤2000ms | ≤45ms | ≤90s |
+
+**Key Concepts**:
+- **Traffic Profile**: Defines computational load shape (prompt→output tokens)
+- **Experience Class**: Defines UX expectations (instant, conversational, interactive, deferred, batch)
+- **SLO Targets**: Experience-driven latency requirements (p95 percentiles)
+- Same traffic profile can have different SLOs based on UX needs (e.g., code completion vs chatbot)
+- See `docs/traffic_and_slos.md` for detailed framework explanation
 
 #### 6e. Model Catalog
 Curated list of approved models with metadata.
@@ -813,7 +885,7 @@ Enable sanity testing by sending queries:
 The following features are planned for future phases but not currently implemented:
 
 #### SLO Compliance Monitoring
-- **TTFT/ITL/E2E Latency**: p50, p95, p99 percentile tracking
+- **TTFT/ITL/E2E Latency**: p50, p95, p99 percentile tracking (Phase 2 uses p95 targets)
 - **Throughput metrics**: Actual requests/sec and tokens/sec vs predicted
 - **Reliability**: Uptime, error rates, timeout rates
 - **Alerting**: Proactive alerts when SLOs are violated
@@ -893,7 +965,7 @@ User: "I need a chatbot for 1000 users, low latency is critical"
                         │ Ranked Recommendations
                         ↓
          Present recommendations to user:
-         "Llama-3-8B on 2x L4: $800/mo, TTFT<200ms"
+         "Llama-3-8B on 2x L4: $800/mo, TTFT p95<200ms, ITL p95<50ms"
          "Llama-3-70B on 4x A100: $2400/mo, better quality"
                         │
                         ↓
@@ -923,27 +995,33 @@ User: "I need a chatbot for 1000 users, low latency is critical"
                         ↓ (Post-deployment feedback loop)
 ┌─────────────────────────────────────────────────────────────┐
 │         Knowledge Base ← Deployment Outcomes                │
-│  Store: actual TTFT/TPOT, cost, SLO compliance              │
+│  Store: actual TTFT/ITL/E2E (p95), cost, SLO compliance     │
 │  Use for: improving future recommendations                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Phase 1 (3-Month) Minimal Architecture
+## Technology Choices by Phase
 
-For the initial iteration, recommended technology choices:
+| Component | Phase 1 (POC - Complete) | Phase 2 (MVP - Current) | Phase 3+ (Future) |
+|-----------|-------------------------|------------------------|-------------------|
+| **Conversational UI** | Streamlit | Streamlit | Chainlit or Custom React + WebSocket |
+| **Intent Extraction** | Ollama (llama3.1:8b) + Pydantic | Ollama (llama3.1:8b) + Pydantic | Enhanced with structured extraction frameworks |
+| **Recommendation Engine** | Rule-based + LLM augmentation | Rule-based + LLM + SLO filtering | ML-based with historical learning |
+| **Deployment Automation** | Jinja2 + Kubernetes Python client | Jinja2 + Kubernetes Python client | Possible Go migration for operators |
+| **Knowledge Base** | JSON files | **PostgreSQL (psycopg2)** | PostgreSQL + pgvector |
+| **LLM Backend** | Ollama (llama3.1:8b) | Ollama (llama3.1:8b) | Self-hosted or cloud LLMs |
+| **Orchestration** | FastAPI + in-memory state | FastAPI + in-memory state | LangGraph or Temporal |
+| **Observability** | Kubernetes API + Streamlit | Kubernetes API + Streamlit | Prometheus + Grafana + vLLM metrics |
 
-| Component | Technology Choice | Rationale |
-|-----------|------------------|-----------|
-| **Conversational UI** | Streamlit (POC) | Fastest time-to-value, built-in session management |
-| **Intent Extraction** | Ollama (llama3.1:8b) + Pydantic | Structured output with validation |
-| **Recommendation Engine** | Rule-based + LLM augmentation | Explainable, no ML training needed |
-| **Deployment Automation** | Jinja2 + Kubernetes Python client | Direct control, no GitOps overhead yet |
-| **Knowledge Base** | JSON files (POC) → Database (Production, e.g., PostgreSQL) | Simple for POC, scalable for production |
-| **LLM Backend** | Ollama (llama3.1:8b) | Local development, cost-effective |
-| **Orchestration** | FastAPI + in-memory state | Minimal complexity |
-| **Observability** | Kubernetes API + Streamlit | Direct cluster monitoring |
+**Key Phase 2 Changes**:
+- **PostgreSQL** for structured benchmark data with exact traffic matching
+- **p95 SLO targets** (changed from p90) for more conservative guarantees
+- **ITL (Inter-Token Latency)** terminology (changed from TPOT)
+- **Pre-calculated E2E latency** from benchmarks (not dynamically calculated)
+- **Traffic profile framework** with 4 GuideLLM standard configurations
+- **Experience classes** mapping use cases to latency requirements
 
 ---
 
@@ -955,6 +1033,50 @@ For the initial iteration, recommended technology choices:
 4. **Iterative**: Support what-if exploration before committing resources
 5. **One-click deployment**: Minimize manual YAML editing
 6. **Observability by default**: Every deployment includes monitoring hooks
+7. **Experience-driven SLOs**: Latency targets based on UX requirements, not just hardware capabilities (Phase 2)
+
+---
+
+## Traffic Profiles and Experience-Driven SLOs (Phase 2 Framework)
+
+Phase 2 introduces a unified framework for mapping use cases to both traffic profiles and SLO targets. This framework is documented in detail in `docs/traffic_and_slos.md`.
+
+### Core Concepts
+
+**Traffic Profiles** define the computational load shape:
+- **Input tokens (prompt)**: Drives prefill cost → affects TTFT
+- **Output tokens (completion)**: Drives generation time → affects ITL and E2E
+- 4 GuideLLM standard profiles: (512→256), (1024→1024), (4096→512), (10240→1536)
+
+**Experience Classes** define user expectations:
+- **Instant** (e.g., code completion): TTFT ≤150ms, ITL ≤25ms - feels real-time
+- **Conversational** (e.g., chatbot): TTFT ≤300ms, ITL ≤30ms - natural dialogue
+- **Interactive** (e.g., RAG): TTFT ≤500ms, ITL ≤35ms - some waiting acceptable
+- **Deferred** (e.g., translation): TTFT ≤1s, ITL ≤40ms - spinner acceptable
+- **Batch** (e.g., research): TTFT ≤2s, ITL ≤45ms - asynchronous processing
+
+**Key Insight**: Same traffic profile can have different SLOs based on UX needs:
+- Code completion (512→256, instant): TTFT ≤100ms, ITL ≤20ms
+- Chatbot (512→256, conversational): TTFT ≤150ms, ITL ≤25ms
+
+### Hardware Selection Strategy
+
+Experience classes guide hardware tier recommendations:
+
+| Experience Class | Hardware Tier | Batching | Priority |
+|-----------------|---------------|----------|----------|
+| Instant / Conversational | Premium (A100/H100) | Small (≤4) | Low latency |
+| Interactive | Balanced (L40S/A10G) | Medium (8-16) | Balance |
+| Deferred / Batch | Cost-optimized (A10/T4) | Large (≥16) | Throughput |
+
+### Throughput Scaling
+
+If required QPS exceeds single GPU capacity:
+- **Horizontal scaling**: Replicate instances of same type
+- **Per-instance SLO**: Each instance must meet SLO targets independently
+- Example: 100 QPS required, single GPU handles 25 QPS → deploy 4 replicas
+
+For complete framework details, see `docs/traffic_and_slos.md`.
 
 ---
 
