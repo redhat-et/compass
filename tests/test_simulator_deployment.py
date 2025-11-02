@@ -148,7 +148,7 @@ def test_simulator_deployment():
 
     if deploy_result["success"]:
         print(f"   ✓ Deployed successfully")
-        print(f"   Deployed {len(deploy_result['applied'])} resources")
+        print(f"   Deployed {len(deploy_result['applied_files'])} resources")
     else:
         print(f"   ✗ Deployment failed: {deploy_result['errors']}")
         return False

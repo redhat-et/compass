@@ -36,7 +36,8 @@ def create_test_recommendation() -> DeploymentRecommendation:
     """Create a test recommendation for a chatbot deployment."""
 
     intent = DeploymentIntent(
-        use_case="chatbot",
+        use_case="chatbot_conversational",
+        experience_class="conversational",
         user_count=5000,
         latency_requirement="high",
         throughput_priority="high",
