@@ -46,18 +46,18 @@ The Compass architecture is being reorganized from 8 components to a clearer 4-e
 │    • Specification generation                   │
 │    Code: context_intent/, llm/                  │
 │                                                 │
-│ 2. Recommendation Engine                       │
+│ 2. Recommendation Engine                        │
 │    • Benchmark query & filtering                │
 │    • SLO compliance checking                    │
 │    • Ranking by priorities                      │
 │    Code: recommendation/                        │
 │                                                 │
-│ 3. Deployment Engine                           │
+│ 3. Deployment Engine                            │
 │    • YAML generation                            │
 │    • K8s lifecycle management                   │
 │    Code: deployment/                            │
 │                                                 │
-│ 4. Observability Engine                        │
+│ 4. Observability Engine                         │
 │    • Monitoring & testing                       │
 │    • Metrics collection                         │
 │    • Feedback loop (future)                     │
