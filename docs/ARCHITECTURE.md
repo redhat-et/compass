@@ -53,12 +53,12 @@ Advanced features for scale and optimization:
 
 ## Solution Approach
 
-Compass follows a **4-stage conversational flow**:
+Compass follows a **4-stage workflow**:
 
-1. **Understand Business Context** - Capture task definition, expected load, and constraints
-2. **Provide Tailored Recommendations** - Suggest models, hardware, and SLOs
-3. **Enable Interactive Exploration** - Support what-if scenario analysis
-4. **One-Click Deployment** - Generate and deploy production-ready configurations
+1. **Intent & Specification** - Transform conversation into structured deployment specifications with traffic profiles and SLO targets
+2. **Recommendation** - Generate ranked model + GPU configurations that meet SLO requirements
+3. **Interactive Exploration** - Review, edit specifications, and explore what-if scenarios with cost/latency trade-offs
+4. **Deployment & Monitoring** - Generate Kubernetes configs and deploy to production with health monitoring
 
 ---
 
