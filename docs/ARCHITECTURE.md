@@ -67,37 +67,32 @@ Compass follows a **4-stage conversational flow**:
 Compass is structured as a layered architecture with a presentation layer, four core engines, and a shared data layer:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│              UI Layer (Presentation)                    │
-│  Streamlit (current) → React (future)                   │
-│  • Conversational Interface                             │
-│  • Specification Editor                                 │
-│  • Recommendation Visualizer                            │
-│  • Deployment Dashboard                                 │
-│  • Monitoring & Testing UI                              │
-└─────────────────────────────────────────────────────────┘
-                  ↕ API Gateway (FastAPI)
-┌─────────────────────────────────────────────────────────┐
-│                Core Engines                             │
-├─────────────────────────────────────────────────────────┤
-│ 1. Intent & Specification Engine                        │
-│    Conversation → Structured Deployment Specification   │
-│                                                         │
-│ 2. Recommendation Engine                                │
-│    Specification → Ranked Model + GPU Recommendations   │
-│                                                         │
-│ 3. Deployment Engine                                    │
-│    Recommendation → Deployed Kubernetes Service         │
-│                                                         │
-│ 4. Observability Engine                                 │
-│    Deployed Service → Monitoring + Performance Insights │
-└─────────────────────────────────────────────────────────┘
-                  ↕ Data Access Layer
-┌─────────────────────────────────────────────────────────┐
-│          Knowledge Base (Data Layer)                    │
-│  PostgreSQL: Benchmarks, Deployment Outcomes            │
-│  JSON: SLO Templates, Model Catalog, Hardware Profiles  │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                          UI Layer (Presentation)                          │
+│                   Streamlit (current) → React (future)                    │
+│  Conversational Interface | Spec Editor | Visualizer | Dashboard | Test   │
+└───────────────────────────────────────────────────────────────────────────┘
+                            ↕ API Gateway (FastAPI)
+┌───────────────────────────────────────────────────────────────────────────┐
+│                            Core Engines                                   │
+├──────────────────┬──────────────────┬──────────────────┬──────────────────┤
+│     Intent &     │                  │                  │                  │
+│  Specification   │  Recommendation  │    Deployment    │  Observability   │
+│      Engine      │      Engine      │      Engine      │      Engine      │
+│                  │                  │                  │                  │
+│   Conversation   │  Specification   │  Recommendation  │ Deployed Service │
+│        ↓         │        ↓         │        ↓         │        ↓         │
+│    Structured    │      Ranked      │     Deployed     │   Monitoring +   │
+│    Deployment    │   Model + GPU    │    Kubernetes    │   Performance    │
+│  Specification   │ Recommendations  │     Service      │     Insights     │
+│                  │                  │                  │                  │
+└──────────────────┴──────────────────┴──────────────────┴──────────────────┘
+                            ↕ Data Access Layer
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    Knowledge Base (Data Layer)                            │
+│        PostgreSQL: Benchmarks, Deployment Outcomes                        │
+│        JSON: SLO Templates, Model Catalog, Hardware Profiles              │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### UI Layer (Presentation)
