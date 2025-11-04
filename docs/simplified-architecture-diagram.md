@@ -16,8 +16,8 @@ flowchart LR
     D --> E["🚀 Deploy to<br>Kubernetes"]
     E --> F["📈 Monitor<br>&amp; Test"]
     E -.-> K8S["☸️ Kubernetes Cluster<br><small>KIND + KServe + vLLM Simulator</small>"]
-    C -.-> KB[("Knowledge Base<br>Benchmarks, SLOs,<br>Model Catalog<br>(Synthetic Data)")]
-    F -.-> KB & K8S
+    C -.-> KB[("Knowledge Base<br>PostgreSQL<br>Benchmarks, SLOs,<br>40 Models")]
+    F -.-> K8S
     style A fill:#e1f5ff
     style B fill:#fff4e1
     style C fill:#fff4e1
@@ -44,7 +44,7 @@ graph TB
     end
 
     subgraph "Data"
-        KB[(Benchmarks<br/>SLO Templates<br/>Model Catalog)]
+        KB[(PostgreSQL<br/>Benchmarks<br/>SLO Templates<br/>40 Models)]
     end
 
     subgraph "Deployment"
@@ -58,7 +58,6 @@ graph TB
     REC --> KB
     REC --> YAML
     YAML --> K8S
-    K8S -.feedback.-> KB
 
     style UI fill:#e1f5ff
     style SPEC fill:#e1f5ff
@@ -84,9 +83,8 @@ flowchart LR
 
     A --> B --> C --> D --> E --> F --> G --> H
 
-    KB[("📚 Knowledge<br/>Base")]
+    KB[("📚 PostgreSQL<br/>Benchmarks<br/>9 Use Cases<br/>40 Models")]
     D <-.-> KB
-    H -.-> KB
 
     style A fill:#fff
     style B fill:#e1f5ff
@@ -107,9 +105,9 @@ graph TB
 
     subgraph "Compass"
         Chat["💬 Conversational Interface"]
-        Intent["🧠 Context & Intent Engine"]
-        Rec["🎯 Recommendation Engine<br/><small>Traffic Profiling | Model Selection | Capacity Planning</small>"]
-        KB[("📚 Knowledge Base<br/><small>Benchmarks | SLOs | Models</small>")]
+        Intent["🧠 Intent & Specification Engine"]
+        Rec["🎯 Recommendation Engine<br/><small>Model Selection | Capacity Planning</small>"]
+        KB[("📚 PostgreSQL<br/><small>Benchmarks p95/ITL | 9 Use Case SLOs | 40 Models</small>")]
         Deploy["🚀 Deployment Automation<br/><small>YAML Generation | K8s Deployment</small>"]
     end
 
@@ -121,7 +119,6 @@ graph TB
     Rec <--> KB
     Rec --> Deploy
     Deploy --> K8S
-    K8S -.Feedback.-> KB
 
     style User fill:#fff
     style Chat fill:#e1f5ff
