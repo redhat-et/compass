@@ -65,26 +65,38 @@ The system translates high-level user intent into technical specifications:
   - GPU capacity plan (e.g., "2x NVIDIA L4 GPUs, independent replicas")
   - Cost estimate ($800/month)
 
-### The 8 Core Components
+### Architecture Overview
 
-1. **Conversational Interface Layer** - Streamlit UI with interactive exploration features
-   - Specification review and editing
-   - What-if analysis (Phase 2: advanced simulation)
-2. **Context & Intent Engine** - Extract structured specs from conversation
-   - Use case → SLO template mapping
-   - Auto-generate traffic profiles
-3. **Recommendation Engine** (3 sub-components):
-   - Traffic Profile Generator
-   - Model Recommendation Engine
-   - Capacity Planning Engine
-4. **Deployment Automation Engine** - Generate YAML, deploy to K8s
-5. **Knowledge Base** - Benchmarks, SLO templates, model catalog, outcomes
-6. **LLM Backend** - Powers conversational AI (Ollama with llama3.1:8b)
-7. **Orchestration & Workflow Engine** - Coordinate multi-step flows
-8. **Inference Observability** - Monitor deployed models (TTFT, TPOT, GPU utilization)
+Compass is structured as a layered architecture:
+
+**UI Layer** (Horizontal - Presentation):
+- **Conversational Interface, Specification Editor, Recommendation Visualizer, Monitoring Dashboard**
+- Technology: Streamlit (current) → React (future)
+
+**Core Engines** (Vertical - Backend Services):
+1. **Intent & Specification Engine** - Transform conversation into complete deployment spec
+   - LLM-powered intent extraction (Ollama llama3.1:8b)
+   - Use case → traffic profile mapping (4 GuideLLM standards)
+   - SLO template lookup and specification generation
+2. **Recommendation Engine** - Find optimal model + GPU configurations
+   - Model selection and ranking
+   - Capacity planning (GPU count, deployment topology)
+   - SLO compliance filtering
+3. **Deployment Engine** - Generate and deploy Kubernetes configs
+   - YAML generation (Jinja2 templates)
+   - K8s deployment lifecycle management
+4. **Observability Engine** - Monitor deployed services
+   - Health monitoring and inference testing (current)
+   - Performance tracking and feedback loop (future)
+
+**Infrastructure** (Not numbered as core engines):
+- **API Gateway** (FastAPI) - Coordinates workflow between UI and engines
+- **Knowledge Base** (Data Layer) - Hybrid storage:
+  - PostgreSQL: Benchmarks, deployment outcomes
+  - JSON files: SLO templates, model catalog, hardware profiles
 
 **Development Tools:**
-- **vLLM Simulator** - GPU-free development and testing (not part of core architecture)
+- **vLLM Simulator** - GPU-free development and testing
 
 ### Critical Data Collections (Knowledge Base)
 - **Model Benchmarks**: TTFT/TPOT/throughput for (model, GPU, tensor_parallel) tuples
@@ -125,23 +137,25 @@ The system translates high-level user intent into technical specifications:
 
 - Use "**Compass**" as the project name
 - Use "**TTFT**" for Time to First Token (not "time-to-first-token")
-- Use "**TPOT**" for Time Per Output Token
+- Use "**ITL**" for Inter-Token Latency (Phase 2 terminology, replaces TPOT)
 - Use "**SLO**" for Service Level Objective
 - Use "**E2E**" for End-to-End latency
+- Use "**p95**" for 95th percentile metrics (Phase 2 standard, more conservative than p90)
 - GPU configurations: "2x NVIDIA L4" or "4x A100-80GB" (not "2 L4s")
 
 ### Common Editing Patterns
 
 **Adding a new use case template**:
-1. Add to Context & Intent Engine's USE_CASE_TEMPLATES in docs/ARCHITECTURE.md
+1. Add to Intent & Specification Engine's USE_CASE_TEMPLATES in docs/ARCHITECTURE.md
 2. Add corresponding entry to data/slo_templates.json
 3. Update Knowledge Base → Use Case SLO Templates schema in docs/ARCHITECTURE.md
-4. Update examples in Simulation Layer if relevant
+4. Update examples if relevant
 
 **Adding a new SLO metric**:
-1. Update DeploymentIntent schema in Context & Intent Engine (docs/ARCHITECTURE.md)
+1. Update DeploymentIntent schema in Intent & Specification Engine (docs/ARCHITECTURE.md)
 2. Update MODEL_BENCHMARKS schema in Knowledge Base (docs/ARCHITECTURE.md)
-3. Update data/benchmarks.json with new metric fields
+3. Update PostgreSQL schema in scripts/schema.sql
+4. Update data loader script if needed
 4. Update Inference Observability section
 5. Update dashboard example if applicable
 6. Update docs/architecture-diagram.md data model ERD

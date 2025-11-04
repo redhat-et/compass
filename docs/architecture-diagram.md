@@ -1,172 +1,156 @@
 # Compass Architecture Diagram
 
+## High-Level Architecture
+
 ```mermaid
 graph TB
-    subgraph "User Interface"
-        UI[Conversational Interface Layer<br/>Streamlit + Interactive Exploration]
-        SPEC_UI[Specification Review UI<br/>Editable Deployment Spec]
+    subgraph "UI Layer - Horizontal Presentation"
+        UI[Conversational Interface<br/>Streamlit]
+        SPEC_UI[Specification Editor<br/>Review & Edit]
+        VIZ[Recommendation Visualizer<br/>Trade-offs & Comparisons]
+        DASH[Monitoring Dashboard<br/>Status & Testing]
     end
 
-    subgraph "Core Processing Layer"
-        CIE[Context & Intent Engine<br/>Extract Intent + Generate Spec]
-        TPG[Traffic Profile Generator<br/>QPS, Prompt/Gen Lengths]
-        MRE[Model Recommendation Engine<br/>Filter & Rank Models]
-        CPE[Capacity Planning Engine<br/>GPU Count, Tensor Parallelism]
-        LLM[LLM Backend<br/>Ollama llama3.1:8b]
+    subgraph "API Gateway"
+        API[FastAPI Endpoints<br/>Workflow Orchestration]
     end
 
-    subgraph "Deployment Layer"
-        DAE[Deployment Automation Engine<br/>Jinja2 + K8s Client]
-        ORCH[Orchestration Engine<br/>FastAPI + State Mgmt]
+    subgraph "Core Engines - Backend Services"
+        ISE[Intent & Specification Engine<br/>LLM + Traffic Profile Generation]
+        REC[Recommendation Engine<br/>Model Selection + Capacity Planning]
+        DEP[Deployment Engine<br/>YAML Generation + K8s Deployment]
+        OBS[Observability Engine<br/>Monitoring + Testing]
     end
 
-    subgraph "Data Layer"
-        KB[(Knowledge Base<br/>JSON files POC → Database Prod)]
-        KB_BENCH[Model Benchmarks<br/>TTFT, TPOT, Throughput]
-        KB_SLO[Use Case SLO Templates<br/>Default Targets]
-        KB_MODELS[Model Catalog<br/>Curated Models]
-        KB_OUTCOMES[Deployment Outcomes<br/>Historical Data]
+    subgraph "Knowledge Base - Data Layer"
+        KB_PG[(PostgreSQL<br/>Benchmarks + Outcomes)]
+        KB_JSON[JSON Files<br/>SLO Templates + Model Catalog]
     end
 
     subgraph "External Systems"
-        K8S[Kubernetes/OpenShift Cluster]
-        KSERVE[KServe API]
-        VLLM[vLLM Runtime / Simulator]
+        K8S[Kubernetes Cluster<br/>KServe + vLLM]
         REGISTRY[Model Registry<br/>HuggingFace Hub]
-        OBS[Observability Stack<br/>Prometheus + Grafana]
     end
 
-    subgraph "Development Tools"
-        SIM_VLLM[vLLM Simulator<br/>GPU-free Development]
-    end
+    %% UI to API Gateway
+    UI -->|User Input| API
+    SPEC_UI -->|Edited Spec| API
+    VIZ -->|Selected Config| API
 
-    subgraph "Monitoring"
-        TEL[Telemetry & Observability<br/>OpenTelemetry]
-    end
+    %% API Gateway to Engines
+    API -->|Extract Intent| ISE
+    API -->|Get Recommendations| REC
+    API -->|Deploy Config| DEP
+    API -->|Get Status| OBS
 
-    %% User interaction flow
-    UI -->|Natural Language Input| CIE
-    CIE -->|Deployment Spec| SPEC_UI
-    SPEC_UI -->|Confirmed/Edited Spec| TPG
+    %% Engine to Knowledge Base
+    ISE -->|Lookup SLO Templates| KB_JSON
+    ISE -->|Query Historical Traffic| KB_PG
+    REC -->|Query Benchmarks| KB_PG
+    REC -->|Query Model Catalog| KB_JSON
 
-    %% LLM integration
-    CIE <-.->|Extract Intent| LLM
-    MRE <-.->|Generate Recommendations| LLM
+    %% Engine to Engine
+    ISE -->|Deployment Spec| REC
+    REC -->|Selected Recommendation| DEP
+    DEP -->|Deployment Metadata| OBS
 
-    %% Knowledge Base queries
-    CIE -->|Lookup Use Case| KB_SLO
-    TPG -->|Query Defaults| KB_SLO
-    MRE -->|Query Models| KB_MODELS
-    MRE -->|Query Benchmarks| KB_BENCH
-    CPE -->|Query Performance| KB_BENCH
+    %% Engines to External Systems
+    DEP -->|Deploy| K8S
+    DEP -->|Fetch Models| REGISTRY
+    OBS -.->|Monitor| K8S
 
-    %% Recommendation flow
-    TPG -->|Traffic Profile| MRE
-    TPG -->|Traffic Profile| CPE
-    MRE -->|Model Candidates| CPE
-    CPE -->|GPU Configs + Costs| UI
+    %% Future: Feedback Loop
+    OBS -.->|Store Metrics<br/>(Phase 3+)| KB_PG
+    KB_PG -.->|Learn from History<br/>(Phase 3+)| ISE
 
-    %% What-if exploration (UI-driven)
-    UI -->|Edit Specs/SLOs| TPG
-    UI -->|Re-trigger Recommendations| MRE
-
-    %% Deployment flow
-    UI -->|Confirmed Config| DAE
-    DAE -->|Generate Manifests| ORCH
-    ORCH -->|Deploy| K8S
-    ORCH -->|Configure| KSERVE
-    ORCH -->|Setup Runtime| VLLM
-
-    %% Model registry
-    DAE -->|Fetch Models| REGISTRY
-
-    %% Observability
-    ORCH -->|Configure Monitoring| OBS
-    UI -.->|User Metrics| TEL
-    MRE -.->|Recommendation Metrics| TEL
-    DAE -.->|Deployment Metrics| TEL
-    K8S -.->|Cluster Metrics| TEL
-    TEL -->|Store Metrics| KB
-
-    %% Feedback loop
-    OBS -.->|Actual TTFT/TPOT/Cost| KB_OUTCOMES
-    K8S -.->|SLO Compliance| KB_OUTCOMES
-    KB_OUTCOMES -.->|Improve Recommendations| MRE
-
-    %% Knowledge Base internal connections
-    KB_BENCH -.-> KB
-    KB_SLO -.-> KB
-    KB_MODELS -.-> KB
-    KB_OUTCOMES -.-> KB
+    %% API Gateway to UI
+    API -->|Display Spec| SPEC_UI
+    API -->|Display Recommendations| VIZ
+    API -->|Display Status| DASH
 
     style UI fill:#e1f5ff
     style SPEC_UI fill:#e1f5ff
-    style CIE fill:#fff4e1
-    style TPG fill:#fff4e1
-    style MRE fill:#fff4e1
-    style CPE fill:#fff4e1
-    style LLM fill:#ffe1f5
-    style DAE fill:#e1ffe1
-    style ORCH fill:#e1ffe1
-    style KB fill:#f0f0f0
-    style KB_BENCH fill:#f0f0f0
-    style KB_SLO fill:#f0f0f0
-    style KB_MODELS fill:#f0f0f0
-    style KB_OUTCOMES fill:#f0f0f0
-    style TEL fill:#ffe1e1
+    style VIZ fill:#e1f5ff
+    style DASH fill:#e1f5ff
+    style API fill:#ffe1f5
+    style ISE fill:#fff4e1
+    style REC fill:#fff4e1
+    style DEP fill:#e1ffe1
+    style OBS fill:#ffe1e1
+    style KB_PG fill:#f0f0f0
+    style KB_JSON fill:#f0f0f0
 ```
 
 ## Component Flow Description
 
 ### 1. User Interaction & Specification Generation
-1. User interacts via **Conversational Interface** describing their use case
-2. **Context & Intent Engine** extracts structured intent using LLM
-3. Engine looks up **Use Case SLO Templates** for default targets
-4. System generates complete **Deployment Specification** (traffic profile, SLOs, constraints)
-5. **Specification Review UI** displays editable spec to user
-6. User optionally modifies traffic params, SLO targets, or constraints
+1. User interacts via **Conversational Interface** (Streamlit UI) describing their use case
+2. **Intent & Specification Engine** extracts structured intent using LLM (Ollama llama3.1:8b)
+3. Engine maps use case to **traffic profile** from one of 4 GuideLLM standards: (512→256), (1024→1024), (4096→512), (10240→1536)
+4. Engine looks up **Use Case SLO Templates** (JSON) for default p95 latency targets
+5. System generates complete **DeploymentIntent specification** (traffic profile, SLO targets, constraints)
+6. **Specification Editor** (UI) displays editable spec to user
+7. User optionally modifies traffic params, SLO targets, or constraints
 
 ### 2. Recommendation Flow
-1. **Traffic Profile Generator** converts high-level requirements → QPS, prompt/gen lengths
-2. **Model Recommendation Engine** queries **Model Catalog** and filters by task compatibility
-3. Engine queries **Model Benchmarks** for performance data
-4. **Capacity Planning Engine** calculates GPU count and configuration for each model
+1. **Recommendation Engine** receives complete specification with traffic profile already determined
+2. **Model Recommender** queries **Model Catalog** (JSON, 40 models) and filters by task compatibility
+3. Engine queries **PostgreSQL Benchmarks** for performance data matching exact traffic profile
+4. **Capacity Planner** calculates GPU count and configuration for each model based on SLO compliance
 5. System ranks recommendations by user priority (cost vs latency vs accuracy)
-6. **Conversational Interface** presents ranked options with cost/latency/SLO predictions
+6. **Recommendation Visualizer** (UI) presents ranked options with cost/latency/SLO predictions
 
 ### 3. Interactive Exploration (UI-driven)
-1. User modifies specifications (traffic params, SLO targets) in the **Conversational Interface**
+1. User modifies specifications (traffic params, SLO targets) in the **Specification Editor**
 2. User triggers re-generation of recommendations with updated parameters
-3. System re-calculates capacity requirements and cost predictions
-4. User reviews updated recommendations
-5. User selects final configuration
+3. **Intent & Specification Engine** updates specification
+4. **Recommendation Engine** re-calculates capacity requirements and cost predictions
+5. User reviews updated recommendations via **Recommendation Visualizer**
+6. User selects final configuration
 
 ### 4. Deployment Flow
-1. **Deployment Automation Engine** generates KServe/vLLM configs from selected option
-2. **Orchestration Engine** coordinates deployment steps
-3. Manifests deployed to **Kubernetes/OpenShift**
-4. **KServe** provisions model serving endpoint
-5. **vLLM** runtime configured for inference
-6. **Observability** hooks configured automatically
+1. **Deployment Engine** receives selected recommendation
+2. Engine generates KServe InferenceService + vLLM configs from Jinja2 templates
+3. Engine validates configuration (resource limits, security settings)
+4. **API Gateway** coordinates deployment via Kubernetes Python client
+5. Manifests deployed to **Kubernetes** cluster (KIND for local dev, production cluster for real deployments)
+6. **KServe** provisions model serving endpoint
+7. **vLLM Simulator** or real vLLM runtime configured for inference
+8. **Observability Engine** configured for basic monitoring
 
-### 5. Feedback Loop
-- **Observability Stack** captures actual TTFT, TPOT, throughput, cost
-- **Deployment Outcomes** stored in Knowledge Base
-- System learns from discrepancies between predicted vs actual performance
-- Future recommendations improve based on historical data
+### 5. Monitoring & Observability
+**Current (Phase 2)**:
+- **Kubernetes API** provides deployment status (pods, services, health)
+- **Monitoring Dashboard** (Streamlit UI) displays cluster status and deployment information
+- **Inference testing** UI allows sending test prompts to deployed models
+- **No feedback loop**: Actual performance metrics are NOT stored back to PostgreSQL
 
-### 6. Data Flow
-- **Use Case SLO Templates** → Default targets for chatbot, summarization, etc.
-- **Model Catalog** → Curated, approved models with metadata
-- **Model Benchmarks** → TTFT/TPOT/throughput for model+GPU combinations
-- **Deployment Outcomes** → Historical data for continuous learning
-- **LLM Backend** powers conversational AI and recommendation explanations
+**Future (Phase 3+)**:
+- **Prometheus + Grafana** for advanced metrics collection and dashboards
+- **vLLM metrics endpoint** for detailed inference statistics (TTFT, ITL, throughput)
+- **Feedback loop**: Store actual performance → PostgreSQL → refine future recommendations
+- **OpenTelemetry** for distributed tracing
+
+### 6. Data Layer Architecture
+**PostgreSQL Storage**:
+- **Model Benchmarks** → p95 metrics (TTFT, ITL, E2E) for (model, GPU, traffic profile) combinations
+- **Deployment Outcomes** (future) → Actual performance data for continuous learning
+
+**JSON File Storage**:
+- **Use Case SLO Templates** → 9 use cases with traffic profiles and experience classes
+- **Model Catalog** → 40 curated, approved models with task metadata
+- **Hardware Profiles** → GPU specifications and pricing
+
+**Query Patterns**:
+- **Exact Traffic Matching** → Benchmarks require exact (prompt_tokens, output_tokens) match
+- **SLO Filtering** → Reject configurations where p95 latencies exceed targets
 
 ### 7. Integration Points
 - **Model Registry** (HuggingFace Hub) for model artifacts
-- **Kubernetes API** for cluster operations
-- **KServe API** for model serving
-- **Prometheus/Grafana** for monitoring and alerting
+- **Kubernetes API** for cluster operations and monitoring
+- **KServe** for model serving orchestration
+- **vLLM Simulator** for GPU-free local development
+- **PostgreSQL** for benchmark data storage and retrieval
 
 ---
 
@@ -174,23 +158,23 @@ graph TB
 
 ```mermaid
 C4Context
-    title System Context - Compass
+    title System Context - Compass Phase 2
 
     Person(dev, "Application Developer", "Wants to deploy LLM model")
     Person(admin, "Cluster Admin", "Manages infrastructure")
 
     System(assistant, "Compass", "Guides users from concept to production")
 
-    System_Ext(k8s, "Kubernetes/OpenShift", "Container orchestration")
+    System_Ext(k8s, "Kubernetes/KIND", "Container orchestration")
     System_Ext(registry, "Model Registry", "HuggingFace Hub")
-    System_Ext(obs, "Observability Platform", "Prometheus/Grafana")
+    System_Ext(postgres, "PostgreSQL", "Benchmark data store")
 
     Rel(dev, assistant, "Describes deployment needs", "Natural Language")
     Rel(admin, assistant, "Plans capacity", "Natural Language")
     Rel(assistant, k8s, "Deploys models", "K8s API")
     Rel(assistant, registry, "Fetches models", "HTTP")
-    Rel(assistant, obs, "Configures monitoring", "API")
-    Rel(k8s, obs, "Sends metrics", "Prometheus")
+    Rel(assistant, postgres, "Queries benchmarks", "psycopg2")
+    Rel(k8s, assistant, "Reports status", "K8s API")
 ```
 
 ---
@@ -201,60 +185,56 @@ C4Context
 sequenceDiagram
     participant User
     participant UI as Conversational UI
-    participant SPEC_UI as Specification UI
-    participant CIE as Context Engine
+    participant API as API Gateway
+    participant ISE as Intent & Spec Engine
     participant LLM as LLM Backend
-    participant TPG as Traffic Profile Gen
-    participant MRE as Model Rec Engine
-    participant CPE as Capacity Planner
-    participant KB as Knowledge Base
-    participant SIM as Simulation Layer
-    participant DAE as Deployment Engine
+    participant REC as Recommendation Engine
+    participant KB_JSON as JSON Files
+    participant KB_PG as PostgreSQL
+    participant DEP as Deployment Engine
     participant K8S as Kubernetes
 
     User->>UI: "I need a chatbot for 1000 users, low latency critical"
-    UI->>CIE: Parse intent
-    CIE->>LLM: Extract structured data
-    LLM-->>CIE: {task: chatbot, users: 1000, priority: latency}
+    UI->>API: Extract intent
+    API->>ISE: Parse user input
+    ISE->>LLM: Extract structured data
+    LLM-->>ISE: {task: chatbot, users: 1000, priority: latency}
 
-    CIE->>KB: Lookup use case "chatbot"
-    KB-->>CIE: Default SLOs: TTFT<300ms, TPOT<50ms
+    ISE->>KB_JSON: Lookup use case "chatbot_conversational"
+    KB_JSON-->>ISE: SLOs: TTFT p95<150ms, ITL p95<25ms<br/>Traffic: 512→256 tokens
 
-    CIE->>SPEC_UI: Show generated spec
-    SPEC_UI-->>User: Display: traffic profile, SLOs, budget
-    User->>SPEC_UI: Edit TTFT target to 200ms
-    SPEC_UI->>TPG: Confirmed spec
+    ISE->>ISE: Generate DeploymentIntent specification<br/>(includes traffic profile + SLO targets)
+    ISE-->>API: Complete specification
+    API-->>UI: Display specification
 
-    TPG->>KB: Query traffic defaults
-    KB-->>TPG: Avg prompt:150, gen:200 tokens
-    TPG->>MRE: Traffic profile + SLO targets
+    UI-->>User: Show: traffic profile (512→256), SLOs, budget
+    User->>UI: Confirm specs (or edit and re-trigger)
+    UI->>API: Get recommendations
+    API->>REC: Generate recommendations (spec with traffic profile)
 
-    MRE->>KB: Query model catalog (task=chatbot)
-    KB-->>MRE: Llama-3-8B, Llama-3-70B, Mistral-7B...
-    MRE->>KB: Query benchmarks for candidates
-    KB-->>MRE: TTFT/TPOT/throughput data
+    REC->>KB_JSON: Query model catalog (task=chatbot)
+    KB_JSON-->>REC: Llama-3.1-8B, Llama-3.1-70B, Mistral-7B...
+    REC->>KB_PG: Query benchmarks (model, GPU, 512→256)
+    KB_PG-->>REC: p95 metrics: TTFT, ITL, E2E for each config
 
-    MRE->>CPE: Model candidates + traffic + SLOs
-    CPE->>KB: Query GPU costs
-    CPE->>CPE: Calculate: Llama-3-8B needs 2x L4 for QPS
-    CPE-->>SIM: Ranked recommendations
+    REC->>REC: Filter by SLO compliance (p95 targets)<br/>Calculate GPU count and cost<br/>Rank by user priority
 
-    SIM-->>UI: Option A: Llama-3-8B/2xL4/$800<br/>Option B: Llama-3-70B/4xA100/$2400
+    REC-->>API: Ranked recommendations
+    API-->>UI: Display recommendations
 
-    User->>UI: "What if I use A100 instead?"
-    UI->>SIM: Recalculate with A100 constraint
-    SIM->>CPE: Re-run capacity calc
-    CPE-->>SIM: Llama-3-8B/1xA100/$600, better TTFT
-    SIM-->>UI: Updated prediction
+    UI-->>User: Option A: Llama-3.1-8B/2xL4/$800<br/>TTFT p95: 45ms, ITL p95: 13ms, E2E p95: 3.3s
 
     User->>UI: "Deploy Option A (2x L4)"
-    UI->>DAE: Generate config for Llama-3-8B/2xL4
-    DAE->>KB: Get deployment template
-    DAE->>DAE: Generate KServe + vLLM YAML
-    DAE->>K8S: Deploy InferenceService
-    K8S-->>DAE: Deployment ID
-    DAE-->>UI: Success + cost: $800/mo + monitoring link
-    UI-->>User: "Deployed! Est TTFT: 185ms, TPOT: 42ms"
+    UI->>API: Deploy selected config
+    API->>DEP: Generate deployment artifacts
+    DEP->>DEP: Generate KServe + vLLM YAML (simulator mode)
+    DEP->>K8S: Deploy InferenceService
+    K8S-->>DEP: Deployment ID + status
+    DEP-->>API: Success + monitoring endpoint
+    API-->>UI: Deployment complete
+    UI-->>User: "Deployed! Monitor via Monitoring tab"
+
+    Note over User,K8S: Phase 2: No feedback loop to PostgreSQL<br/>Phase 3+: Observability Engine stores actual metrics
 ```
 
 ---
@@ -269,11 +249,11 @@ stateDiagram-v2
     SpecificationGeneration --> SpecificationReview: Spec auto-generated
 
     SpecificationReview --> SpecificationEditing: User edits
-    SpecificationReview --> TrafficProfileGeneration: User confirms
-    SpecificationEditing --> TrafficProfileGeneration: Edits saved
+    SpecificationReview --> TrafficProfileMapping: User confirms
+    SpecificationEditing --> TrafficProfileMapping: Edits saved
 
-    TrafficProfileGeneration --> ModelRecommendation: Traffic profile ready
-    ModelRecommendation --> CapacityPlanning: Models filtered
+    TrafficProfileMapping --> ModelRecommendation: Mapped to GuideLLM profile
+    ModelRecommendation --> CapacityPlanning: Models filtered by SLO
     CapacityPlanning --> PresentingOptions: GPU configs calculated
 
     PresentingOptions --> InteractiveExploration: User explores what-if
@@ -286,60 +266,63 @@ stateDiagram-v2
     DeploymentExecution --> PostDeploymentValidation: Deployment triggered
     DeploymentExecution --> Failed: Deployment error
 
-    PostDeploymentValidation --> ObservabilitySetup: Health checks pass
+    PostDeploymentValidation --> BasicMonitoring: Health checks pass
     PostDeploymentValidation --> Failed: Health checks fail
 
-    ObservabilitySetup --> Success: Monitoring configured
-    Success --> FeedbackLoop: Collect outcomes
-    FeedbackLoop --> [*]
+    BasicMonitoring --> Success: Status visible in UI
+    Success --> [*]
 
     Failed --> [*]
+
+    note right of BasicMonitoring
+        Phase 2: Basic status monitoring only
+        No feedback loop to PostgreSQL
+        Phase 3+: Advanced observability
+    end note
 ```
 
 ---
 
-## Data Model - Knowledge Base Schema
+## Data Model - Knowledge Base Schema (PostgreSQL Phase 2)
 
 ```mermaid
 erDiagram
     MODEL_BENCHMARKS ||--o{ HARDWARE_PROFILES : "tested_on"
     MODEL_BENCHMARKS }o--|| MODEL_CATALOG : "benchmarks"
-    MODEL_CATALOG ||--o{ DEPLOYMENT_TEMPLATES : "uses"
-    DEPLOYMENT_OUTCOMES }o--|| DEPLOYMENT_TEMPLATES : "instantiates"
     HARDWARE_PROFILES ||--o{ COST_DATA : "has_pricing"
-    USE_CASE_SLO_TEMPLATES ||--o{ DEPLOYMENT_TEMPLATES : "guides"
+    USE_CASE_SLO_TEMPLATES ||--|| TRAFFIC_PROFILES : "maps_to"
 
     MODEL_BENCHMARKS {
-        string model_id PK
-        string gpu_type FK
-        int tensor_parallel_degree
-        string quantization
-        json vllm_config
-        float throughput_tokens_per_sec
-        float throughput_requests_per_sec
-        float ttft_p50_ms
-        float ttft_p90_ms
-        float ttft_p99_ms
-        float tpot_p50_ms
-        float tpot_p90_ms
-        float tpot_p99_ms
-        float memory_usage_gb
-        float gpu_utilization_pct
-        json test_conditions
+        string model_hf_repo PK
+        string hardware FK
+        int hardware_count
+        int prompt_tokens "GuideLLM traffic profile"
+        int output_tokens "GuideLLM traffic profile"
+        float ttft_p95 "Time to First Token p95 ms"
+        float itl_p95 "Inter-Token Latency p95 ms"
+        float e2e_p95 "End-to-End p95 ms"
+        float requests_per_second "Throughput QPS"
+        float mean_input_tokens
+        float mean_output_tokens
         timestamp created_at
-        string note "E2E latency calculated dynamically, not stored"
+        string note "4 GuideLLM profiles, exact matching"
+    }
+
+    TRAFFIC_PROFILES {
+        int prompt_tokens PK
+        int output_tokens PK
+        string pattern_description
+        string typical_use_cases
+        string note "4 profiles: 512x256, 1024x1024, 4096x512, 10240x1536"
     }
 
     HARDWARE_PROFILES {
         string gpu_type PK
         int vram_gb
         float tflops_fp16
-        float memory_bandwidth_gbps
         string manufacturer
         string architecture
         boolean available
-        json supported_parallelism
-        int max_tensor_parallel
         timestamp updated_at
     }
 
@@ -351,56 +334,29 @@ erDiagram
         json supported_tasks
         json subject_matter_domains
         string quality_tier
-        string license
         boolean approved_for_production
         int minimum_vram_gb
-        boolean supports_quantization
         timestamp created_at
+        string note "40 curated models"
     }
 
     USE_CASE_SLO_TEMPLATES {
         string use_case PK
         string description
-        json default_slos
-        json traffic_defaults
-        json recommended_model_characteristics
+        int prompt_tokens FK
+        int output_tokens FK
+        string experience_class "instant|conversational|interactive|deferred|batch"
+        float ttft_p95_target_ms
+        float itl_p95_target_ms
+        float e2e_p95_target_ms
+        string rationale
         timestamp updated_at
-    }
-
-    DEPLOYMENT_TEMPLATES {
-        string template_id PK
-        string use_case FK
-        string model_id FK
-        string gpu_type FK
-        int gpu_count
-        int tensor_parallel_degree
-        json kserve_config
-        json vllm_config
-        json autoscaling_config
-        timestamp created_at
-    }
-
-    DEPLOYMENT_OUTCOMES {
-        string deployment_id PK
-        string template_id FK
-        string model_id FK
-        string gpu_type FK
-        int gpu_count
-        float ttft_p90_ms
-        float tpot_p90_ms
-        float e2e_latency_p90_ms
-        float throughput_avg_rps
-        float cost_per_hour_usd
-        json slo_compliance
-        json traffic_observed
-        timestamp deployed_at
-        int observation_period_days
+        string note "9 use cases"
     }
 
     COST_DATA {
         string gpu_type FK
         string cloud_provider
-        string instance_type
         float hourly_rate_usd
         float monthly_rate_usd
         string region
@@ -410,21 +366,36 @@ erDiagram
 
 ---
 
-## Technology Stack Summary
+## Technology Stack Summary (Phase 2)
 
 | Layer | Component | Technology |
 |-------|-----------|------------|
-| **Presentation** | UI Framework | Streamlit (POC) |
+| **Presentation** | UI Framework | Streamlit |
 | **Application** | Intent Extraction | Ollama (llama3.1:8b) + Pydantic |
-| **Application** | Recommendations | Rule-based + LLM |
-| **Application** | Simulation | Analytical formulas |
+| **Application** | Recommendations | Rule-based + LLM + SLO filtering |
 | **Application** | Orchestration | FastAPI |
 | **AI/ML** | LLM Backend | Ollama (llama3.1:8b) |
-| **Data** | Knowledge Base | JSON files (POC) → Database (Prod) |
-| **Deployment** | Config Generation | Jinja2 |
+| **Data** | Knowledge Base | **PostgreSQL** (psycopg2) |
+| **Data** | Benchmark Data | 4 GuideLLM traffic profiles, p95 metrics |
+| **Data** | SLO Templates | 9 use cases with experience classes |
+| **Deployment** | Config Generation | Jinja2 templates |
 | **Deployment** | K8s Integration | Kubernetes Python Client |
-| **Deployment** | vLLM Simulator | FastAPI + Docker |
+| **Deployment** | vLLM Simulator | FastAPI + Docker (GPU-free) |
 | **Observability** | Metrics | Kubernetes API |
-| **Observability** | Dashboards | Streamlit |
-| **Infrastructure** | Container Platform | Kubernetes (KIND for POC) |
-| **Infrastructure** | Model Serving | KServe + vLLM / Simulator |
+| **Observability** | Dashboards | Streamlit (basic status) |
+| **Infrastructure** | Container Platform | Kubernetes (KIND for local dev) |
+| **Infrastructure** | Model Serving | KServe + vLLM Simulator |
+
+---
+
+## Phase 2 vs Phase 3+ Differences
+
+| Feature | Phase 2 (Current) | Phase 3+ (Future) |
+|---------|------------------|-------------------|
+| **Data Store** | PostgreSQL with exact traffic matching | PostgreSQL + pgvector for similarity |
+| **Traffic Profiles** | 4 GuideLLM fixed profiles | Parametric models, interpolation |
+| **SLO Metrics** | p95 percentiles (TTFT, ITL, E2E) | p50, p95, p99 tracking |
+| **Observability** | Basic status (K8s API + Streamlit) | Prometheus + Grafana + vLLM metrics |
+| **Feedback Loop** | **None** - no data stored back | Actual metrics → PostgreSQL |
+| **Learning** | Static benchmark data | Continuous learning from outcomes |
+| **Monitoring** | Deployment status + inference testing | Advanced SLO compliance tracking |

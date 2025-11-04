@@ -64,97 +64,268 @@ Compass follows a **4-stage conversational flow**:
 
 ## Architecture Components
 
-The system is composed of eight core components:
+Compass is structured as a layered architecture with a presentation layer, four core engines, and a shared data layer:
 
-1. **Conversational Interface Layer** - Natural language dialogue to capture user intent
-2. **Context & Intent Engine** - Extract structured deployment specifications from conversation
-3. **Recommendation Engine** - Generate model and GPU configuration recommendations
-4. **Deployment Automation Engine** - Generate and deploy production-ready Kubernetes configurations
-5. **Knowledge Base & Benchmarking Data Store** - Store model benchmarks, SLO templates, and deployment outcomes
-6. **LLM Backend** - Power conversational AI interactions
-7. **Orchestration & Workflow Engine** - Coordinate multi-step recommendation flows
-8. **Basic Inference Observability** - Monitor deployed models and enable basic inference testing
+```
+┌─────────────────────────────────────────────────────────┐
+│              UI Layer (Presentation)                    │
+│  Streamlit (current) → React (future)                   │
+│  • Conversational Interface                             │
+│  • Specification Editor                                 │
+│  • Recommendation Visualizer                            │
+│  • Deployment Dashboard                                 │
+│  • Monitoring & Testing UI                              │
+└─────────────────────────────────────────────────────────┘
+                  ↕ API Gateway (FastAPI)
+┌─────────────────────────────────────────────────────────┐
+│                Core Engines                             │
+├─────────────────────────────────────────────────────────┤
+│ 1. Intent & Specification Engine                       │
+│    Conversation → Structured Deployment Specification   │
+│                                                         │
+│ 2. Recommendation Engine                               │
+│    Specification → Ranked Model + GPU Recommendations   │
+│                                                         │
+│ 3. Deployment Engine                                   │
+│    Recommendation → Deployed Kubernetes Service         │
+│                                                         │
+│ 4. Observability Engine                                │
+│    Deployed Service → Monitoring + Performance Insights │
+└─────────────────────────────────────────────────────────┘
+                  ↕ Data Access Layer
+┌─────────────────────────────────────────────────────────┐
+│          Knowledge Base (Data Layer)                    │
+│  PostgreSQL: Benchmarks, Deployment Outcomes            │
+│  JSON: SLO Templates, Model Catalog, Hardware Profiles  │
+└─────────────────────────────────────────────────────────┘
+```
 
-Each component is discussed in detail below.
+### UI Layer (Presentation)
 
-### Conversational Interface Layer
-**Purpose**: Natural language dialogue to capture user intent
+**Purpose**: Provide unified user interface across all system capabilities
 
-**Technology Choices**:
-- **Phase 1 (POC)**: Streamlit - Rapid development with built-in session management
-- **Phase 2 Options**: Chainlit (Python-first conversational UI) or Custom React + WebSocket backend
+**Technology**:
+- Streamlit (current implementation - rapid development)
+- React + WebSocket backend (future for production scale)
 
 **Responsibilities**:
-- Render conversational UI
-- Handle user input/output
-- Maintain session state
-- Display recommendations and enable interactive exploration
+- **Conversational Interface**: Natural language chat for capturing user intent
+- **Specification Editor**: Review and modify auto-generated deployment specifications
+- **Recommendation Visualizer**: Display model/GPU options with trade-off analysis and what-if scenarios
+- **Deployment Dashboard**: Trigger and manage Kubernetes deployments
+- **Monitoring & Testing UI**: View deployment status, health checks, and inference testing
 
-**Interactive Exploration Features**:
+**Key Features**:
+- Specification review & editing with inline controls
+- Side-by-side scenario comparison (future)
+- What-if analysis with cost/latency/quality trade-offs (future)
+- Real-time deployment status monitoring
+- Interactive inference testing
 
-#### Specification Review & Editing
-- Display auto-generated deployment specification in user-friendly format
-- Allow inline editing of traffic characteristics (prompt length, QPS, etc.)
-- Allow modification of SLO targets (TTFT, TPOT, E2E latency)
-- Re-trigger recommendations after manual specification changes
-
-**UI Example**:
-```
-┌─────────────────────────────────────────────┐
-│ Deployment Specification                    │
-├─────────────────────────────────────────────┤
-│ Use Case: Interactive Chatbot               │
-│ Subject Matter: Customer Support            │
-│ Expected Users: 1000 concurrent             │
-│ Priority: Low Latency                       │
-│                                             │
-│ Traffic Profile (Auto-Generated):           │
-│   Avg Prompt Length: 150 tokens [Edit]      │
-│   Avg Response Length: 250 tokens [Edit]    │
-│   Steady-State QPS: 50 [Edit]               │
-│   Peak QPS: 100 [Edit]                      │
-│   Burstiness: Moderate [Edit]               │
-│                                             │
-│ SLO Targets (Suggested):                    │
-│   TTFT (p95): 200ms [Edit]                  │
-│   ITL (p95): 50ms [Edit]                    │
-│   E2E Latency (p95): 2000ms [Edit]          │
-│   Throughput: 100 rps [Edit]                │
-│   Quality: High [Edit]                      │
-│   Reliability: 99.9% [Edit]                 │
-│                                             │
-│ Budget Constraints:                         │
-│   Max Monthly Cost: $5000 [Edit]            │
-│                                             │
-│ [Regenerate Recommendations] [Deploy]       │
-└─────────────────────────────────────────────┘
-```
-
-#### What-If Scenario Analysis (Phase 2 Enhancement)
-Future phases will enable:
-- Modify model selection and see impact on cost/latency
-- Change GPU types and see capacity/cost implications
-- Adjust SLO targets and see which configurations remain viable
-- Compare scenarios side-by-side
-
-**Scenario Comparison Example (Phase 2)**:
-```
-┌──────────────────────────────────────────────────────────────────┐
-│ Scenario A              │ Scenario B              │ Difference   │
-├──────────────────────────────────────────────────────────────────┤
-│ Llama-3-8B              │ Llama-3-70B             │              │
-│ 2x NVIDIA L4            │ 4x NVIDIA A100          │              │
-│ $800/month              │ $2400/month             │ +$1600/month │
-│ TTFT p95: 180ms ✓       │ TTFT p95: 150ms ✓       │ -30ms        │
-│ ITL p95: 45ms ✓         │ ITL p95: 35ms ✓         │ -10ms        │
-│ Quality: High           │ Quality: Very High      │ Better       │
-│ Throughput: 120 rps ✓   │ Throughput: 200 rps ✓   │ +80 rps      │
-└──────────────────────────────────────────────────────────────────┘
-```
+**Code Location**: `ui/` (Streamlit application)
 
 ---
 
-### Context & Intent Engine
+### Engine 1: Intent & Specification Engine
+
+**Purpose**: Transform natural language conversation into structured, complete deployment specifications
+
+**Input**: User conversation (use case, requirements, constraints)
+**Output**: `DeploymentIntent` specification with traffic profile, SLO targets, and constraints
+
+**Responsibilities**:
+1. **Conversation Management**: Multi-turn dialogue with context tracking
+2. **Intent Extraction**: Parse user inputs into structured data (LLM-powered)
+3. **Use Case Mapping**: Map user's description to standard use case templates
+4. **Traffic Profile Determination**: Generate traffic characteristics (prompt_tokens, output_tokens, QPS)
+5. **SLO Target Suggestion**: Recommend latency and throughput targets based on use case
+6. **Specification Validation**: Ensure completeness before passing to Recommendation Engine
+
+**Sub-Components**:
+- **LLM Backend**: Powers conversational AI (Ollama with llama3.1:8b currently)
+- **Intent Parser**: Structured extraction from natural language
+- **Traffic Profile Generator**: Maps use case → traffic characteristics
+- **Specification Builder**: Assembles complete `DeploymentIntent` object
+
+**Data Dependencies**:
+- `slo_templates.json`: Maps use cases to traffic profiles and SLO targets
+- `model_catalog.json`: Available models for validation
+- Historical deployment outcomes (future): Learn from actual traffic patterns
+
+**Key Insight**: This engine produces the complete "what" (specification), while the Recommendation Engine determines the "how" (which model + GPU configuration).
+
+**Code Location**: `backend/src/context_intent/`, `backend/src/llm/`
+
+---
+
+### Engine 2: Recommendation Engine
+
+**Purpose**: Find optimal model + GPU configurations that meet specification requirements
+
+**Input**: `DeploymentIntent` specification (from Intent & Specification Engine)
+**Output**: Ranked list of `DeploymentRecommendation` options
+
+**Responsibilities**:
+1. **Benchmark Query**: Find benchmark data matching traffic profile
+2. **SLO Compliance Filtering**: Eliminate configurations that violate latency/throughput targets
+3. **Capacity Calculation**: Determine GPU count and deployment topology
+4. **Cost Estimation**: Calculate hourly/monthly costs
+5. **Ranking by Priority**: Sort options by user preferences (cost vs latency vs quality)
+6. **Trade-off Analysis**: Explain why each option was recommended
+
+**Sub-Components**:
+- **Model Recommender**: Filter and rank models by task compatibility
+- **Capacity Planner**: Calculate required GPU resources and deployment strategy
+- **Cost Calculator**: Estimate operational costs
+- **Ranker**: Sort recommendations by user priorities
+
+**Recommendation Logic**:
+```
+1. Query benchmarks: (model, gpu_type, traffic_profile) → performance metrics
+2. Filter by SLO compliance:
+   - TTFT p95 ≤ target
+   - ITL p95 ≤ target
+   - E2E p95 ≤ target
+3. Calculate replicas: required_QPS / benchmark_QPS
+4. Estimate cost: gpu_count × hourly_rate
+5. Rank by priority: cost-optimal vs latency-optimal vs balanced
+```
+
+**Data Dependencies**:
+- PostgreSQL benchmarks: Performance data for (model, GPU, traffic profile) combinations
+- `model_catalog.json`: Available models and their capabilities
+- Hardware profiles: GPU specifications and pricing
+- Model accuracy benchmarks (future): Quality metrics for model selection
+
+**Code Location**: `backend/src/recommendation/`
+
+---
+
+### Engine 3: Deployment Engine
+
+**Purpose**: Generate and deploy production-ready Kubernetes configurations
+
+**Input**: Selected `DeploymentRecommendation`
+**Output**: Running KServe InferenceService on Kubernetes
+
+**Responsibilities**:
+1. **YAML Generation**: Create KServe/vLLM manifests from Jinja2 templates
+2. **Configuration Validation**: Verify resource requests, security settings
+3. **Kubernetes Deployment**: Apply manifests to cluster via K8s API
+4. **Lifecycle Management**: Update, scale, or delete existing deployments
+5. **External Access Setup**: Generate Ingress configurations (future)
+6. **Observability Hooks**: Configure Prometheus ServiceMonitors
+
+**Deployment Artifacts**:
+- KServe InferenceService YAML
+- vLLM runtime configuration
+- Horizontal Pod Autoscaler (HPA) policies
+- Prometheus ServiceMonitor for metrics collection
+- Ingress/Route for external access (future)
+
+**Deployment Modes**:
+- **Simulator Mode**: GPU-free development with vLLM simulator (current default)
+- **Real vLLM Mode**: Production deployment with actual GPU inference
+
+**External Integrations**:
+- **Kubernetes API**: Cluster deployment and management
+- **KServe**: Model serving platform
+- **Model Registry**: HuggingFace Hub for model downloads
+- **Container Registry**: Docker image storage
+
+**Code Location**: `backend/src/deployment/`
+
+---
+
+### Engine 4: Observability Engine
+
+**Purpose**: Monitor deployed inference services and provide performance insights
+
+**Input**: Deployed InferenceService metadata
+**Output**: Health status, performance metrics, and optimization recommendations
+
+**Current Capabilities** (Phase 2):
+1. **Deployment Inventory**: Track which services are deployed
+2. **Health Monitoring**: Pod status, service readiness via K8s API
+3. **Inference Testing**: Send test prompts and verify responses
+4. **Basic Metrics Display**: Show deployment status in UI
+
+**Future Capabilities** (Phase 3+):
+1. **SLO Compliance Tracking**: Monitor TTFT, ITL, E2E latency percentiles
+2. **Resource Utilization**: GPU usage, memory, batch efficiency
+3. **Cost Tracking**: Actual spend vs predicted, cost per 1k tokens
+4. **Traffic Pattern Analysis**: Actual vs predicted prompt/output lengths
+5. **Feedback Loop**: Store actual performance → Knowledge Base → improve future recommendations
+6. **Alerting**: Proactive notifications on SLO violations
+
+**Feedback Loop** (Future):
+```
+Observability Engine collects actual metrics
+        ↓
+Stores in Knowledge Base (deployment_outcomes table)
+        ↓
+Intent & Specification Engine queries historical data
+        ↓
+Refines use case mapping, traffic profiles, SLO targets
+        ↓
+Improved recommendations for similar future deployments
+```
+
+**External Integrations**:
+- **Kubernetes API**: Pod and service status
+- **Prometheus + Grafana** (future): Advanced metrics and dashboards
+- **vLLM metrics endpoint** (future): Detailed inference statistics
+- **OpenTelemetry** (future): Distributed tracing
+
+**Code Location**: Monitoring UI in `ui/`, observability module (future: `backend/src/observability/`)
+
+---
+
+### Infrastructure Components (Not Numbered)
+
+These are critical infrastructure that enable the engines but are not domain components:
+
+#### API Gateway
+**Purpose**: Coordinate multi-engine workflows and provide REST API
+
+**Technology**: FastAPI
+
+**Responsibilities**:
+- Expose HTTP endpoints for UI to call engines
+- Orchestrate multi-step flows (conversation → recommendation → deployment)
+- Manage workflow state (session-based currently, persistent store future)
+- Handle authentication and authorization (future)
+
+**Code Location**: `backend/src/api/`, `backend/src/orchestration/`
+
+#### Knowledge Base (Data Layer)
+**Purpose**: Store performance data, configuration, and deployment history
+
+**Technology**: Hybrid storage approach
+- **PostgreSQL**: High-volume query data (benchmarks, deployment outcomes)
+- **JSON files**: Configuration as code (SLO templates, model catalog, hardware profiles)
+
+**Collections**:
+1. **Model Benchmarks** (PostgreSQL): Performance metrics for (model, GPU, traffic profile) combinations
+2. **Use Case SLO Templates** (JSON): Default targets for 9 standard use cases
+3. **Model Catalog** (JSON): 40 curated models with task compatibility metadata
+4. **Hardware Profiles** (JSON/code): GPU specifications and pricing
+5. **Cost Data** (JSON/code): Cloud pricing, operational cost models
+6. **Deployment Outcomes** (PostgreSQL, future): Actual performance data for continuous learning
+
+**Code Location**: `backend/src/knowledge_base/`, `data/` (JSON files), `scripts/schema.sql` (PostgreSQL schema)
+
+---
+
+---
+
+## Detailed Engine Specifications
+
+The following sections provide in-depth technical details for each engine.
+
+---
+
+### Intent & Specification Engine (Detailed)
 **Purpose**: Extract structured intent from conversational input and generate comprehensive deployment specifications
 
 **Technology Options**:
@@ -264,53 +435,31 @@ USE_CASE_TEMPLATES = {
 
 ---
 
-### Recommendation Engine
-**Purpose**: Suggest model, hardware, and SLO configurations based on captured context and deployment specifications
+### Recommendation Engine (Detailed)
+**Purpose**: Find optimal model and GPU configurations that meet the deployment specification
+
+**Input**: Complete `DeploymentIntent` specification from Intent & Specification Engine
+- Use case and task type
+- **Traffic profile** (prompt_tokens, output_tokens, QPS) - already determined
+- SLO targets (TTFT, ITL, E2E latency, throughput)
+- Constraints (budget, preferred GPUs, quality threshold)
+
+**Output**: Ranked list of viable deployment options with cost/performance trade-offs
 
 **Technology Options**:
-- **Rule-based decision tree + LLM augmentation** - Hybrid approach with explainability (Phase 1)
-- **Vector similarity search (FAISS/Pinecone) + retrieval** - Match context to known deployment patterns (Phase 2+)
-- **Custom ML model** - Train on historical deployment data (Phase 3+)
+- **Rule-based decision tree + LLM augmentation** - Hybrid approach with explainability (current)
+- **Vector similarity search (FAISS/Pinecone) + retrieval** - Match to known deployment patterns (future)
+- **Custom ML model** - Train on historical deployment data (future)
 
 **Sub-Components**:
 
-#### 3a. Traffic Profile Generator
-Translates high-level use case descriptions into concrete traffic characteristics.
-
-**Inputs**:
-- Use case type (chatbot, summarization, etc.)
-- User count and concurrency estimates
-- Business context
-
-**Outputs**:
-- Prompt/generation length estimates (Phase 1: simple averages)
-- QPS estimates (steady-state and peak)
-- Burstiness patterns (Phase 3+)
-- Request heterogeneity profile (Phase 3+: track variety/diversity of request sizes)
-
-**Implementation Approach (Phase 1 - POC)**:
-- Rule-based heuristics using use case templates
-- Simple point estimates (mean values only)
-
-**Phase 2 Enhancements (MVP)**:
-- Industry benchmark lookup from Knowledge Base
-- Fixed traffic profiles aligned with GuideLLM benchmarks
-
-**Phase 3+ Enhancements (Future Work)**:
-- Full statistical distributions (mean, variance, percentiles)
-- Burstiness pattern characterization
-- Request heterogeneity profiling (track mix of short/long requests)
-- Impact analysis on batching efficiency and latency variance
-- Pattern learning from historical deployments
-- LLM-assisted estimation for edge cases
-
-#### 3b. Model Recommendation Engine
+#### Model Recommender
 Filters and ranks models based on task compatibility and user constraints.
 
 **Inputs**:
-- Deployment specification (from Context Engine)
-- Traffic profile
-- SLO targets
+- Deployment specification (from Intent & Specification Engine)
+- Traffic profile (already in specification)
+- SLO targets (already in specification)
 - User preferences (optional preferred models, subject matter domain)
 
 **Recommendation Logic**:
@@ -327,7 +476,7 @@ Filters and ranks models based on task compatibility and user constraints.
 - Performance projections for each model
 - Trade-off analysis (accuracy vs cost vs latency)
 
-#### 3c. Capacity Planning Engine
+#### Capacity Planner
 Determines GPU requirements (type, count, configuration) for each model recommendation.
 
 **Inputs**:
@@ -422,10 +571,10 @@ def calculate_capacity(
 
 ---
 
-### Deployment Automation Engine
-**Purpose**: Generate production-ready configs and trigger deployment
+### Deployment Engine (Detailed)
+**Purpose**: Generate production-ready Kubernetes configurations and manage deployment lifecycle
 
-**Phase 1 (POC) - Current Implementation**:
+**Current Implementation**:
 
 **Technology Stack**:
 - **Jinja2 templating** - Generate KServe/vLLM YAML from templates
@@ -494,19 +643,26 @@ The POC uses kubectl port-forward for testing individual deployments. Production
 
 ---
 
-### Knowledge Base & Benchmarking Data Store
+### Knowledge Base (Data Layer - Detailed)
 **Purpose**: Store performance data, industry standards, deployment patterns, and use case templates
 
-**Technology Implementation**:
-- **Phase 1 (POC)**: JSON files - Simple for rapid prototyping (deprecated)
-- **Phase 2 (MVP - Current)**: **PostgreSQL** - Production-grade relational database
+**Technology Implementation**: Hybrid storage approach
+- **PostgreSQL**: High-volume query data (benchmarks, deployment outcomes)
+- **JSON files**: Configuration as code (SLO templates, model catalog, hardware profiles)
+
+**Rationale for Hybrid Approach**:
+- **PostgreSQL for benchmarks**: Efficient querying on (model, GPU, traffic profile) combinations
   - psycopg2 with connection pooling for efficient query execution
   - Schema defined in `scripts/schema.sql`
-  - RealDictCursor for easy object mapping
   - Exact traffic matching on (prompt_tokens, output_tokens)
   - Pre-calculated p95 metrics (TTFT, ITL, E2E) from benchmark data
   - Implemented in `backend/src/knowledge_base/benchmarks.py`
-- **Phase 3+ Options**: PostgreSQL + pgvector for embedding-based similarity search
+- **JSON for configuration**: Version control, easy curation, human-readable
+  - Files in `data/` directory
+  - Easy to edit and review in pull requests
+  - No database setup required for configuration changes
+
+**Future Enhancement**: PostgreSQL + pgvector for embedding-based similarity search
 
 **Data Collections**:
 
@@ -795,58 +951,12 @@ Historical data from real deployments for continuous learning.
 
 ---
 
-### LLM Backend
-**Purpose**: Power conversational AI and reasoning
-
-**Technology Options**:
-- **InstructLab-served model** - Open source model training and serving
-- **OpenAI API** - Fast prototyping, higher cost
-- **Self-hosted Llama 3 via vLLM** - Full control, lower marginal cost
-
-**Responsibilities**:
-- Process natural language inputs
-- Generate recommendations with reasoning
-- Provide explanations for suggestions
-- Handle multi-turn conversations
-
----
-
-### Orchestration & Workflow Engine
-**Purpose**: Coordinate multi-step flows (conversation → recommendation → deployment)
-
-**Phase 1 (POC) - Current Implementation**:
-- **FastAPI** - REST API endpoints (`backend/src/api/routes.py`)
-- **Python workflow class** - Simple orchestration (`backend/src/orchestration/workflow.py`)
-- **In-memory state** - Streamlit session state for UI interactions
-- Synchronous execution of workflow steps
-- No retry logic or error compensation
-
-**Workflow States**:
-1. Context Collection - Extract deployment intent from user input
-2. Recommendation Generation - Generate model and GPU recommendations
-3. Interactive Exploration - Allow user to review/edit specifications
-4. Configuration Finalization - User confirms deployment specs
-5. Deployment Execution - Generate YAML and deploy to Kubernetes
-6. Post-Deployment Validation - Basic health checks and inference testing
-
-**Phase 2 (MVP) - Planned Enhancements**:
-
-This workflow needs to be enhanced for production use. Possible technology options include:
-- **LangGraph** - State machine for LLM workflows with built-in persistence
-- **Temporal** - Robust workflow orchestration with retries, compensation, and observability
-- **Enhanced FastAPI + async workflows** - Add async execution, persistent state, retry logic
-
----
-
-### Basic Inference Observability
-**Purpose**: Provide visibility into deployed inference systems and enable basic sanity testing
-
-**Phase 1 (POC) - Current Implementation**:
+### Observability Engine (Detailed)
+**Purpose**: Monitor deployed inference services, track performance, and provide insights for optimization
 
 **Technology Choices**:
-- **Kubernetes API** - Query cluster state and pod status
-- **Direct HTTP requests** - Test inference endpoints
-- **Streamlit dashboard** - Display deployment status and test results
+- **Phase 2 (Current)**: Kubernetes API, direct HTTP requests, Streamlit dashboard
+- **Phase 3+ (Future)**: Prometheus + Grafana, vLLM metrics endpoint, OpenTelemetry, advanced SLO tracking
 
 **Key Responsibilities**:
 
@@ -920,83 +1030,93 @@ The following features are planned for future phases but not currently implement
 
 ---
 
-## Enhanced Data Flow Diagram
+## End-to-End Data Flow
 
 ```
 User: "I need a chatbot for 1000 users, low latency is critical"
     ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Conversational Interface Layer                 │
+│                    UI Layer                                 │
+│         Conversational Interface (Streamlit)                │
 └───────────────────────┬─────────────────────────────────────┘
                         │ Natural Language Input
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Context & Intent Engine                        │
-│  • Extract: task_type, users, priority                      │
-│  • Lookup use case template → default SLOs                  │
-│  • Generate traffic profile (prompt/gen length, QPS)        │
+│          Intent & Specification Engine                      │
+│  • Extract: task_type, users, priority, constraints         │
+│  • Map use case → traffic profile (prompt/output tokens)    │
+│  • Lookup SLO template → default latency targets            │
+│  • Generate complete DeploymentIntent specification         │
 └───────────────────────┬─────────────────────────────────────┘
-                        │ Deployment Specification
+                        │ DeploymentIntent Specification
+                        │ (includes traffic profile + SLO targets)
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         Specification Review UI (Optional Edit)             │
-│  • Display auto-generated spec                              │
-│  • User can modify SLOs, traffic params                     │
+│                    UI Layer                                 │
+│         Specification Review & Editor                       │
+│  • Display auto-generated spec (traffic, SLOs, budget)      │
+│  • Allow inline editing                                     │
+│  • Re-trigger Intent Engine if major changes                │
 └───────────────────────┬─────────────────────────────────────┘
                         │ Confirmed Specification
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
 │              Recommendation Engine                          │
 │  ┌──────────────────────────────────────────┐               │
-│  │ Traffic Profile Generator                │               │
-│  │  → QPS, prompt/gen lengths, burstiness   │               │
+│  │ Model Recommender                        │               │
+│  │  → Filter by task compatibility          │               │
+│  │  → Rank by user priority                 │               │
 │  └──────────────────────────────────────────┘               │
 │  ┌──────────────────────────────────────────┐               │
-│  │ Model Recommendation Engine              │               │
-│  │  → Filter by task, rank by priority      │               │
-│  └──────────────────────────────────────────┘               │
-│  ┌──────────────────────────────────────────┐               │
-│  │ Capacity Planning Engine                 │               │
-│  │  → Calculate GPU count, predict SLOs     │               │
+│  │ Capacity Planner                         │               │
+│  │  → Query benchmarks for traffic profile  │               │
+│  │  → Filter by SLO compliance              │               │
+│  │  → Calculate GPU count & cost            │               │
 │  └──────────────────────────────────────────┘               │
 │              ↕ Query Knowledge Base                         │
-│        (benchmarks, SLO templates, costs)                   │
+│        (PostgreSQL benchmarks, JSON configs)                │
 └───────────────────────┬─────────────────────────────────────┘
                         │ Ranked Recommendations
                         ↓
-         Present recommendations to user:
-         "Llama-3-8B on 2x L4: $800/mo, TTFT p95<200ms, ITL p95<50ms"
-         "Llama-3-70B on 4x A100: $2400/mo, better quality"
-                        │
-                        ↓
 ┌─────────────────────────────────────────────────────────────┐
-│       Interactive Exploration (UI-driven)                   │
-│  • Review and edit auto-generated specifications            │
-│  • Modify SLOs and traffic parameters                       │
-│  • Re-trigger recommendations with new parameters           │
-│  • (Phase 2: Side-by-side scenario comparison)              │
+│                    UI Layer                                 │
+│         Recommendation Visualizer                           │
+│  Present options with trade-offs:                           │
+│  "Llama-3-8B on 2x L4: $800/mo, TTFT p95<200ms, ITL p95<50ms"│
+│  "Llama-3-70B on 4x A100: $2400/mo, better quality"         │
+│  • Compare scenarios (future)                               │
+│  • What-if analysis (future)                                │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
-          User confirms configuration
+          User selects configuration
                         │
                         ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         Deployment Automation Engine                        │
+│              Deployment Engine                              │
 │  → Generate KServe/vLLM YAML                                │
-│  → Configure autoscaling                                    │
+│  → Validate configuration                                   │
 │  → Deploy to Kubernetes                                     │
-│  → Setup observability hooks                                │
+│  → Configure observability                                  │
 └───────────────────────┬─────────────────────────────────────┘
                         │
                         ↓
-      Return: deployment ID + monitoring links + cost estimate
+      Return: deployment ID + monitoring dashboard link
                         │
-                        ↓ (Post-deployment feedback loop)
+                        ↓
 ┌─────────────────────────────────────────────────────────────┐
-│         Knowledge Base ← Deployment Outcomes                │
-│  Store: actual TTFT/ITL/E2E (p95), cost, SLO compliance     │
-│  Use for: improving future recommendations                  │
+│              Observability Engine                           │
+│  Monitor: health, basic metrics (Phase 2)                   │
+│  → Collect actual TTFT/ITL/E2E, cost (Phase 3+)             │
+│     ↓ Feedback Loop (Phase 3+)                              │
+└───────────────────────┬─────────────────────────────────────┘
+                        │ (Future: Store actual metrics)
+                        ↓
+┌─────────────────────────────────────────────────────────────┐
+│         Knowledge Base (deployment_outcomes)                │
+│  → Intent & Specification Engine learns from history        │
+│  → Refines use case mapping, traffic profiles, SLOs         │
+│  → Improves future recommendations                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -1004,24 +1124,24 @@ User: "I need a chatbot for 1000 users, low latency is critical"
 
 ## Technology Choices by Phase
 
-| Component | Phase 1 (POC - Complete) | Phase 2 (MVP - Current) | Phase 3+ (Future) |
-|-----------|-------------------------|------------------------|-------------------|
-| **Conversational UI** | Streamlit | Streamlit | Chainlit or Custom React + WebSocket |
-| **Intent Extraction** | Ollama (llama3.1:8b) + Pydantic | Ollama (llama3.1:8b) + Pydantic | Enhanced with structured extraction frameworks |
-| **Recommendation Engine** | Rule-based + LLM augmentation | Rule-based + LLM + SLO filtering | ML-based with historical learning |
-| **Deployment Automation** | Jinja2 + Kubernetes Python client | Jinja2 + Kubernetes Python client | Possible Go migration for operators |
-| **Knowledge Base** | JSON files | **PostgreSQL (psycopg2)** | PostgreSQL + pgvector |
-| **LLM Backend** | Ollama (llama3.1:8b) | Ollama (llama3.1:8b) | Self-hosted or cloud LLMs |
-| **Orchestration** | FastAPI + in-memory state | FastAPI + in-memory state | LangGraph or Temporal |
-| **Observability** | Kubernetes API + Streamlit | Kubernetes API + Streamlit | Prometheus + Grafana + vLLM metrics |
+| Component | Phase 2 (Current) | Phase 3+ (Future) |
+|-----------|-------------------|-------------------|
+| **UI Layer** | Streamlit | React + WebSocket backend |
+| **Intent & Specification Engine** | Ollama (llama3.1:8b) + Pydantic | Enhanced structured extraction frameworks |
+| **Recommendation Engine** | Rule-based + SLO filtering | ML-based with historical learning |
+| **Deployment Engine** | Jinja2 + Kubernetes Python client | Possible Go migration for operators |
+| **Observability Engine** | Kubernetes API + Streamlit | Prometheus + Grafana + vLLM metrics |
+| **Knowledge Base** | **PostgreSQL + JSON files** | PostgreSQL + pgvector |
+| **API Gateway** | FastAPI + in-memory state | FastAPI + persistent state (LangGraph/Temporal) |
 
-**Key Phase 2 Changes**:
-- **PostgreSQL** for structured benchmark data with exact traffic matching
-- **p95 SLO targets** (changed from p90) for more conservative guarantees
-- **ITL (Inter-Token Latency)** terminology (changed from TPOT)
-- **Pre-calculated E2E latency** from benchmarks (not dynamically calculated)
-- **Traffic profile framework** with 4 GuideLLM standard configurations
-- **Experience classes** mapping use cases to latency requirements
+**Key Architecture Features** (Current):
+- **Hybrid storage**: PostgreSQL for benchmarks, JSON for configuration
+- **p95 SLO targets**: Conservative guarantees for TTFT, ITL, E2E latency
+- **ITL (Inter-Token Latency)**: Standard terminology for per-token generation time
+- **Pre-calculated E2E latency**: Stored in benchmarks from actual measurements
+- **4 GuideLLM traffic profiles**: Standard benchmark configurations (512→256, 1024→1024, 4096→512, 10240→1536)
+- **9 use cases with experience classes**: Map business needs to latency requirements
+- **Traffic profile in specification**: Intent & Specification Engine determines traffic, Recommendation Engine consumes it
 
 ---
 

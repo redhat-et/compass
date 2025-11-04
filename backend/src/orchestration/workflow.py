@@ -7,7 +7,7 @@ from ..context_intent.schema import ConversationMessage, DeploymentRecommendatio
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
 from ..recommendation.model_recommender import ModelRecommender
-from ..recommendation.traffic_profile import TrafficProfileGenerator
+from ..context_intent.traffic_profile import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
 

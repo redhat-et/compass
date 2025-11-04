@@ -12,7 +12,7 @@ In practice, this framework supports a workflow like the following:
 2. Map that use case to its **traffic profile** (input/output token lengths).  
 3. Apply the corresponding **SLO targets** for TTFT, ITL, and E2E latency.  
 4. Combine with any user or system constraints (e.g., cost limits, available GPUs).  
-5. Query benchmark data to identify (GPU, model, configuration) combinations that meet those SLOs.  
+5. Evaluate benchmark data to identify (GPU, model, configuration) combinations that meet those SLOs.  
 6. If throughput exceeds a single GPU’s capacity, scale horizontally with multiple instances.
 
 ---

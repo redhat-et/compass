@@ -521,7 +521,7 @@ async def regenerate_and_recommend(request: RegenerateRequest):
         intent = DeploymentIntent(**intent_data)
 
         # Generate traffic profile and SLO targets from intent
-        from ..recommendation.traffic_profile import TrafficProfileGenerator
+        from ..context_intent.traffic_profile import TrafficProfileGenerator
 
         traffic_generator = TrafficProfileGenerator()
         traffic_profile = traffic_generator.generate_profile(intent)
