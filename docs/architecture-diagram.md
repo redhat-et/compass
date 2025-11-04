@@ -59,9 +59,9 @@ graph TB
     DEP -->|Fetch Models| REGISTRY
     OBS -.->|Monitor| K8S
 
-    %% Future: Feedback Loop
-    OBS -.->|Store Metrics<br/>(Phase 3+)| KB_PG
-    KB_PG -.->|Learn from History<br/>(Phase 3+)| ISE
+    %% Future: Feedback Loop (Phase 3+)
+    OBS -.-> KB_PG
+    KB_PG -.-> ISE
 
     %% API Gateway to UI
     API -->|Display Spec| SPEC_UI
