@@ -263,7 +263,7 @@ Intent & Specification Engine queries historical data
         ↓
 Refines use case mapping, traffic profiles, SLO targets
         ↓
-Improved recommendations for similar future deployments
+Improved recommendations for current deployment or similar future deployments
 ```
 
 **External Integrations**:
