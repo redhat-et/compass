@@ -94,10 +94,10 @@ graph TB
 
 ### 2. Recommendation Flow
 1. **Recommendation Engine** receives complete specification with traffic profile already determined
-2. **Model Recommender** queries **Model Catalog** (JSON, 40 models) and filters by task compatibility
+2. **Model Selector** queries **Model Catalog** (JSON, 40 models) and filters by task compatibility
 3. Engine queries **PostgreSQL Benchmarks** for performance data matching exact traffic profile
 4. **Capacity Planner** calculates GPU count and configuration for each model based on SLO compliance
-5. System ranks recommendations by user priority (cost vs latency vs accuracy)
+5. **Solution Recommender** ranks recommendations by user priorities (cost vs latency vs accuracy)
 6. **Recommendation Visualizer** (UI) presents ranked options with cost/latency/SLO predictions
 
 ### 3. Interactive Exploration (UI-driven)
