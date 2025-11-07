@@ -166,7 +166,7 @@ Compass includes a **GPU-free simulator** for local development:
 
 - **No GPU required** - Run deployments on any laptop
 - **OpenAI-compatible API** - `/v1/completions` and `/v1/chat/completions`
-- **Realistic latency** - Uses benchmark data to simulate TTFT/TPOT
+- **Realistic latency** - Uses benchmark data to simulate TTFT/ITL
 - **Fast deployment** - Pods become Ready in ~10-15 seconds
 
 **Simulator Mode (default):**
