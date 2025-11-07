@@ -60,10 +60,10 @@ A **4-stage conversational flow**:
 The system translates high-level user intent into technical specifications:
 - **User says**: "I need a chatbot for 1000 users, low latency is critical"
 - **System generates**:
-  - Traffic profile (avg prompt: 150 tokens, gen: 200 tokens, peak QPS: 100)
-  - SLO targets (TTFT p90: 200ms, TPOT p90: 50ms, E2E p90: 10150ms)
-  - GPU capacity plan (e.g., "2x NVIDIA L4 GPUs, independent replicas")
-  - Cost estimate ($800/month)
+  - Traffic profile (prompt: 512 tokens, output: 256 tokens, expected QPS: 9)
+  - SLO targets (TTFT p95: 150ms, ITL p95: 25ms, E2E p95: 7000ms)
+  - GPU capacity plan (e.g., "1x NVIDIA H100 GPU, independent replicas")
+  - Cost estimate ($5,840/month)
 
 ### Architecture Overview
 
@@ -99,10 +99,10 @@ Compass is structured as a layered architecture:
 - **vLLM Simulator** - GPU-free development and testing
 
 ### Critical Data Collections (Knowledge Base)
-- **Model Benchmarks**: TTFT/TPOT/throughput for (model, GPU, tensor_parallel) tuples
-- **Use Case SLO Templates**: Default targets for chatbot, summarization, code-gen, etc.
-- **Model Catalog**: Curated, approved models with task/domain metadata
-- **Deployment Outcomes**: Actual performance data for feedback loop
+- **Model Benchmarks** (PostgreSQL): TTFT/ITL/E2E/throughput for (model, GPU, traffic_profile) combinations
+- **Use Case SLO Templates** (JSON): 9 use cases mapped to 4 GuideLLM traffic profiles with experience-driven SLO targets
+- **Model Catalog** (JSON): 40 curated, approved models with task/domain metadata
+- **Deployment Outcomes** (PostgreSQL, future): Actual performance data for feedback loop
 
 ## Working with This Repository
 
@@ -122,12 +122,15 @@ Compass is structured as a layered architecture:
    - Benchmarks collected using vLLM default configuration (dynamic batching enabled)
    - Phase 2 adds full statistical distributions (mean, variance, tail) and multi-dimensional benchmarks
 
-3. **SLO metrics are mandatory**:
-   - TTFT (Time to First Token): p50, p90, p99 - **stored in benchmarks**
-   - TPOT (Time Per Output Token): p50, p90, p99 - **stored in benchmarks**
-   - E2E Latency: p50, p90, p99 - **calculated dynamically** from TTFT + (generation_tokens × TPOT)
+3. **SLO metrics use p95 percentiles** (Phase 2):
+   - TTFT (Time to First Token): p95 - **pre-calculated in benchmarks**
+   - ITL (Inter-Token Latency): p95 - **pre-calculated in benchmarks** (replaces TPOT terminology)
+   - E2E Latency: p95 - **pre-calculated in benchmarks** from actual measurements
    - Throughput: requests/sec and tokens/sec
-   - Rationale: E2E latency varies by workload (generation length, streaming mode, use case), so it's calculated per-request rather than stored as a fixed benchmark value
+   - Rationale:
+     - p95 is more conservative than p90, providing better UX guarantees
+     - E2E latency is measured directly from benchmarks under realistic load conditions
+     - Benchmarks are organized around 4 GuideLLM traffic profiles for exact matching
 
 4. **Editable specifications**: Users must be able to review and modify auto-generated specs before deployment
 
