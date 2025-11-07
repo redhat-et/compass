@@ -263,6 +263,12 @@ class BenchmarkRepository:
         """
         Find all configurations that meet SLO requirements for a traffic profile.
 
+        For each unique system configuration (model_hf_repo, hardware, hardware_count,
+        prompt_tokens, output_tokens), selects only the benchmark with the highest
+        requests_per_second that still meets SLO requirements. This is critical because
+        benchmarks are collected at multiple QPS rates, and we want the maximum throughput
+        that doesn't violate SLO targets.
+
         Args:
             prompt_tokens: Target prompt length
             output_tokens: Target output length
@@ -272,17 +278,38 @@ class BenchmarkRepository:
             min_qps: Minimum required QPS
 
         Returns:
-            List of benchmarks meeting all criteria
+            List of benchmarks meeting all criteria (one per system configuration)
         """
+        # Use window function to rank benchmarks by requests_per_second within each
+        # system configuration, then select only the highest QPS that meets SLO.
+        # When multiple benchmarks exist at the same QPS, prefer the one with lowest E2E latency.
         query = """
-            SELECT * FROM exported_summaries
-            WHERE prompt_tokens = %s
-              AND output_tokens = %s
-              AND ttft_p95 <= %s
-              AND itl_p95 <= %s
-              AND e2e_p95 <= %s
-              AND requests_per_second >= %s
-            ORDER BY e2e_p95, ttft_p95
+            WITH ranked_configs AS (
+                SELECT *,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY model_hf_repo, hardware, hardware_count
+                           ORDER BY requests_per_second DESC, e2e_p95 ASC
+                       ) as rn
+                FROM exported_summaries
+                WHERE prompt_tokens = %s
+                  AND output_tokens = %s
+                  AND ttft_p95 <= %s
+                  AND itl_p95 <= %s
+                  AND e2e_p95 <= %s
+                  AND requests_per_second >= %s
+            )
+            SELECT
+                id, config_id, model_hf_repo, provider, type,
+                ttft_mean, ttft_p90, ttft_p95, ttft_p99,
+                e2e_mean, e2e_p90, e2e_p95, e2e_p99,
+                itl_mean, itl_p90, itl_p95, itl_p99,
+                tps_mean, tps_p90, tps_p95, tps_p99,
+                hardware, hardware_count, framework, requests_per_second, tokens_per_second,
+                mean_input_tokens, mean_output_tokens,
+                prompt_tokens, output_tokens
+            FROM ranked_configs
+            WHERE rn = 1
+            ORDER BY model_hf_repo, hardware, hardware_count
         """
 
         conn = self._get_connection()
