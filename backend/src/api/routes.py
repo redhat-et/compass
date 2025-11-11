@@ -80,14 +80,6 @@ class RecommendationResponse(BaseModel):
     message: str | None = None
 
 
-class ErrorResponse(BaseModel):
-    """Error response."""
-
-    success: bool = False
-    error: str
-    details: str | None = None
-
-
 class DeploymentRequest(BaseModel):
     """Request to generate deployment YAML files."""
 

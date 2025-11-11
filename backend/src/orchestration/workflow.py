@@ -224,23 +224,9 @@ class RecommendationWorkflow:
                 )
 
             # Convert to dict format for alternatives
-            cross_model_alternatives = [
-                {
-                    "model_name": rec.model_name,
-                    "model_id": rec.model_id,
-                    "gpu_config": rec.gpu_config.dict(),
-                    "predicted_ttft_p95_ms": rec.predicted_ttft_p95_ms,
-                    "predicted_itl_p95_ms": rec.predicted_itl_p95_ms,
-                    "predicted_e2e_p95_ms": rec.predicted_e2e_p95_ms,
-                    "predicted_throughput_qps": rec.predicted_throughput_qps,
-                    "cost_per_hour_usd": rec.cost_per_hour_usd,
-                    "cost_per_month_usd": rec.cost_per_month_usd,
-                    "reasoning": rec.reasoning,
-                }
-                for rec, _ in valuable_alternatives[:3]  # Limit to 3 alternatives
+            best_recommendation.alternative_options = [
+                rec.to_alternative_dict() for rec, _ in valuable_alternatives[:3]  # Limit to 3 alternatives
             ]
-
-            best_recommendation.alternative_options = cross_model_alternatives
 
             logger.info(
                 f"Added {len(best_recommendation.alternative_options)} valuable alternative options "
