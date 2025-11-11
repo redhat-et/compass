@@ -148,7 +148,7 @@ start-ollama: ## Start Ollama service
 start-backend: ## Start FastAPI backend
 	@echo "$(BLUE)Starting backend...$(NC)"
 	@mkdir -p $(PID_DIR) $(LOG_DIR)
-	@if [ -f $(BACKEND_PID) ] && kill -0 $$(cat $(BACKEND_PID)) 2>/dev/null; then \
+	@if [ -f $(BACKEND_PID) ] && [ -s $(BACKEND_PID) ] && kill -0 $$(cat $(BACKEND_PID) 2>/dev/null) 2>/dev/null; then \
 		echo "$(YELLOW)Backend already running (PID: $$(cat $(BACKEND_PID)))$(NC)"; \
 	else \
 		. $(VENV)/bin/activate && cd $(BACKEND_DIR) && \
@@ -160,7 +160,7 @@ start-backend: ## Start FastAPI backend
 start-ui: ## Start Streamlit UI
 	@echo "$(BLUE)Starting UI...$(NC)"
 	@mkdir -p $(PID_DIR) $(LOG_DIR)
-	@if [ -f $(UI_PID) ] && kill -0 $$(cat $(UI_PID)) 2>/dev/null; then \
+	@if [ -f $(UI_PID) ] && [ -s $(UI_PID) ] && kill -0 $$(cat $(UI_PID) 2>/dev/null) 2>/dev/null; then \
 		echo "$(YELLOW)UI already running (PID: $$(cat $(UI_PID)))$(NC)"; \
 	else \
 		. $(VENV)/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
