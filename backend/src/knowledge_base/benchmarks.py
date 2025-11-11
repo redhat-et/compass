@@ -1,4 +1,25 @@
-"""Data access layer for model benchmark data using PostgreSQL."""
+"""
+Data access layer for model benchmark data using PostgreSQL.
+
+NOTE ON UNUSED METHODS:
+This repository contains several query methods that are currently unused in production
+but preserved for future use:
+
+- get_benchmark() - Single benchmark lookup (unused - debugging/future API use)
+- get_benchmarks_for_traffic_profile() - Filter by traffic profile (unused)
+- get_benchmarks_for_model() - All benchmarks for a model (unused)
+- get_benchmarks_for_hardware() - All benchmarks for GPU type (unused)
+- get_available_models() - List distinct models (unused - may use for UI)
+- get_available_hardware_types() - List distinct GPUs (unused - may use for UI)
+- get_traffic_profiles() - List distinct traffic profiles (unused)
+- get_all_benchmarks() - Full table dump (unused - debugging only)
+
+PRODUCTION METHOD:
+- find_configurations_meeting_slo() - Primary method used by CapacityPlanner
+
+These methods are kept for potential Phase 2 API endpoints, debugging, interactive
+testing, or future UI features that may need to display available options.
+"""
 
 import logging
 import os
@@ -119,6 +140,12 @@ class BenchmarkRepository:
     ) -> Optional[BenchmarkData]:
         """
         Get benchmark for specific configuration and traffic profile.
+
+        NOTE: This method is currently unused in production code. It's preserved
+        for future API endpoints, debugging, or interactive testing.
+
+        Production code uses find_configurations_meeting_slo() which queries
+        multiple benchmarks with SLO filtering.
 
         Args:
             model_hf_repo: Model HuggingFace repository

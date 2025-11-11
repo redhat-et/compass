@@ -108,6 +108,29 @@ class DeploymentRecommendation(BaseModel):
         default=None, description="Alternative configurations with trade-offs"
     )
 
+    def to_alternative_dict(self) -> dict:
+        """
+        Convert recommendation to alternative option format.
+
+        This is used when building the alternative_options list to avoid
+        code duplication across capacity_planner.py and workflow.py.
+
+        Returns:
+            Dictionary with all fields needed for alternative comparison
+        """
+        return {
+            "model_name": self.model_name,
+            "model_id": self.model_id,
+            "gpu_config": self.gpu_config.model_dump() if self.gpu_config else None,
+            "predicted_ttft_p95_ms": self.predicted_ttft_p95_ms,
+            "predicted_itl_p95_ms": self.predicted_itl_p95_ms,
+            "predicted_e2e_p95_ms": self.predicted_e2e_p95_ms,
+            "predicted_throughput_qps": self.predicted_throughput_qps,
+            "cost_per_hour_usd": self.cost_per_hour_usd,
+            "cost_per_month_usd": self.cost_per_month_usd,
+            "reasoning": self.reasoning,
+        }
+
 
 class DeploymentSpecification(BaseModel):
     """
