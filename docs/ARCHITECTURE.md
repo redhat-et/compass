@@ -166,7 +166,8 @@ Compass is structured as a layered architecture with a presentation layer, four 
 3. **Capacity Calculation**: Determine GPU count and deployment topology
 4. **Cost Estimation**: Calculate hourly/monthly costs
 5. **Ranking by Priority**: Sort options by user preferences (cost vs latency vs quality)
-6. **Trade-off Analysis**: Explain why each option was recommended
+6. **Alternative Filtering**: Remove dominated options that offer no meaningful value proposition
+7. **Trade-off Analysis**: Explain why each option was recommended
 
 **Sub-Components**:
 - **Model Recommender**: Filter and rank models by task compatibility
@@ -184,6 +185,12 @@ Compass is structured as a layered architecture with a presentation layer, four 
 3. Calculate replicas: required_QPS / benchmark_QPS
 4. Estimate cost: gpu_count × hourly_rate
 5. Rank by priority: cost-optimal vs latency-optimal vs balanced
+6. Filter alternatives: Remove strictly dominated options that provide no distinct value
+   - Always include different models (user choice)
+   - Always include different GPU types (e.g., H100 vs H200)
+   - Include if 50%+ throughput improvement for <30% cost increase
+   - Include if 20%+ latency improvement for similar cost (≤20% increase)
+   - Skip configurations with higher cost and same/worse performance
 ```
 
 **Data Dependencies**:
