@@ -13,7 +13,7 @@ UNAME_M := $(shell uname -m)
 ifeq ($(UNAME_S),Darwin)
     PLATFORM := macos
     OPEN_CMD := open
-    PYTHON := python3
+    PYTHON := python3.13
 else ifeq ($(UNAME_S),Linux)
     PLATFORM := linux
     OPEN_CMD := xdg-open
@@ -76,8 +76,14 @@ check-prereqs: ## Check if required tools are installed
 	@echo "$(GREEN)✓ kind found$(NC)"
 	@command -v ollama >/dev/null 2>&1 || (echo "$(RED)✗ ollama not found$(NC). Run: brew install ollama" && exit 1)
 	@echo "$(GREEN)✓ ollama found$(NC)"
-	@command -v $(PYTHON) >/dev/null 2>&1 || (echo "$(RED)✗ $(PYTHON) not found$(NC). Install Python 3.11+" && exit 1)
+	@command -v $(PYTHON) >/dev/null 2>&1 || (echo "$(RED)✗ $(PYTHON) not found$(NC). Run: brew install python@3.13" && exit 1)
 	@echo "$(GREEN)✓ $(PYTHON) found$(NC)"
+	@# Check Python version and warn if 3.14+
+	@PY_VERSION=$$($(PYTHON) -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0"); \
+	if [ "$$(echo "$$PY_VERSION" | cut -d. -f1)" = "3" ] && [ "$$(echo "$$PY_VERSION" | cut -d. -f2)" -ge "14" ]; then \
+		echo "$(YELLOW)⚠ Warning: Python $$PY_VERSION detected. Some dependencies (psycopg2-binary) may not have wheels yet.$(NC)"; \
+		echo "$(YELLOW)  Recommend using Python 3.13 for best compatibility.$(NC)"; \
+	fi
 	@docker info >/dev/null 2>&1 || (echo "$(RED)✗ Docker daemon not running$(NC). Start Docker Desktop" && exit 1)
 	@echo "$(GREEN)✓ Docker daemon running$(NC)"
 	@echo "$(GREEN)All prerequisites satisfied!$(NC)"
