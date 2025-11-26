@@ -86,7 +86,7 @@ def prepare_benchmark_for_insert(benchmark):
     prepared.setdefault('huggingface_prompt_dataset', None)
     prepared.setdefault('entrypoint', None)
     prepared.setdefault('docker_image', None)
-    prepared.setdefault('requests_per_second', None)  # Optional, new field
+    prepared.setdefault('responses_per_second', None)  # Optional field
     prepared.setdefault('tps_mean', None)
     prepared.setdefault('tps_p90', None)
     prepared.setdefault('tps_p95', None)
@@ -141,6 +141,7 @@ def insert_benchmarks(conn, benchmarks):
             hardware_count,
             framework,
             requests_per_second,
+            responses_per_second,
             tokens_per_second,
             mean_input_tokens,
             mean_output_tokens,
@@ -189,6 +190,7 @@ def insert_benchmarks(conn, benchmarks):
             %(hardware_count)s,
             %(framework)s,
             %(requests_per_second)s,
+            %(responses_per_second)s,
             %(tokens_per_second)s,
             %(mean_input_tokens)s,
             %(mean_output_tokens)s,
