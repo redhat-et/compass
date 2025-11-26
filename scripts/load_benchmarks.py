@@ -35,9 +35,17 @@ def get_db_connection():
         sys.exit(1)
 
 
-def load_benchmarks_json():
-    """Load benchmarks from JSON file."""
-    json_path = Path(__file__).parent.parent / "data" / "benchmarks.json"
+def load_benchmarks_json(json_file=None):
+    """Load benchmarks from JSON file.
+
+    Args:
+        json_file: Optional path to JSON file relative to project root.
+                  Defaults to "data/benchmarks_BLIS.json" if not specified.
+    """
+    if json_file:
+        json_path = Path(__file__).parent.parent / json_file
+    else:
+        json_path = Path(__file__).parent.parent / "data" / "benchmarks_BLIS.json"
 
     if not json_path.exists():
         print(f"❌ Error: {json_path} not found")
@@ -78,6 +86,7 @@ def prepare_benchmark_for_insert(benchmark):
     prepared.setdefault('huggingface_prompt_dataset', None)
     prepared.setdefault('entrypoint', None)
     prepared.setdefault('docker_image', None)
+    prepared.setdefault('requests_per_second', None)  # Optional, new field
     prepared.setdefault('tps_mean', None)
     prepared.setdefault('tps_p90', None)
     prepared.setdefault('tps_p95', None)
@@ -248,13 +257,16 @@ def insert_benchmarks(conn, benchmarks):
 
 def main():
     """Main function."""
+    # Parse command-line arguments
+    json_file = sys.argv[1] if len(sys.argv) > 1 else None
+
     print("=" * 60)
-    print("Loading Synthetic Benchmark Data into PostgreSQL")
+    print("Loading Benchmark Data into PostgreSQL")
     print("=" * 60)
     print()
 
     # Load benchmarks from JSON
-    benchmarks = load_benchmarks_json()
+    benchmarks = load_benchmarks_json(json_file)
     print(f"✓ Loaded {len(benchmarks)} benchmarks from JSON")
 
     # Connect to database
