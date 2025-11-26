@@ -321,8 +321,13 @@ postgres-init: postgres-start ## Initialize PostgreSQL schema
 
 postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSON
 	@echo "$(BLUE)Loading synthetic benchmark data...$(NC)"
-	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py
+	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py data/benchmarks_synthetic.json
 	@echo "$(GREEN)✓ Synthetic data loaded$(NC)"
+
+postgres-load-blis: postgres-init ## Load BLIS benchmark data from JSON
+	@echo "$(BLUE)Loading BLIS benchmark data...$(NC)"
+	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py data/benchmarks_BLIS.json
+	@echo "$(GREEN)✓ BLIS data loaded$(NC)"
 
 postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
 	@echo "$(BLUE)Loading real benchmark data from integ-oct-29.sql...$(NC)"
