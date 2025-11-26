@@ -605,7 +605,7 @@ def render_overview_tab(rec: dict[str, Any]):
     with col2:
         st.markdown("### 🖥️ GPU Configuration")
         gpu_config = rec["gpu_config"]
-        st.markdown(f"**{gpu_config['gpu_count']}x {gpu_config['gpu_type']}**")
+        st.markdown(f"**{gpu_config['tensor_parallel']}x {gpu_config['gpu_type']}**")
         st.caption(
             f"Tensor Parallel: {gpu_config['tensor_parallel']}, Replicas: {gpu_config['replicas']}"
         )
@@ -677,7 +677,7 @@ def render_overview_tab(rec: dict[str, Any]):
 
         cols[1].markdown("**Recommended**")
         cols[2].markdown(rec["model_name"])
-        cols[3].markdown(f"{rec['gpu_config']['gpu_count']}x {rec['gpu_config']['gpu_type']}")
+        cols[3].markdown(f"{rec['gpu_config']['tensor_parallel']}x {rec['gpu_config']['gpu_type']}")
         cols[4].markdown(f"{rec['gpu_config']['replicas']}")
         cols[5].markdown(f"{rec['predicted_ttft_p95_ms']}")
         cols[6].markdown(f"{rec['predicted_itl_p95_ms']}")
@@ -703,7 +703,7 @@ def render_overview_tab(rec: dict[str, Any]):
 
             cols[1].markdown(f"**Option {i+1}**")
             cols[2].markdown(alt["model_name"])
-            cols[3].markdown(f"{alt['gpu_config']['gpu_count']}x {alt['gpu_config']['gpu_type']}")
+            cols[3].markdown(f"{alt['gpu_config']['tensor_parallel']}x {alt['gpu_config']['gpu_type']}")
             cols[4].markdown(f"{alt['gpu_config']['replicas']}")
             cols[5].markdown(f"{alt['predicted_ttft_p95_ms']}")
             cols[6].markdown(f"{alt['predicted_itl_p95_ms']}")
@@ -2285,7 +2285,7 @@ def render_cost_metrics(outcome: dict[str, Any]):
 
     st.markdown("---")
     st.markdown("**GPU Configuration:**")
-    st.markdown(f"- {outcome['gpu_config']['gpu_count']}x {outcome['gpu_config']['gpu_type']}")
+    st.markdown(f"- {outcome['gpu_config']['tensor_parallel']}x {outcome['gpu_config']['gpu_type']}")
     st.markdown(
         f"- Tensor Parallel: {outcome['gpu_config']['tensor_parallel']}, Replicas: {outcome['gpu_config']['replicas']}"
     )
