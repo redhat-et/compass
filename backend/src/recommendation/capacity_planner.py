@@ -92,9 +92,9 @@ class CapacityPlanner:
             )
             return None
 
-        # Filter to only this model
+        # Filter to only this model (case-insensitive match)
         model_configs = [
-            bench for bench in matching_configs if bench.model_hf_repo == model.model_id
+            bench for bench in matching_configs if bench.model_hf_repo.lower() == model.model_id.lower()
         ]
 
         if not model_configs:
