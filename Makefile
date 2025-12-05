@@ -95,7 +95,6 @@ check-prereqs: ## Check if required tools are installed
 	@printf "$(GREEN)✓ $(CONTAINER_TOOL) available$(NC)\n"
 	@printf "$(GREEN)All prerequisites satisfied!$(NC)\n"
 
-
 setup-backend: ## Set up Python environment (includes backend and UI dependencies)
 	@printf "$(BLUE)Setting up Python environment...$(NC)\n"
 	$(PYTHON) -m venv $(VENV)
@@ -249,7 +248,6 @@ push-simulator: build-simulator ## Push simulator image to Quay.io
 	else \
 		printf "$(GREEN)✓ Already logged in to Quay.io$(NC)\n"; \
 	fi
-
 	@printf "$(BLUE)Pushing image...$(NC)\n"
 	$(CONTAINER_TOOL) push $(SIMULATOR_FULL_IMAGE)
 	@printf "$(GREEN)✓ Image pushed to $(SIMULATOR_FULL_IMAGE)$(NC)\n"
