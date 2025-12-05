@@ -53,7 +53,7 @@ The code in this repository implements the **Compass Phase 2 MVP** with producti
 make setup                    # Install dependencies, pull Ollama model
 make postgres-start           # Start PostgreSQL container (Phase 2)
 make postgres-init            # Initialize schema
-make postgres-load-synthetic  # Load synthetic benchmark data
+make postgres-load-synthetic  # Load synthetic benchmark data (alternatively, you can load BLIS simulated synthetic data via `make postgres-load-blis`)
 make cluster-start            # Create local KIND cluster with vLLM simulator
 make dev                      # Start all services (Ollama + Backend + UI)
 ```
