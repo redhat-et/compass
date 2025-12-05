@@ -12,6 +12,7 @@ CLUSTER_NAME="compass-poc"
 KSERVE_VERSION="v0.13.0"
 CERT_MANAGER_VERSION="v1.14.4"
 CLUSTER_CONFIG="config/kind-cluster.yaml"
+CONTAINER_TOOL=$(if command -v podman >/dev/null 2>&1; then echo podman; elif command -v docker >/dev/null 2>&1; then echo docker; else echo ""; fi)
 
 # Colors for output
 RED='\033[0;31m'
@@ -22,25 +23,25 @@ NC='\033[0m' # No Color
 
 # Helper functions
 print_header() {
-    echo -e "${BLUE}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  $1${NC}"
-    echo -e "${BLUE}╚═══════════════════════════════════════════════════════════╝${NC}"
+    printf "${BLUE}╔═══════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${BLUE}║  $1${NC}\n"
+    printf "${BLUE}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 print_step() {
-    echo -e "${GREEN}▶ $1${NC}"
+    printf "${GREEN}▶ $1${NC}\n"
 }
 
 print_error() {
-    echo -e "${RED}✗ ERROR: $1${NC}"
+    printf "${RED}✗ ERROR: $1${NC}\n"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ WARNING: $1${NC}"
+    printf "${YELLOW}⚠ WARNING: $1${NC}\n"
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    printf "${GREEN}✓ $1${NC}\n"
 }
 
 # Check prerequisites
@@ -49,12 +50,20 @@ check_prerequisites() {
 
     local missing_deps=()
 
-    # Check Docker
-    if ! command -v docker &> /dev/null; then
-        missing_deps+=("docker")
-    elif ! docker info &> /dev/null; then
-        print_error "Docker is installed but not running. Please start Docker Desktop."
-        exit 1
+    # Check Docker/Podman
+    if command -v docker &> /dev/null; then
+        if ! docker info &> /dev/null; then
+            print_error "Docker is installed but not running. Please start Docker Desktop."
+            exit 1
+        fi
+    elif command -v podman &> /dev/null; then
+        if ! podman info &> /dev/null; then
+            print_error "Podman is installed but not running. Please start the Podman service."
+            exit 1
+        fi
+        print_warning "Podman requires rootless access to port 80."
+    else
+        missing_deps+=("docker or podman")
     fi
 
     # Check kubectl
@@ -154,12 +163,20 @@ start_cluster() {
 
     # Load vLLM simulator image into cluster
     print_step "Loading vLLM simulator image into cluster..."
-    if docker images vllm-simulator:latest --format "{{.Repository}}" | grep -q vllm-simulator; then
-        kind load docker-image vllm-simulator:latest --name "$CLUSTER_NAME"
-        print_success "vLLM simulator image loaded"
+    if $CONTAINER_TOOL images vllm-simulator:latest --format "{{.Repository}}" | grep -q vllm-simulator; then
+        if [ $CONTAINER_TOOL = "docker" ]; then
+            kind load docker-image vllm-simulator:latest --name "$CLUSTER_NAME"
+        elif [ $CONTAINER_TOOL = "podman" ]; then
+            podman save vllm-simulator:latest -o vllm-simulator.tar
+            kind load image-archive vllm-simulator.tar --name "$CLUSTER_NAME"
+            rm vllm-simulator.tar
+        else
+            print_error "Invalid CONTAINER_TOOL: $CONTAINER_TOOL"
+        fi
+            print_success "vLLM simulator image loaded"
     else
         print_warning "vLLM simulator image not found locally - skipping"
-        echo "  Build the simulator: cd simulator && docker build -t vllm-simulator:latest ."
+        echo "  Build the simulator: cd simulator && $CONTAINER_TOOL build -t vllm-simulator:latest ."
     fi
 
     echo ""

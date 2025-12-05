@@ -38,7 +38,7 @@ Returns appropriate canned responses based on prompt patterns:
 ## Building
 
 ```bash
-# Build the Docker image
+# Build the Docker image (replace with podman as needed)
 docker build -t vllm-simulator:latest .
 
 # Test locally
@@ -96,7 +96,7 @@ The simulator is used automatically when `simulator_mode: true` is set in the de
 ### Load into KIND cluster
 
 ```bash
-# Build image
+# Build image (use podman as needed)
 docker build -t vllm-simulator:latest .
 
 # Load into KIND
