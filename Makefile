@@ -22,6 +22,8 @@ else
     $(error Unsupported platform: $(UNAME_S). Please use macOS or Linux (or WSL2 on Windows))
 endif
 
+CONTAINER_TOOL := $(shell command -v docker >/dev/null 2>&1 && echo docker || command -v podman >/dev/null 2>&1 && echo podman || echo "")
+
 # Configuration
 REGISTRY ?= quay.io
 REGISTRY_ORG ?= vllm-assistant
@@ -67,9 +69,9 @@ help: ## Display this help message
 ##@ Setup & Installation
 
 check-prereqs: ## Check if required tools are installed
-	@echo "$(BLUE)Checking prerequisites...$(NC)"
-	@command -v docker >/dev/null 2>&1 || (echo "$(RED)✗ docker not found$(NC). Install from https://www.docker.com/products/docker-desktop" && exit 1)
-	@echo "$(GREEN)✓ docker found$(NC)"
+	@echo "$(BLUE)Checking prerequisites...$(NC)" 
+	@[ -n "$(CONTAINER_TOOL)" ] || (echo "$(RED)✗ docker or podman not found$(NC)." && exit 1)
+	@echo "$(GREEN)✓ $(CONTAINER_TOOL) found$(NC)"
 	@command -v kubectl >/dev/null 2>&1 || (echo "$(RED)✗ kubectl not found$(NC). Run: brew install kubectl" && exit 1)
 	@echo "$(GREEN)✓ kubectl found$(NC)"
 	@command -v kind >/dev/null 2>&1 || (echo "$(RED)✗ kind not found$(NC). Run: brew install kind" && exit 1)
@@ -84,7 +86,7 @@ check-prereqs: ## Check if required tools are installed
 		echo "$(YELLOW)⚠ Warning: Python $$PY_VERSION detected. Some dependencies (psycopg2-binary) may not have wheels yet.$(NC)"; \
 		echo "$(YELLOW)  Recommend using Python 3.13 for best compatibility.$(NC)"; \
 	fi
-	@docker info >/dev/null 2>&1 || (echo "$(RED)✗ Docker daemon not running$(NC). Start Docker Desktop" && exit 1)
+	@$(CONTAINER_TOOL) info >/dev/null 2>&1 || (echo "$(RED)✗ Docker daemon not running$(NC). Start Docker Desktop" && exit 1)
 	@echo "$(GREEN)✓ Docker daemon running$(NC)"
 	@echo "$(GREEN)All prerequisites satisfied!$(NC)"
 
@@ -227,7 +229,7 @@ open-backend: ## Open backend API docs in browser
 
 build-simulator: ## Build vLLM simulator Docker image
 	@echo "$(BLUE)Building simulator image...$(NC)"
-	cd $(SIMULATOR_DIR) && docker build -t vllm-simulator:latest -t $(SIMULATOR_FULL_IMAGE) .
+	cd $(SIMULATOR_DIR) && $(CONTAINER_TOOL) build -t vllm-simulator:latest -t $(SIMULATOR_FULL_IMAGE) .
 	@echo "$(GREEN)✓ Simulator image built:$(NC)"
 	@echo "  - vllm-simulator:latest"
 	@echo "  - $(SIMULATOR_FULL_IMAGE)"
@@ -235,20 +237,20 @@ build-simulator: ## Build vLLM simulator Docker image
 push-simulator: build-simulator ## Push simulator image to Quay.io
 	@echo "$(BLUE)Pushing simulator image to $(SIMULATOR_FULL_IMAGE)...$(NC)"
 	@# Check if logged in to Quay.io
-	@if ! docker login quay.io --get-login > /dev/null 2>&1; then \
+	@if ! $(CONTAINER_TOOL) login quay.io --get-login > /dev/null 2>&1; then \
 		echo "$(YELLOW)Not logged in to Quay.io. Please login:$(NC)"; \
-		docker login quay.io || (echo "$(RED)✗ Login failed$(NC)" && exit 1); \
+		$(CONTAINER_TOOL) login quay.io || (echo "$(RED)✗ Login failed$(NC)" && exit 1); \
 	else \
 		echo "$(GREEN)✓ Already logged in to Quay.io$(NC)"; \
 	fi
 	@echo "$(BLUE)Pushing image...$(NC)"
-	docker push $(SIMULATOR_FULL_IMAGE)
+	$(CONTAINER_TOOL) push $(SIMULATOR_FULL_IMAGE)
 	@echo "$(GREEN)✓ Image pushed to $(SIMULATOR_FULL_IMAGE)$(NC)"
 
 pull-simulator: ## Pull simulator image from Quay.io
 	@echo "$(BLUE)Pulling simulator image from $(SIMULATOR_FULL_IMAGE)...$(NC)"
-	docker pull $(SIMULATOR_FULL_IMAGE)
-	docker tag $(SIMULATOR_FULL_IMAGE) vllm-simulator:latest
+	$(CONTAINER_TOOL) pull $(SIMULATOR_FULL_IMAGE)
+	$(CONTAINER_TOOL) tag $(SIMULATOR_FULL_IMAGE) vllm-simulator:latest
 	@echo "$(GREEN)✓ Image pulled and tagged as vllm-simulator:latest$(NC)"
 
 ##@ Kubernetes Cluster
@@ -285,15 +287,15 @@ clean-deployments: ## Delete all InferenceServices from cluster
 
 postgres-start: ## Start PostgreSQL container for benchmark data
 	@echo "$(BLUE)Starting PostgreSQL...$(NC)"
-	@if docker ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
-		if docker ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+	@if $(CONTAINER_TOOL) ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+		if $(CONTAINER_TOOL) ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
 			echo "$(YELLOW)PostgreSQL already running$(NC)"; \
 		else \
-			docker start compass-postgres; \
+			$(CONTAINER_TOOL) start compass-postgres; \
 			echo "$(GREEN)✓ PostgreSQL started$(NC)"; \
 		fi \
 	else \
-		docker run --name compass-postgres -d \
+		$(CONTAINER_TOOL) run --name compass-postgres -d \
 			-e POSTGRES_PASSWORD=compass \
 			-e POSTGRES_DB=compass \
 			-p 5432:5432 \
@@ -305,18 +307,18 @@ postgres-start: ## Start PostgreSQL container for benchmark data
 
 postgres-stop: ## Stop PostgreSQL container
 	@echo "$(BLUE)Stopping PostgreSQL...$(NC)"
-	@docker stop compass-postgres 2>/dev/null || true
+	@$(CONTAINER_TOOL) stop compass-postgres 2>/dev/null || true
 	@echo "$(GREEN)✓ PostgreSQL stopped$(NC)"
 
 postgres-remove: postgres-stop ## Stop and remove PostgreSQL container
 	@echo "$(BLUE)Removing PostgreSQL container...$(NC)"
-	@docker rm compass-postgres 2>/dev/null || true
+	@$(CONTAINER_TOOL) rm compass-postgres 2>/dev/null || true
 	@echo "$(GREEN)✓ PostgreSQL container removed$(NC)"
 
 postgres-init: postgres-start ## Initialize PostgreSQL schema
 	@echo "$(BLUE)Initializing PostgreSQL schema...$(NC)"
 	@sleep 2
-	@docker exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
 	@echo "$(GREEN)✓ Schema initialized$(NC)"
 
 postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSON
@@ -337,30 +339,30 @@ postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
 		exit 1; \
 	fi
 	@# Copy dump file into container temporarily
-	@docker cp data/integ-oct-29.sql compass-postgres:/tmp/integ-oct-29.sql
+	@$(CONTAINER_TOOL) cp data/integ-oct-29.sql compass-postgres:/tmp/integ-oct-29.sql
 	@# Restore data only (schema already created by postgres-init)
-	@docker exec compass-postgres pg_restore -U postgres -d compass --data-only /tmp/integ-oct-29.sql 2>&1 | grep -v "ERROR.*cloudsqlsuperuser" || true
+	@$(CONTAINER_TOOL) exec compass-postgres pg_restore -U postgres -d compass --data-only /tmp/integ-oct-29.sql 2>&1 | grep -v "ERROR.*cloudsqlsuperuser" || true
 	@# Clean up
-	@docker exec compass-postgres rm /tmp/integ-oct-29.sql
+	@$(CONTAINER_TOOL) exec compass-postgres rm /tmp/integ-oct-29.sql
 	@# Show statistics
 	@echo ""
 	@echo "$(BLUE)📊 Database Statistics:$(NC)"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT COUNT(*) as total_benchmarks FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT COUNT(DISTINCT model_hf_repo) as num_models FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT COUNT(DISTINCT hardware) as num_hardware_types FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT COUNT(DISTINCT (prompt_tokens, output_tokens)) as num_traffic_profiles FROM exported_summaries WHERE prompt_tokens IS NOT NULL;" | grep -v "^-" | grep -v "row"
 	@echo "$(GREEN)✓ Real benchmark data loaded$(NC)"
 
 postgres-shell: ## Open PostgreSQL shell
-	@docker exec -it compass-postgres psql -U postgres -d compass
+	@$(CONTAINER_TOOL) exec -it compass-postgres psql -U postgres -d compass
 
 postgres-query-traffic: ## Query unique traffic patterns from database
 	@echo "$(BLUE)Querying unique traffic patterns...$(NC)"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT DISTINCT mean_input_tokens, mean_output_tokens, COUNT(*) as num_benchmarks \
 		FROM exported_summaries \
 		GROUP BY mean_input_tokens, mean_output_tokens \
@@ -368,7 +370,7 @@ postgres-query-traffic: ## Query unique traffic patterns from database
 
 postgres-query-models: ## Query available models in database
 	@echo "$(BLUE)Querying available models...$(NC)"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT DISTINCT model_hf_repo, hardware, hardware_count, COUNT(*) as num_benchmarks \
 		FROM exported_summaries \
 		GROUP BY model_hf_repo, hardware, hardware_count \
