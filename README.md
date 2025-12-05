@@ -47,18 +47,20 @@ The code in this repository implements the **Compass Phase 2 MVP** with producti
 
 ## Quick Start
 
-**Get up and running in 4 commands:**
+**Get up and running in 6 commands:**
 
 ```bash
-make setup             # Install dependencies, pull Ollama model
-make postgres-start    # Start PostgreSQL container (Phase 2)
-make cluster-start     # Create local KIND cluster with vLLM simulator
-make dev               # Start all services (Ollama + Backend + UI)
+make setup                    # Install dependencies, pull Ollama model
+make postgres-start           # Start PostgreSQL container (Phase 2)
+make postgres-init            # Initialize schema
+make postgres-load-synthetic  # Load synthetic benchmark data
+make cluster-start            # Create local KIND cluster with vLLM simulator
+make dev                      # Start all services (Ollama + Backend + UI)
 ```
 
 Then open [http://localhost:8501](http://localhost:8501) in your browser.
 
-**Note**: PostgreSQL runs as a Docker container (`compass-postgres`) with benchmark data. Use `make postgres-init` to initialize the schema and `make postgres-load-synthetic` to load benchmark data.
+**Note**: PostgreSQL runs as a Docker container (`compass-postgres`) with benchmark data. 
 
 **Stop everything:**
 ```bash
