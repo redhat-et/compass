@@ -22,25 +22,25 @@ NC='\033[0m' # No Color
 
 # Helper functions
 print_header() {
-    echo -e "${BLUE}╔═══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  $1${NC}"
-    echo -e "${BLUE}╚═══════════════════════════════════════════════════════════╝${NC}"
+    printf "${BLUE}╔═══════════════════════════════════════════════════════════╗${NC}\n"
+    printf "${BLUE}║  $1${NC}\n"
+    printf "${BLUE}╚═══════════════════════════════════════════════════════════╝${NC}\n"
 }
 
 print_step() {
-    echo -e "${GREEN}▶ $1${NC}"
+    printf "${GREEN}▶ $1${NC}\n"
 }
 
 print_error() {
-    echo -e "${RED}✗ ERROR: $1${NC}"
+    printf "${RED}✗ ERROR: $1${NC}\n"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ WARNING: $1${NC}"
+    printf "${YELLOW}⚠ WARNING: $1${NC}\n"
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    printf "${GREEN}✓ $1${NC}\n"
 }
 
 # Check prerequisites
