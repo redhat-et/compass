@@ -22,7 +22,7 @@ else
     $(error Unsupported platform: $(UNAME_S). Please use macOS or Linux (or WSL2 on Windows))
 endif
 
-CONTAINER_TOOL := $(shell if command -v podman >/dev/null 2>&1; then echo podman; elif command -v docker >/dev/null 2>&1; then echo docker; else echo ""; fi)
+CONTAINER_TOOL := $(shell if command -v docker >/dev/null 2>&1; then echo docker; elif command -v podman >/dev/null 2>&1; then echo podman; else echo ""; fi)
 
 # Configuration
 REGISTRY ?= quay.io
@@ -72,9 +72,10 @@ help: ## Display this help message
 ##@ Setup & Installation
 
 check-prereqs: ## Check if required tools are installed
-	@printf "$(BLUE)Checking prerequisites...$(NC)\n" 
-	@[ -n "$(CONTAINER_TOOL)" ] || (printf "$(RED)✗ docker or podman not found$(NC).\n" && exit 1)
+	@printf "$(BLUE)Checking prerequisites...$(NC)\n"
+	@[ -n "$(CONTAINER_TOOL)" ] || (printf "$(RED)✗ Docker or Podman not found$(NC).\n" && exit 1)
 	@printf "$(GREEN)✓ $(CONTAINER_TOOL) found$(NC)\n"
+    @[ "$(CONTAINER_TOOL)" == "podman" ] || (printf "$(YELLOW)✗ ⚠ Docker is required for kind cluster support. $(NC).\n")
 	@command -v kubectl >/dev/null 2>&1 || (printf "$(RED)✗ kubectl not found$(NC). Run: brew install kubectl\n" && exit 1)
 	@printf "$(GREEN)✓ kubectl found$(NC)\n"
 	@command -v kind >/dev/null 2>&1 || (printf "$(RED)✗ kind not found$(NC). Run: brew install kind\n" && exit 1)
