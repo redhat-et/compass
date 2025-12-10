@@ -181,36 +181,33 @@ See "Open Questions for Refinement" section in docs/ARCHITECTURE.md for:
 
 ## Git Workflow
 
-This repository follows standard commit practices:
-- Descriptive commit messages
-- Include DCO Signed-off-by line (use `git commit -s`)
-- Include Co-Authored-By: Claude <noreply@anthropic.com> (for code written with Claude's assistance)
-- **DO NOT include** the "🤖 Generated with [Claude Code]" line in commit messages
-- Push to `main` branch (no PR process currently)
+This repository uses a **pull request (PR) workflow**. See [CONTRIBUTING.md](CONTRIBUTING.md) for complete guidelines.
 
-**IMPORTANT**: Commit messages must follow this exact format:
+### Quick Summary
+
+**Development Process**:
+- Work in feature branches in your own fork
+- Submit PRs to the main repository for review
+- Keep PRs small and targeted (under 500 lines when possible)
+- Break large features into incremental PRs that preserve functionality
+
+**Commit Message Format** (Conventional Commits style):
 
 ```
-Add YAML generation module
+feat: Add YAML generation module
 
 Implement DeploymentGenerator with Jinja2 templates for KServe,
 vLLM, HPA, and ServiceMonitor configurations.
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+Assisted-by: Claude <noreply@anthropic.com>
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-**DO NOT use this format:**
-```
-Add YAML generation module
-
-Implement DeploymentGenerator with Jinja2 templates for KServe,
-vLLM, HPA, and ServiceMonitor configurations.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
+**Key Requirements**:
+- Use conventional commit types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+- Include DCO Signed-off-by line (use `git commit -s`)
+- Include `Assisted-by: Claude <noreply@anthropic.com>` for nontrivial AI-assisted code
+- **DO NOT include** the "🤖 Generated with [Claude Code]" line in commit messages
 
 ## Important Notes
 
