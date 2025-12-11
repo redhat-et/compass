@@ -33,7 +33,7 @@ The code in this repository implements the **Compass Phase 2 MVP** with producti
 7. **Generate & Deploy** - Create validated Kubernetes YAML and deploy to local or production clusters
 8. **Monitor & Validate** - Track deployment status and test inference endpoints
 
-### Prerequisites
+## Prerequisites
 
 **Required before running `make setup`:**
 - **macOS or Linux** (Windows via WSL2)
