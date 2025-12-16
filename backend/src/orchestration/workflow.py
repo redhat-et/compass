@@ -3,10 +3,15 @@
 import logging
 
 from ..context_intent.extractor import IntentExtractor
-from ..context_intent.schema import ConversationMessage, DeploymentRecommendation
+from ..context_intent.schema import (
+    ConversationMessage,
+    DeploymentRecommendation,
+    RankedRecommendationsResponse,
+)
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
 from ..recommendation.model_recommender import ModelRecommender
+from ..recommendation.ranking_service import RankingService
 from ..context_intent.traffic_profile import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
@@ -373,3 +378,101 @@ class RecommendationWorkflow:
             return False
 
         return True
+
+    def generate_ranked_recommendations(
+        self,
+        user_message: str,
+        conversation_history: list[ConversationMessage] | None = None,
+        min_accuracy: int | None = None,
+        max_cost: float | None = None,
+        include_near_miss: bool = True,
+    ) -> RankedRecommendationsResponse:
+        """
+        Generate ranked recommendation lists from user message.
+
+        This is the enhanced workflow that returns multiple ranked views
+        instead of a single best recommendation. Useful for exploring
+        trade-offs between accuracy, cost, latency, and complexity.
+
+        Args:
+            user_message: User's deployment request
+            conversation_history: Optional conversation context
+            min_accuracy: Minimum accuracy score filter (0-100)
+            max_cost: Maximum monthly cost filter (USD)
+            include_near_miss: Whether to include near-SLO configurations
+
+        Returns:
+            RankedRecommendationsResponse with 5 ranked lists
+        """
+        logger.info("Starting ranked recommendation workflow")
+
+        # Generate specification from conversation
+        specification, intent, traffic_profile, slo_targets, model_candidates = (
+            self.generate_specification(user_message, conversation_history)
+        )
+
+        if not model_candidates:
+            logger.warning("No model candidates found")
+            return RankedRecommendationsResponse(
+                min_accuracy_threshold=min_accuracy,
+                max_cost_ceiling=max_cost,
+                include_near_miss=include_near_miss,
+                specification=specification,
+                total_configs_evaluated=0,
+                configs_after_filters=0,
+            )
+
+        # Get all models from candidates
+        models = [model for model, _ in model_candidates]
+
+        # Get ALL configurations with scores
+        logger.info("Planning capacity for all model/GPU combinations")
+        all_configs = self.capacity_planner.plan_all_capacities(
+            models=models,
+            traffic_profile=traffic_profile,
+            slo_targets=slo_targets,
+            intent=intent,
+            include_near_miss=include_near_miss,
+        )
+
+        if not all_configs:
+            logger.warning("No viable configurations found")
+            return RankedRecommendationsResponse(
+                min_accuracy_threshold=min_accuracy,
+                max_cost_ceiling=max_cost,
+                include_near_miss=include_near_miss,
+                specification=specification,
+                total_configs_evaluated=0,
+                configs_after_filters=0,
+            )
+
+        # Generate ranked lists
+        ranking_service = RankingService()
+        ranked_lists = ranking_service.generate_ranked_lists(
+            configurations=all_configs,
+            min_accuracy=min_accuracy,
+            max_cost=max_cost,
+            top_n=5,
+        )
+
+        # Count configs after filtering
+        configs_after_filters = ranking_service.get_unique_configs_count(ranked_lists)
+
+        logger.info(
+            f"Generated ranked recommendations: {len(all_configs)} total configs, "
+            f"{configs_after_filters} after filters"
+        )
+
+        return RankedRecommendationsResponse(
+            min_accuracy_threshold=min_accuracy,
+            max_cost_ceiling=max_cost,
+            include_near_miss=include_near_miss,
+            specification=specification,
+            best_accuracy=ranked_lists["best_accuracy"],
+            lowest_cost=ranked_lists["lowest_cost"],
+            lowest_latency=ranked_lists["lowest_latency"],
+            simplest=ranked_lists["simplest"],
+            balanced=ranked_lists["balanced"],
+            total_configs_evaluated=len(all_configs),
+            configs_after_filters=configs_after_filters,
+        )

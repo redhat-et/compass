@@ -8,7 +8,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from ..context_intent.schema import ConversationMessage, DeploymentRecommendation
+from ..context_intent.schema import (
+    ConversationMessage,
+    DeploymentRecommendation,
+    RankedRecommendationsResponse,
+)
 from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
 from ..deployment.generator import DeploymentGenerator
 from ..deployment.validator import ValidationError, YAMLValidator
@@ -329,6 +333,64 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to generate recommendation: {str(e)}"
+        ) from e
+
+
+class RankedRecommendationRequest(BaseModel):
+    """Request for ranked recommendations with multi-criteria scoring."""
+
+    message: str
+    min_accuracy: int | None = None
+    max_cost: float | None = None
+    include_near_miss: bool = True
+
+
+@app.post("/api/ranked-recommend")
+async def ranked_recommend(request: RankedRecommendationRequest):
+    """
+    Generate ranked recommendation lists with multi-criteria scoring.
+
+    Returns 5 ranked views of deployment configurations:
+    - best_accuracy: Top configs sorted by model capability
+    - lowest_cost: Top configs sorted by price efficiency
+    - lowest_latency: Top configs sorted by SLO headroom
+    - simplest: Top configs sorted by deployment simplicity
+    - balanced: Top configs sorted by weighted composite score
+
+    Args:
+        request: Request with message and optional filters
+
+    Returns:
+        RankedRecommendationsResponse with 5 ranked lists
+    """
+    try:
+        logger.info(f"Received ranked recommendation request: {request.message[:100]}...")
+        if request.min_accuracy:
+            logger.info(f"  Filter: min_accuracy >= {request.min_accuracy}")
+        if request.max_cost:
+            logger.info(f"  Filter: max_cost <= ${request.max_cost}")
+        logger.info(f"  Include near-miss: {request.include_near_miss}")
+
+        # Generate ranked recommendations
+        response = workflow.generate_ranked_recommendations(
+            user_message=request.message,
+            conversation_history=None,
+            min_accuracy=request.min_accuracy,
+            max_cost=request.max_cost,
+            include_near_miss=request.include_near_miss,
+        )
+
+        logger.info(
+            f"Ranked recommendation complete: {response.total_configs_evaluated} configs, "
+            f"{response.configs_after_filters} after filters"
+        )
+
+        return response.model_dump()
+
+    except Exception as e:
+        logger.error(f"Failed to generate ranked recommendations: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate ranked recommendations: {str(e)}"
         ) from e
 
 
