@@ -361,10 +361,10 @@ postgres-shell: ## Open PostgreSQL shell
 postgres-query-traffic: ## Query unique traffic patterns from database
 	@printf "$(BLUE)Querying unique traffic patterns...$(NC)\n"
 	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT DISTINCT mean_input_tokens, mean_output_tokens, COUNT(*) as num_benchmarks \
+		"SELECT DISTINCT prompt_tokens, output_tokens, COUNT(*) as num_benchmarks \
 		FROM exported_summaries \
-		GROUP BY mean_input_tokens, mean_output_tokens \
-		ORDER BY mean_input_tokens, mean_output_tokens;"
+		GROUP BY prompt_tokens, output_tokens \
+		ORDER BY prompt_tokens, output_tokens;"
 
 postgres-query-models: ## Query available models in database
 	@printf "$(BLUE)Querying available models...$(NC)\n"
