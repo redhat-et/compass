@@ -21,6 +21,7 @@ import logging
 import math
 
 from ..context_intent.schema import (
+    ConfigurationScores,
     DeploymentIntent,
     DeploymentRecommendation,
     GPUConfig,
@@ -29,6 +30,7 @@ from ..context_intent.schema import (
 )
 from ..knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
+from .solution_scorer import SolutionScorer
 
 logger = logging.getLogger(__name__)
 
@@ -249,3 +251,174 @@ class CapacityPlanner:
                 configs, key=lambda x: (x[0].predicted_ttft_p95_ms + x[0].predicted_itl_p95_ms)
             )
             return configs_by_perf[0][0]
+
+    def plan_all_capacities(
+        self,
+        models: list[ModelInfo],
+        traffic_profile: TrafficProfile,
+        slo_targets: SLOTargets,
+        intent: DeploymentIntent,
+        include_near_miss: bool = True,
+        near_miss_tolerance: float = 0.2,
+    ) -> list[DeploymentRecommendation]:
+        """
+        Plan GPU capacity for multiple models and return ALL viable configurations.
+
+        Unlike plan_capacity(), this returns all configurations that meet or nearly
+        meet SLO targets, with full scoring attached for multi-criteria ranking.
+
+        Args:
+            models: List of models to evaluate
+            traffic_profile: Traffic characteristics (prompt_tokens, output_tokens)
+            slo_targets: p95 SLO targets
+            intent: Original deployment intent
+            include_near_miss: Whether to include configs within tolerance of SLO
+            near_miss_tolerance: How much over SLO to allow (0.2 = 20%)
+
+        Returns:
+            List of DeploymentRecommendations with scores attached
+        """
+        scorer = SolutionScorer()
+        all_configs: list[DeploymentRecommendation] = []
+
+        # Determine SLO thresholds for query
+        # If including near-miss, relax thresholds by tolerance
+        if include_near_miss:
+            query_ttft = int(slo_targets.ttft_p95_target_ms * (1 + near_miss_tolerance))
+            query_itl = int(slo_targets.itl_p95_target_ms * (1 + near_miss_tolerance))
+            query_e2e = int(slo_targets.e2e_p95_target_ms * (1 + near_miss_tolerance))
+        else:
+            query_ttft = slo_targets.ttft_p95_target_ms
+            query_itl = slo_targets.itl_p95_target_ms
+            query_e2e = slo_targets.e2e_p95_target_ms
+
+        # Query PostgreSQL for configurations meeting relaxed SLO targets
+        matching_configs = self.benchmark_repo.find_configurations_meeting_slo(
+            prompt_tokens=traffic_profile.prompt_tokens,
+            output_tokens=traffic_profile.output_tokens,
+            ttft_p95_max_ms=query_ttft,
+            itl_p95_max_ms=query_itl,
+            e2e_p95_max_ms=query_e2e,
+            min_qps=0,
+        )
+
+        if not matching_configs:
+            logger.warning(
+                f"No configurations found for traffic profile "
+                f"({traffic_profile.prompt_tokens}→{traffic_profile.output_tokens})"
+            )
+            return []
+
+        # Build model lookup for quick access
+        model_lookup = {m.model_id.lower(): m for m in models}
+
+        # Process each matching benchmark
+        for bench in matching_configs:
+            # Check if this model is in our candidate list
+            model = model_lookup.get(bench.model_hf_repo.lower())
+            if not model:
+                continue
+
+            # Calculate required replicas to handle traffic
+            replicas = self._calculate_required_replicas(
+                bench.requests_per_second, traffic_profile.expected_qps or 1.0
+            )
+
+            # Create GPU config
+            gpu_config = GPUConfig(
+                gpu_type=bench.hardware,
+                gpu_count=bench.hardware_count * replicas,
+                tensor_parallel=bench.hardware_count,
+                replicas=replicas,
+            )
+
+            # Calculate cost
+            cost_per_hour = self.catalog.calculate_gpu_cost(
+                bench.hardware, gpu_config.gpu_count, hours_per_month=1
+            )
+
+            if cost_per_hour is None:
+                logger.warning(f"Could not calculate cost for {bench.hardware}")
+                continue
+
+            cost_per_month = cost_per_hour * 730  # ~30 days
+
+            # Calculate latency score and SLO status
+            predicted_ttft = int(bench.ttft_p95) if bench.ttft_p95 else 0
+            predicted_itl = int(bench.itl_p95) if bench.itl_p95 else 0
+            predicted_e2e = int(bench.e2e_p95) if bench.e2e_p95 else 0
+
+            latency_score, slo_status = scorer.score_latency(
+                predicted_ttft_ms=predicted_ttft,
+                predicted_itl_ms=predicted_itl,
+                predicted_e2e_ms=predicted_e2e,
+                target_ttft_ms=slo_targets.ttft_p95_target_ms,
+                target_itl_ms=slo_targets.itl_p95_target_ms,
+                target_e2e_ms=slo_targets.e2e_p95_target_ms,
+            )
+
+            # Skip if exceeds SLO and we're not including near-miss
+            if slo_status == "exceeds" and not include_near_miss:
+                continue
+
+            # Calculate other scores
+            accuracy_score = scorer.score_accuracy(model.size_parameters)
+            complexity_score = scorer.score_complexity(gpu_config.gpu_count)
+
+            # Build recommendation (price score calculated later after we know min/max)
+            recommendation = DeploymentRecommendation(
+                intent=intent,
+                traffic_profile=traffic_profile,
+                slo_targets=slo_targets,
+                model_id=model.model_id,
+                model_name=model.name,
+                gpu_config=gpu_config,
+                predicted_ttft_p95_ms=predicted_ttft,
+                predicted_itl_p95_ms=predicted_itl,
+                predicted_e2e_p95_ms=predicted_e2e,
+                predicted_throughput_qps=bench.requests_per_second * replicas,
+                cost_per_hour_usd=cost_per_hour,
+                cost_per_month_usd=cost_per_month,
+                meets_slo=(slo_status == "compliant"),
+                reasoning=self._generate_reasoning(model, bench, gpu_config, intent),
+                # Temporary scores without price (will be updated below)
+                scores=ConfigurationScores(
+                    accuracy_score=accuracy_score,
+                    price_score=0,  # Placeholder
+                    latency_score=latency_score,
+                    complexity_score=complexity_score,
+                    balanced_score=0.0,  # Placeholder
+                    slo_status=slo_status,
+                ),
+            )
+
+            all_configs.append(recommendation)
+
+        if not all_configs:
+            logger.warning("No viable configurations found for any model")
+            return []
+
+        # Now calculate price scores (need min/max across all configs)
+        costs = [rec.cost_per_month_usd for rec in all_configs if rec.cost_per_month_usd]
+        if costs:
+            min_cost = min(costs)
+            max_cost = max(costs)
+
+            for rec in all_configs:
+                if rec.scores and rec.cost_per_month_usd:
+                    # Update price score
+                    price_score = scorer.score_price(
+                        rec.cost_per_month_usd, min_cost, max_cost
+                    )
+                    rec.scores.price_score = price_score
+
+                    # Calculate balanced score
+                    rec.scores.balanced_score = scorer.score_balanced(
+                        accuracy_score=rec.scores.accuracy_score,
+                        price_score=price_score,
+                        latency_score=rec.scores.latency_score,
+                        complexity_score=rec.scores.complexity_score,
+                    )
+
+        logger.info(f"Found {len(all_configs)} viable configurations across {len(models)} models")
+        return all_configs

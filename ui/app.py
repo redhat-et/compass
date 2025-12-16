@@ -80,6 +80,10 @@ if "cluster_accessible" not in st.session_state:
     st.session_state.cluster_accessible = None
 if "deployed_to_cluster" not in st.session_state:
     st.session_state.deployed_to_cluster = False
+if "ranked_recommendations" not in st.session_state:
+    st.session_state.ranked_recommendations = None
+if "ranked_request_message" not in st.session_state:
+    st.session_state.ranked_request_message = None
 
 
 def main():
@@ -100,7 +104,9 @@ def main():
     render_sidebar()
 
     # Top-level tabs
-    main_tabs = st.tabs(["💬 Chat", "📊 Recommendation Details", "📦 Deployment Management"])
+    main_tabs = st.tabs(
+        ["💬 Chat", "📊 Recommendation Details", "🏆 Ranked Options", "📦 Deployment Management"]
+    )
 
     with main_tabs[0]:
         render_assistant_tab()
@@ -109,6 +115,9 @@ def main():
         render_recommendation_details_tab()
 
     with main_tabs[2]:
+        render_ranked_options_tab()
+
+    with main_tabs[3]:
         render_deployment_management_tab()
 
 
@@ -236,6 +245,165 @@ def render_recommendation_details_tab():
         st.info(
             "👈 Start a conversation in the **Assistant** tab to get deployment recommendations"
         )
+
+
+def fetch_ranked_recommendations(
+    message: str, min_accuracy: int | None = None, max_cost: float | None = None
+):
+    """Fetch ranked recommendations from the API."""
+    try:
+        request_data = {
+            "message": message,
+            "include_near_miss": True,
+        }
+        if min_accuracy and min_accuracy > 0:
+            request_data["min_accuracy"] = min_accuracy
+        if max_cost and max_cost > 0:
+            request_data["max_cost"] = max_cost
+
+        response = requests.post(
+            f"{API_BASE_URL}/api/ranked-recommend", json=request_data, timeout=60
+        )
+        response.raise_for_status()
+        st.session_state.ranked_recommendations = response.json()
+        st.session_state.ranked_request_message = message
+        return True
+    except requests.RequestException as e:
+        st.error(f"Failed to fetch ranked recommendations: {e}")
+        return False
+
+
+def render_ranked_options_tab():
+    """Render the ranked options tab with multi-criteria views."""
+    st.markdown("### 🏆 Ranked Deployment Options")
+    st.caption("Explore configurations ranked by different criteria")
+
+    # Check if we have a recommendation to base ranking on
+    if not st.session_state.recommendation:
+        st.info(
+            "👈 Start a conversation in the **Chat** tab to get ranked deployment recommendations"
+        )
+        return
+
+    # Get the original message from the conversation
+    user_messages = [m for m in st.session_state.messages if m["role"] == "user"]
+    if not user_messages:
+        st.warning("No conversation history found")
+        return
+
+    last_user_message = user_messages[-1]["content"]
+
+    # Filters section
+    with st.expander("🔍 Filters", expanded=False):
+        col1, col2 = st.columns(2)
+        with col1:
+            min_accuracy = st.slider(
+                "Minimum Accuracy Score",
+                min_value=0,
+                max_value=100,
+                value=0,
+                help="Filter out configurations below this accuracy threshold (0 = no filter)",
+            )
+        with col2:
+            max_cost = st.number_input(
+                "Maximum Monthly Cost ($)",
+                min_value=0,
+                value=0,
+                help="Filter out configurations above this cost (0 = no filter)",
+            )
+
+        if st.button("Apply Filters & Refresh"):
+            with st.spinner("Fetching ranked recommendations..."):
+                fetch_ranked_recommendations(
+                    last_user_message,
+                    min_accuracy if min_accuracy > 0 else None,
+                    max_cost if max_cost > 0 else None,
+                )
+            st.rerun()
+
+    # Fetch rankings if not cached or message changed
+    if (
+        st.session_state.ranked_recommendations is None
+        or st.session_state.ranked_request_message != last_user_message
+    ):
+        with st.spinner("Fetching ranked recommendations..."):
+            if not fetch_ranked_recommendations(last_user_message):
+                return
+
+    ranked = st.session_state.ranked_recommendations
+    if not ranked:
+        st.warning("No ranked recommendations available")
+        return
+
+    # Statistics
+    st.markdown(
+        f"**{ranked.get('total_configs_evaluated', 0)}** configurations evaluated, "
+        f"**{ranked.get('configs_after_filters', 0)}** after filters"
+    )
+
+    st.markdown("---")
+
+    # Ranking view selector
+    ranking_views = {
+        "⚖️ Balanced": "balanced",
+        "🎯 Best Accuracy": "best_accuracy",
+        "💰 Lowest Cost": "lowest_cost",
+        "⚡ Lowest Latency": "lowest_latency",
+        "🔧 Simplest": "simplest",
+    }
+
+    selected_view = st.selectbox(
+        "Sort by:",
+        options=list(ranking_views.keys()),
+        index=0,
+        help="Choose how to rank the configurations",
+    )
+
+    view_key = ranking_views[selected_view]
+    configs = ranked.get(view_key, [])
+
+    if not configs:
+        st.info(f"No configurations available for {selected_view} ranking")
+        return
+
+    # Display table header
+    st.markdown(f"### Top {len(configs)} - {selected_view}")
+
+    header_cols = st.columns([0.5, 1.8, 1.5, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
+    header_cols[0].markdown("**#**")
+    header_cols[1].markdown("**Model**")
+    header_cols[2].markdown("**GPU Config**")
+    header_cols[3].markdown("**Accuracy**")
+    header_cols[4].markdown("**Price**")
+    header_cols[5].markdown("**Latency**")
+    header_cols[6].markdown("**Simple**")
+    header_cols[7].markdown("**Balanced**")
+    header_cols[8].markdown("**Cost/Month**")
+
+    # Display each configuration
+    for i, config in enumerate(configs, 1):
+        scores = config.get("scores", {})
+        slo_status = scores.get("slo_status", "unknown")
+        status_icon = "✅" if slo_status == "compliant" else "⚠️"
+
+        gpu_config = config.get("gpu_config", {})
+        gpu_str = f"{gpu_config.get('tensor_parallel', 1)}x {gpu_config.get('gpu_type', 'Unknown')}"
+
+        cols = st.columns([0.5, 1.8, 1.5, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
+        cols[0].markdown(f"**{i}.**")
+        cols[1].markdown(f"{status_icon} {config.get('model_name', 'Unknown')}")
+        cols[2].markdown(gpu_str)
+        cols[3].markdown(f"{scores.get('accuracy_score', '-')}")
+        cols[4].markdown(f"{scores.get('price_score', '-')}")
+        cols[5].markdown(f"{scores.get('latency_score', '-')}")
+        cols[6].markdown(f"{scores.get('complexity_score', '-')}")
+        cols[7].markdown(f"{scores.get('balanced_score', '-'):.1f}")
+        cols[8].markdown(f"${config.get('cost_per_month_usd', 0):,.0f}")
+
+    # Legend
+    st.markdown("---")
+    st.caption("✅ Meets SLO targets | ⚠️ Near-miss (within 20% of SLO)")
+    st.caption("Scores are 0-100 (higher is better)")
 
 
 def render_deployment_management_tab():
