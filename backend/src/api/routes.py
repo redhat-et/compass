@@ -336,6 +336,15 @@ async def simple_recommend(request: SimpleRecommendationRequest):
         ) from e
 
 
+class BalancedWeights(BaseModel):
+    """Weights for balanced score calculation (0-10 scale)."""
+
+    accuracy: int = 4
+    price: int = 4
+    latency: int = 1
+    complexity: int = 1
+
+
 class RankedRecommendationRequest(BaseModel):
     """Request for ranked recommendations with multi-criteria scoring."""
 
@@ -343,6 +352,7 @@ class RankedRecommendationRequest(BaseModel):
     min_accuracy: int | None = None
     max_cost: float | None = None
     include_near_miss: bool = True
+    weights: BalancedWeights | None = None
 
 
 @app.post("/api/ranked-recommend")
@@ -370,6 +380,21 @@ async def ranked_recommend(request: RankedRecommendationRequest):
         if request.max_cost:
             logger.info(f"  Filter: max_cost <= ${request.max_cost}")
         logger.info(f"  Include near-miss: {request.include_near_miss}")
+        if request.weights:
+            logger.info(
+                f"  Weights: A={request.weights.accuracy}, P={request.weights.price}, "
+                f"L={request.weights.latency}, C={request.weights.complexity}"
+            )
+
+        # Convert weights to dict for workflow
+        weights_dict = None
+        if request.weights:
+            weights_dict = {
+                "accuracy": request.weights.accuracy,
+                "price": request.weights.price,
+                "latency": request.weights.latency,
+                "complexity": request.weights.complexity,
+            }
 
         # Generate ranked recommendations
         response = workflow.generate_ranked_recommendations(
@@ -378,6 +403,7 @@ async def ranked_recommend(request: RankedRecommendationRequest):
             min_accuracy=request.min_accuracy,
             max_cost=request.max_cost,
             include_near_miss=request.include_near_miss,
+            weights=weights_dict,
         )
 
         logger.info(

@@ -386,6 +386,7 @@ class RecommendationWorkflow:
         min_accuracy: int | None = None,
         max_cost: float | None = None,
         include_near_miss: bool = True,
+        weights: dict[str, int] | None = None,
     ) -> RankedRecommendationsResponse:
         """
         Generate ranked recommendation lists from user message.
@@ -400,6 +401,8 @@ class RecommendationWorkflow:
             min_accuracy: Minimum accuracy score filter (0-100)
             max_cost: Maximum monthly cost filter (USD)
             include_near_miss: Whether to include near-SLO configurations
+            weights: Optional custom weights for balanced score (0-10 scale)
+                     Keys: accuracy, price, latency, complexity
 
         Returns:
             RankedRecommendationsResponse with 5 ranked lists
@@ -460,6 +463,7 @@ class RecommendationWorkflow:
             min_accuracy=min_accuracy,
             max_cost=max_cost,
             top_n=10,
+            weights=weights,
         )
 
         # Count configs after filtering
