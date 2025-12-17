@@ -248,7 +248,10 @@ def render_recommendation_details_tab():
 
 
 def fetch_ranked_recommendations(
-    message: str, min_accuracy: int | None = None, max_cost: float | None = None
+    message: str,
+    min_accuracy: int | None = None,
+    max_cost: float | None = None,
+    weights: dict | None = None,
 ):
     """Fetch ranked recommendations from the API."""
     try:
@@ -260,6 +263,8 @@ def fetch_ranked_recommendations(
             request_data["min_accuracy"] = min_accuracy
         if max_cost and max_cost > 0:
             request_data["max_cost"] = max_cost
+        if weights:
+            request_data["weights"] = weights
 
         response = requests.post(
             f"{API_BASE_URL}/api/ranked-recommend", json=request_data, timeout=60
@@ -293,10 +298,12 @@ def render_ranked_options_tab():
 
     last_user_message = user_messages[-1]["content"]
 
-    # Filters section
-    with st.expander("🔍 Filters", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
+    # Configuration section
+    with st.expander("⚙️ Configuration", expanded=False):
+        # Filters row
+        st.markdown("**Filters**")
+        filter_col1, filter_col2 = st.columns(2)
+        with filter_col1:
             min_accuracy = st.slider(
                 "Minimum Accuracy Score",
                 min_value=0,
@@ -304,7 +311,7 @@ def render_ranked_options_tab():
                 value=0,
                 help="Filter out configurations below this accuracy threshold (0 = no filter)",
             )
-        with col2:
+        with filter_col2:
             max_cost = st.number_input(
                 "Maximum Monthly Cost ($)",
                 min_value=0,
@@ -312,12 +319,70 @@ def render_ranked_options_tab():
                 help="Filter out configurations above this cost (0 = no filter)",
             )
 
-        if st.button("Apply Filters & Refresh"):
+        st.markdown("---")
+
+        # Balanced weights row
+        st.markdown("**Balanced Score Weights** (0-10 scale)")
+        weight_col1, weight_col2, weight_col3, weight_col4 = st.columns(4)
+        with weight_col1:
+            weight_accuracy = st.number_input(
+                "Accuracy",
+                min_value=0,
+                max_value=10,
+                value=4,
+                help="Weight for accuracy score (default: 4)",
+            )
+        with weight_col2:
+            weight_price = st.number_input(
+                "Price",
+                min_value=0,
+                max_value=10,
+                value=4,
+                help="Weight for price score (default: 4)",
+            )
+        with weight_col3:
+            weight_latency = st.number_input(
+                "Latency",
+                min_value=0,
+                max_value=10,
+                value=1,
+                help="Weight for latency score (default: 1)",
+            )
+        with weight_col4:
+            weight_complexity = st.number_input(
+                "Complexity",
+                min_value=0,
+                max_value=10,
+                value=1,
+                help="Weight for complexity score (default: 1)",
+            )
+
+        # Show normalized weights
+        total_weight = weight_accuracy + weight_price + weight_latency + weight_complexity
+        if total_weight > 0:
+            st.caption(
+                f"Normalized: Accuracy={weight_accuracy/total_weight:.0%}, "
+                f"Price={weight_price/total_weight:.0%}, "
+                f"Latency={weight_latency/total_weight:.0%}, "
+                f"Complexity={weight_complexity/total_weight:.0%}"
+            )
+        else:
+            st.warning("At least one weight must be greater than 0")
+
+        if st.button("Apply Configuration & Refresh"):
+            # Build weights dict
+            weights = {
+                "accuracy": weight_accuracy,
+                "price": weight_price,
+                "latency": weight_latency,
+                "complexity": weight_complexity,
+            }
             with st.spinner("Fetching ranked recommendations..."):
                 fetch_ranked_recommendations(
                     last_user_message,
                     min_accuracy if min_accuracy > 0 else None,
                     max_cost if max_cost > 0 else None,
+                    weights=weights,
                 )
             st.rerun()
 
@@ -377,7 +442,7 @@ def render_ranked_options_tab():
     header_cols[4].markdown("**Accuracy**")
     header_cols[5].markdown("**Price**")
     header_cols[6].markdown("**Latency**")
-    header_cols[7].markdown("**Simple**")
+    header_cols[7].markdown("**Complexity**")
     header_cols[8].markdown("**Balanced**")
     header_cols[9].markdown("**Cost/Month**")
 

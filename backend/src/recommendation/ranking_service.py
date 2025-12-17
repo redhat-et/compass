@@ -24,6 +24,7 @@ class RankingService:
         min_accuracy: int | None = None,
         max_cost: float | None = None,
         top_n: int = 5,
+        weights: dict[str, int] | None = None,
     ) -> dict[str, list[DeploymentRecommendation]]:
         """
         Generate 5 ranked lists from configurations.
@@ -33,6 +34,8 @@ class RankingService:
             min_accuracy: Minimum accuracy score filter (0-100)
             max_cost: Maximum monthly cost filter (USD)
             top_n: Number of top configurations to return per list
+            weights: Optional custom weights for balanced score (0-10 scale)
+                     Keys: accuracy, price, latency, complexity
 
         Returns:
             Dict with keys: best_accuracy, lowest_cost, lowest_latency,
@@ -40,6 +43,10 @@ class RankingService:
         """
         # Apply filters
         filtered = self._apply_filters(configurations, min_accuracy, max_cost)
+
+        # Recalculate balanced scores if custom weights provided
+        if weights and filtered:
+            self._recalculate_balanced_scores(filtered, weights)
 
         if not filtered:
             logger.warning("No configurations remain after filtering")
@@ -124,6 +131,46 @@ class RankingService:
             logger.debug(f"After max_cost=${max_cost} filter: {len(filtered)} configs")
 
         return filtered
+
+    def _recalculate_balanced_scores(
+        self,
+        configs: list[DeploymentRecommendation],
+        weights: dict[str, int],
+    ) -> None:
+        """
+        Recalculate balanced scores using custom weights.
+
+        The weights are provided on a 0-10 scale and are normalized
+        to percentages that sum to 1.0.
+
+        Args:
+            configs: List of configurations to update (modified in place)
+            weights: Dict with keys: accuracy, price, latency, complexity
+                     Values are integers 0-10
+        """
+        # Normalize weights to percentages
+        total = sum(weights.values())
+        if total == 0:
+            logger.warning("All weights are zero, using default equal weights")
+            normalized = {"accuracy": 0.25, "price": 0.25, "latency": 0.25, "complexity": 0.25}
+        else:
+            normalized = {k: v / total for k, v in weights.items()}
+
+        logger.info(
+            f"Recalculating balanced scores with weights: "
+            f"A={normalized['accuracy']:.0%}, P={normalized['price']:.0%}, "
+            f"L={normalized['latency']:.0%}, C={normalized['complexity']:.0%}"
+        )
+
+        for config in configs:
+            if config.scores:
+                balanced = (
+                    config.scores.accuracy_score * normalized["accuracy"]
+                    + config.scores.price_score * normalized["price"]
+                    + config.scores.latency_score * normalized["latency"]
+                    + config.scores.complexity_score * normalized["complexity"]
+                )
+                config.scores.balanced_score = round(balanced, 1)
 
     def get_unique_configs_count(
         self, ranked_lists: dict[str, list[DeploymentRecommendation]]
