@@ -1278,17 +1278,19 @@
   ],
   "gpu_types": [
     {
-      "gpu_type": "NVIDIA-L4",
+      "gpu_type": "L4",
+      "aliases": ["NVIDIA-L4", "L4"],
       "memory_gb": 24,
       "compute_capability": "8.9",
       "typical_use_cases": [
         "inference"
       ],
-      "cost_per_hour_usd": 0.5,
+      "cost_per_hour_usd": 0.8,
       "availability": "high"
     },
     {
-      "gpu_type": "NVIDIA-A10G",
+      "gpu_type": "A10G",
+      "aliases": ["NVIDIA-A10G", "A10G"],
       "memory_gb": 24,
       "compute_capability": "8.6",
       "typical_use_cases": [
@@ -1298,48 +1300,64 @@
       "availability": "high"
     },
     {
-      "gpu_type": "NVIDIA-A100-40GB",
+      "gpu_type": "A100-40",
+      "aliases": ["NVIDIA-A100-40GB", "A100-40", "A100-40GB"],
       "memory_gb": 40,
       "compute_capability": "8.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 3.0,
+      "cost_per_hour_usd": 3.5,
       "availability": "medium"
     },
     {
-      "gpu_type": "NVIDIA-A100-80GB",
+      "gpu_type": "A100-80",
+      "aliases": ["NVIDIA-A100-80GB", "A100-80", "A100-80GB"],
       "memory_gb": 80,
       "compute_capability": "8.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 4.5,
+      "cost_per_hour_usd": 5.0,
       "availability": "medium"
     },
     {
       "gpu_type": "H100",
+      "aliases": ["NVIDIA-H100", "H100", "H100-80GB"],
       "memory_gb": 80,
       "compute_capability": "9.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 8.0,
+      "cost_per_hour_usd": 8.5,
       "availability": "low"
     },
     {
       "gpu_type": "H200",
+      "aliases": ["NVIDIA-H200", "H200"],
       "memory_gb": 141,
       "compute_capability": "9.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 10.0,
+      "cost_per_hour_usd": 12.0,
       "availability": "low"
+    },
+    {
+      "gpu_type": "B200",
+      "aliases": ["NVIDIA-B200", "B200"],
+      "memory_gb": 192,
+      "compute_capability": "10.0",
+      "typical_use_cases": [
+        "inference",
+        "training"
+      ],
+      "cost_per_hour_usd": 15.0,
+      "availability": "very_low"
     }
   ]
 }

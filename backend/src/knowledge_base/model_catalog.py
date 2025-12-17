@@ -51,6 +51,7 @@ class GPUType:
 
     def __init__(self, data: dict):
         self.gpu_type = data["gpu_type"]
+        self.aliases = data.get("aliases", [data["gpu_type"]])  # Default to primary name
         self.memory_gb = data["memory_gb"]
         self.compute_capability = data["compute_capability"]
         self.typical_use_cases = data["typical_use_cases"]
@@ -61,6 +62,7 @@ class GPUType:
         """Convert to dictionary."""
         return {
             "gpu_type": self.gpu_type,
+            "aliases": self.aliases,
             "memory_gb": self.memory_gb,
             "compute_capability": self.compute_capability,
             "typical_use_cases": self.typical_use_cases,
@@ -85,6 +87,7 @@ class ModelCatalog:
         self.data_path = data_path
         self._models: dict[str, ModelInfo] = {}
         self._gpu_types: dict[str, GPUType] = {}
+        self._gpu_alias_lookup: dict[str, GPUType] = {}  # Maps aliases to GPUType
         self._load_data()
 
     def _load_data(self):
@@ -98,10 +101,13 @@ class ModelCatalog:
                     model = ModelInfo(model_data)
                     self._models[model.model_id] = model
 
-                # Load GPU types
+                # Load GPU types and build alias lookup
                 for gpu_data in data["gpu_types"]:
                     gpu = GPUType(gpu_data)
                     self._gpu_types[gpu.gpu_type] = gpu
+                    # Add all aliases to lookup (case-insensitive)
+                    for alias in gpu.aliases:
+                        self._gpu_alias_lookup[alias.lower()] = gpu
 
                 logger.info(
                     f"Loaded {len(self._models)} models and {len(self._gpu_types)} GPU types"
@@ -115,8 +121,21 @@ class ModelCatalog:
         return self._models.get(model_id)
 
     def get_gpu_type(self, gpu_type: str) -> GPUType | None:
-        """Get GPU type metadata."""
-        return self._gpu_types.get(gpu_type)
+        """Get GPU type metadata.
+
+        Supports lookup by primary gpu_type name or any alias (case-insensitive).
+
+        Args:
+            gpu_type: GPU type identifier or alias
+
+        Returns:
+            GPUType if found, None otherwise
+        """
+        # First try exact match on primary name
+        if gpu_type in self._gpu_types:
+            return self._gpu_types[gpu_type]
+        # Then try alias lookup (case-insensitive)
+        return self._gpu_alias_lookup.get(gpu_type.lower())
 
     def find_models_for_use_case(self, use_case: str) -> list[ModelInfo]:
         """
