@@ -8,49 +8,19 @@ from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
 logger = logging.getLogger(__name__)
 
 
-class ModelRecommender:
-    """Recommend models based on deployment intent and requirements."""
+class ModelEvaluator:
+    """Evaluate models for deployment intent and calculate accuracy scores."""
 
     def __init__(self, catalog: ModelCatalog | None = None):
         """
-        Initialize model recommender.
+        Initialize model evaluator.
 
         Args:
             catalog: Model catalog (creates default if not provided)
         """
         self.catalog = catalog or ModelCatalog()
 
-    def recommend_models(
-        self, intent: DeploymentIntent, top_k: int = 3
-    ) -> list[tuple[ModelInfo, float]]:
-        """
-        Recommend models for deployment intent.
-
-        Args:
-            intent: Deployment intent
-            top_k: Number of recommendations to return
-
-        Returns:
-            List of (ModelInfo, score) tuples, sorted by score (descending)
-        """
-        # Get candidate models for this use case
-        candidates = self.catalog.find_models_for_use_case(intent.use_case)
-
-        if not candidates:
-            logger.warning(f"No models found for use_case={intent.use_case}, using all models")
-            candidates = self.catalog.get_all_models()
-
-        # Score each candidate
-        scored_models = []
-        for model in candidates:
-            score = self._score_model(model, intent)
-            scored_models.append((model, score))
-
-        # Sort by score (descending) and return top_k
-        scored_models.sort(key=lambda x: x[1], reverse=True)
-        return scored_models[:top_k]
-
-    def _score_model(self, model: ModelInfo, intent: DeploymentIntent) -> float:
+    def score_model(self, model: ModelInfo, intent: DeploymentIntent) -> float:
         """
         Score a model for the given intent.
 

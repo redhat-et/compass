@@ -227,7 +227,7 @@ make test-unit
 ```bash
 cd backend
 source venv/bin/activate
-pytest tests/test_model_recommender.py -v
+pytest tests/test_model_evaluator.py -v
 ```
 
 ### Integration Tests
@@ -466,8 +466,8 @@ UI code is in `ui/app.py`. Changes auto-reload in the browser.
 
 ### Modifying the Recommendation Algorithm
 
-**Model scoring:** `backend/src/recommendation/model_recommender.py`
-- `_score_model()` - Adjust scoring weights
+**Model scoring:** `backend/src/recommendation/model_evaluator.py`
+- `score_model()` - Adjust scoring weights
 
 **Capacity planning:** `backend/src/recommendation/capacity_planner.py`
 - `plan_capacity()` - GPU sizing logic

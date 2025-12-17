@@ -1,288 +1,228 @@
 ## Ranking and Presenting Compass Recommendations
 
-### Executive Summary
+### Overview
 
-The Compass project aims to recommend optimal LLM and GPU configurations that satisfy users' specific use cases and priorities. This document outlines a strategic framework for ranking and presenting configuration options based on multiple decision criteria, acknowledging that users have varying priorities and may benefit from understanding tradeoffs between competing objectives.
+Compass recommends optimal LLM and GPU configurations that satisfy users' specific use cases and performance requirements. This document describes the implemented multi-criteria ranking system that scores and presents configuration options based on four optimization criteria.
+
+**Key Design Principle**: Configuration-first approach. The system queries all (model, GPU) configurations meeting SLO targets, then scores each on four criteria. This ensures no viable configurations are missed due to model pre-filtering.
 
 **Priority Hierarchy:**
-- **Primary Criteria**: Accuracy and Price are the most important factors for most users
-- **Secondary Criteria**: Latency Performance (SLO headroom) and Operational Complexity provide additional differentiation among viable options
-- **Note**: Since all recommendations are filtered to meet SLO requirements, latency becomes a secondary factor for ranking among compliant options
+- **Primary Criteria**: Accuracy and Price (40% weight each in balanced score)
+- **Secondary Criteria**: Latency Performance and Operational Complexity (10% weight each)
+- **Note**: All recommendations are pre-filtered to meet SLO requirements, so latency becomes a secondary differentiator for headroom beyond compliance
 
 ***
 
-### Primary Optimization Criteria
+### The Four Optimization Criteria
 
-**Note**: Accuracy and Price are considered the primary ranking criteria, while Latency Performance and Operational Complexity are secondary factors that help differentiate among options that meet basic requirements.
+#### 1. Accuracy (Model Quality)
 
-#### 1. **Accuracy (Model Quality)**
+**Definition**: How well the model fits the intended use case.
 
-**Definition**: The capability of the LLM to perform the intended task effectively.
+**Scoring Method**: The `score_model()` function in `ModelEvaluator` calculates accuracy (0-100) based on:
+- **Use case match (40 points)**: Model's `recommended_for` field matches the deployment use case
+- **Domain specialization (20 points)**: Overlap between model's domains and intent domains
+- **Latency appropriateness (20 points)**: Model size vs. latency requirement (smaller models for low-latency needs)
+- **Budget fit (10 points)**: Model size vs. budget constraint
+- **Context length (10 points)**: Bonus for long-context models in summarization/QA use cases
 
-**Compass Approach**:
-- Current: Uses model quality indicators from catalog metadata
-- Planned: Integration with benchmark-based metrics (MMLU, HumanEval, MT-Bench, etc.)
-
-**Key Tradeoff**: Larger, more accurate models have higher latency and cost. Benchmark data captures this relationship for informed decision-making.
-
-***
-
-#### 2. **Price (Total Cost of Ownership)**
-
-**Definition**: The financial cost of deploying and operating the configuration.
-
-**Deployment Models**:
-- **Cloud GPU rental**: Hourly/monthly rates from cloud providers (AWS, GCP, Azure)
-- **On-premise GPU purchase**: Capital expenditure + operational costs (power, cooling, maintenance)
-- **Existing GPU infrastructure**: Utilization-based costing for already-owned hardware
-
-**Compass Approach**: Current code supports cloud GPU pricing. On-premise and existing infrastructure cost models are planned.
+**Catalog Integration**: Models in the catalog receive accuracy scores from `score_model()`. Models not in the catalog (but present in benchmarks) receive accuracy score = 0 but are still included as valid options.
 
 ***
 
-#### 3. **Latency Performance** (Secondary)
+#### 2. Price (Total Cost of Ownership)
 
-**Definition**: Response time characteristics measured through SLO metrics:
+**Definition**: The monthly cost of deploying the configuration.
+
+**Scoring Method**: Normalized inverse cost formula:
+```
+price_score = 100 * (max_cost - config_cost) / (max_cost - min_cost)
+```
+
+Where `min_cost` and `max_cost` are computed across all viable configurations for the given request.
+
+**Cost Calculation**: Based on GPU hourly rates from the model catalog, multiplied by GPU count and 730 hours/month. GPU types support aliases (e.g., "A100-40" and "NVIDIA-A100-40GB" resolve to the same GPU with the same pricing).
+
+***
+
+#### 3. Latency Performance
+
+**Definition**: SLO compliance and headroom, measured via three p95 metrics:
 - **TTFT** (Time to First Token) - Critical for interactive applications
 - **ITL** (Inter-Token Latency) - Important for streaming responses
 - **E2E** (End-to-End Latency) - Overall response time
 
-**Compass Approach**: Uses p95 percentile targets from benchmark data to filter configurations that meet user-specified SLO requirements.
+**Scoring Method**: Based on ratio of predicted latency to SLO target (worst metric determines status):
 
-**Role in Ranking**: Since all recommended configurations already meet SLO targets, latency becomes a secondary differentiator. Configurations with better SLO headroom (e.g., 120ms TTFT vs. 150ms target) may be preferred for additional reliability margin, but this is less critical than accuracy and price differences.
+| Ratio | Score Range | SLO Status |
+|-------|-------------|------------|
+| ≤ 1.0 | 90-100 | `compliant` (bonus for headroom) |
+| 1.0-1.2 | 70-89 | `near_miss` |
+| > 1.2 | 0-69 | `exceeds` |
+
+**Role in Ranking**: Since all configurations already meet SLO targets, latency scoring rewards additional headroom (e.g., 120ms TTFT vs. 150ms target earns a higher score).
 
 ***
 
-#### 4. **Operational Complexity** (Secondary)
+#### 4. Operational Complexity
 
 **Definition**: The difficulty of deploying and managing the configuration.
 
-**Key Factors**:
-- Number of GPU instances (fewer is simpler)
-- Infrastructure coordination (multi-node vs. single-node)
-- Deployment topology (tensor parallelism vs. replicas)
+**Scoring Method**: Based on total GPU count:
 
-**Example Tradeoff**: 2x H100 GPUs may be preferred over 8x L4 GPUs even at higher cost due to reduced networking complexity and management overhead.
+| GPU Count | Score |
+|-----------|-------|
+| 1 | 100 |
+| 2 | 90 |
+| 3 | 82 |
+| 4 | 75 |
+| 5 | 70 |
+| 6 | 65 |
+| 7 | 62 |
+| 8 | 60 |
+| >8 | Linear decay (60 - 2*(n-8)), minimum 40 |
 
-**Compass Approach**: Balances tensor parallelism and replica scaling to minimize operational burden while meeting SLO targets.
-
-**Role in Ranking**: Complexity can be an important differentiator when choosing between configurations with similar accuracy and cost profiles. Simpler deployments are generally more reliable and easier to troubleshoot.
+**Rationale**: Fewer GPUs = simpler networking, easier troubleshooting, lower coordination overhead. A 2x H100 deployment may be preferred over 8x L4 even at higher cost due to reduced operational burden.
 
 ***
 
 ### Configuration Variants
 
-Some factors affect recommendations but are treated as **configuration variants** rather than independent ranking criteria:
+#### Quantization Options
 
-#### **Quantization Options**
+Quantization (FP16, FP8, INT8, INT4) creates distinct benchmark entries for each model-GPU combination. These appear as separate configurations with their own scores.
 
-Quantization (FP16, INT8, INT4) creates multiple deployment options for each model-GPU combination:
+**Impact on Scores**:
+- **Price**: Reduced memory → fewer GPUs needed → lower cost
+- **Latency**: Faster inference from smaller compute requirements
+- **Complexity**: Smaller memory footprint enables single-GPU deployments
+- **Accuracy**: Generally preserved for FP8; slight reduction for INT4
 
-**Impact on Primary Criteria**:
-- **Accuracy**: Lower precision may reduce quality (benchmark-dependent)
-- **Price**: Reduced memory requirements → fewer GPUs needed
-- **Latency**: Faster inference due to smaller compute requirements
-- **Complexity**: Simpler deployment with smaller memory footprint
-
-**Compass Approach**: Present quantization as selectable options within each recommendation, with clear indication of tradeoffs based on benchmark data.
-
-**Example**:
-```
-Recommended: Llama-3-70B on 2x H100
-├─ FP16 (Standard):  $450/month, TTFT=120ms, Reference accuracy
-└─ INT8 (Optimized): $290/month, TTFT=95ms,  ~1-2% accuracy reduction
-```
+Quantized variants are identified by model ID suffixes (e.g., `-fp8-dynamic`, `-quantized.w4a16`).
 
 ***
 
-### Secondary Considerations
+### Balanced Score Calculation
 
-The following factors may be addressed in future releases based on team priorities:
+The balanced score combines all four criteria with configurable weights:
 
-- **GPU Availability**: Procurement constraints, lead times, and regional availability
-- **Reliability**: Uptime SLAs, redundancy options, and failover capabilities
+```python
+balanced_score = (
+    accuracy_score * weight_accuracy +
+    price_score * weight_price +
+    latency_score * weight_latency +
+    complexity_score * weight_complexity
+)
+```
 
-*These are documented for completeness but not prioritized for initial implementation.*
+**Default Weights**:
+- Accuracy: 40%
+- Price: 40%
+- Latency: 10%
+- Complexity: 10%
+
+**Custom Weights**: The API accepts a `weights` parameter (0-10 scale per criterion) that normalizes to percentages. This allows users to adjust priorities without changing code.
 
 ***
 
-### Scoring and Ranking Framework
+### Filtering and Ranking
 
-#### Scoring Each Configuration (0-100 Scale)
+#### Hard Filters (Applied Before Ranking)
 
-Each viable configuration receives scores across the four primary criteria:
+- **SLO Compliance**: Only configurations meeting p95 targets (or within near-miss tolerance)
+- **Minimum Accuracy**: Optional threshold (e.g., ≥70) to exclude low-quality models
+- **Maximum Cost**: Optional ceiling (e.g., ≤$500/month) for budget constraints
 
-**1. Accuracy Score** (0-100):
-- Based on model capability tier or benchmark scores
-- Example: 7B model = 60, 70B model = 85, 405B model = 95
-- Minimum threshold filter (e.g., user requires score ≥ 70)
+#### Five Ranked Views
 
-**2. Price Score** (0-100):
-- Inverse of cost: Lower cost = higher score
-- Normalized: `100 * (max_cost - config_cost) / (max_cost - min_cost)`
-- Maximum cost filter (e.g., user has $500/month budget ceiling)
+Each view presents up to 10 configurations sorted by the relevant criterion:
 
-**3. Latency Score** (0-100):
-- Composite of TTFT, ITL, and E2E performance vs. targets
-- Configurations meeting all SLOs score ≥ 90
-- Below-SLO configurations score proportionally lower
-- Near-miss configurations (10-20% over SLO) score 70-89
+1. **Best Accuracy**: Sorted by accuracy score (descending)
+2. **Lowest Cost**: Sorted by price score (descending)
+3. **Lowest Latency**: Sorted by latency score (descending)
+4. **Simplest**: Sorted by complexity score (descending)
+5. **Balanced**: Sorted by weighted composite score (descending)
 
-**4. Complexity Score** (0-100):
-- Based on GPU count and deployment topology
-- Example: 1 GPU = 100, 2 GPUs = 90, 4 GPUs = 75, 8+ GPUs = 60
-- Factors: Single-node (simpler) vs. multi-node, tensor parallelism overhead
+#### Near-SLO Configurations
 
-#### Ranking Strategies
+Configurations within 20% of SLO targets are included with clear warnings:
+- Marked with `slo_status: "near_miss"`
+- Display ⚠️ indicators in UI
+- Useful for finding cost savings when exact SLO compliance isn't critical
 
-**Primary Approach: Single-Criterion Ranking**
+***
 
-Show top 5 configurations for each optimization priority:
+### Implementation Architecture
 
-1. **Best Accuracy** - Sort by accuracy score (descending), filter by cost ceiling
-2. **Lowest Cost** - Sort by price score (descending), filter by minimum accuracy
-3. **Lowest Latency** - Sort by latency score (descending), filter by cost and accuracy
-4. **Simplest** - Sort by complexity score (descending), filter by cost and accuracy
-5. **Balanced** - Sort by composite score using equal weights (25% each criterion)
+#### Key Components
 
-**Handling "Balanced" Recommendation**:
-- **Weighted composite score** allows flexible prioritization of different criteria
-- **Default weights**: Can be set based on general user preferences (e.g., 40% accuracy, 40% price, 10% latency, 10% complexity to reflect primary vs. secondary criteria)
-- **User-adjustable weights**: Allow users to customize weights based on their specific priorities
-- **Priority-based weighting**: Alternatively, derive weights from higher-level user priorities (e.g., "Quality first" → higher accuracy weight, "Budget conscious" → higher price weight)
-- **Pareto frontier approach**: Alternative method that finds configurations where no other option is better on all criteria (more complex but mathematically optimal)
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| `SolutionScorer` | `backend/src/recommendation/solution_scorer.py` | Calculate 4 scores (0-100 scale) |
+| `ModelEvaluator.score_model()` | `backend/src/recommendation/model_evaluator.py` | Accuracy scoring based on use case fit |
+| `CapacityPlanner.plan_all_capacities()` | `backend/src/recommendation/capacity_planner.py` | Query benchmarks, score all configs |
+| `RankingService` | `backend/src/recommendation/ranking_service.py` | Filter and sort into 5 ranked lists |
+| `RecommendationWorkflow` | `backend/src/orchestration/workflow.py` | Orchestrate end-to-end flow |
 
-#### Filtering Logic
+#### Data Flow
 
-**Hard Constraints** (Applied before ranking):
-- Minimum accuracy score (user-specified or default)
-- Maximum cost ceiling (optional user constraint)
-- SLO compliance (optional: include/exclude near-miss configurations)
-
-**Example Workflow**:
 ```
-1. Filter all viable configs by minimum accuracy ≥ 70
-2. Filter by maximum cost ≤ $500/month (if specified)
-3. Score remaining configs on all 4 criteria
-4. Generate ranked lists for each optimization criterion:
-   - Best Accuracy (top 5)
-   - Lowest Cost (top 5)
-   - Lowest Latency (top 5)
-   - Simplest (top 5)
-   - Balanced (top 5, using weighted composite score)
-5. Present as ordered lists with selectable views (tabs, dropdown, or list filters)
-6. Optionally display graphical representations (e.g., Pareto frontier chart)
+User Request
+    ↓
+Intent Extraction → Traffic Profile → SLO Targets
+    ↓
+plan_all_capacities()
+    ├── Query PostgreSQL: find_configurations_meeting_slo()
+    ├── For each (model, GPU) config:
+    │   ├── Look up model in catalog
+    │   ├── Calculate accuracy via score_model()
+    │   ├── Calculate latency score and SLO status
+    │   ├── Calculate complexity score
+    │   └── Build DeploymentRecommendation with scores
+    └── Calculate price scores (after min/max known)
+    ↓
+RankingService.generate_ranked_lists()
+    ├── Apply filters (min_accuracy, max_cost)
+    ├── Recalculate balanced scores if custom weights
+    └── Sort into 5 ranked views
+    ↓
+RankedRecommendationsResponse
 ```
 
-**Display Options**:
-- **Ordered Lists**: Primary display method showing top N configurations for each ranking criterion
-- **Pareto Frontier Chart**: Graphical visualization plotting configurations on 2D/3D space (e.g., Cost vs. Accuracy, with point size representing complexity)
-- **Interactive Filtering**: Allow users to adjust weights and see rankings update in real-time
+#### API Endpoints
 
-#### Near-SLO Options Integration
+- **`POST /api/recommend`**: Returns single best recommendation (balanced score)
+- **`POST /api/ranked-recommend`**: Returns all 5 ranked lists with filter support
 
-Include configurations that slightly exceed SLO targets:
-- Score latency as 70-89 (vs. 90-100 for SLO-compliant)
-- Clearly mark with warning indicators
-- Highlight cost/accuracy benefits compared to SLO-compliant alternatives
+***
 
-**Example Display**:
+### Example Output
+
 ```
 🎯 Lowest Cost (Top 5):
 
-1. ✅ Llama-3-8B on 1x L4    - $120/month (Score: 100) [Meets SLOs]
-2. ✅ Llama-3-8B on 1x A100  - $180/month (Score: 95)  [Meets SLOs]
-3. ⚠️ Llama-3-70B on 2x A100 - $290/month (Score: 85)  [TTFT +10% over SLO]
-4. ✅ Llama-3-70B on 2x H100 - $450/month (Score: 70)  [Meets SLOs]
-5. ✅ Llama-3-405B on 4x H100 - $900/month (Score: 40) [Meets SLOs]
+1. ✅ Llama-3.1-8B-FP8 on 1x L4     - $584/month  (Scores: A=60, P=100, L=92, C=100)
+2. ✅ Mistral-7B on 1x L4           - $584/month  (Scores: A=55, P=100, L=90, C=100)
+3. ✅ Qwen-2.5-7B-FP8 on 1x L4      - $584/month  (Scores: A=55, P=100, L=91, C=100)
+4. ⚠️ Llama-3.1-70B-FP8 on 2x A100  - $2,555/month (Scores: A=85, P=72, L=78, C=90) [TTFT +15% over SLO]
+5. ✅ Llama-3.1-70B on 2x H100      - $6,205/month (Scores: A=85, P=45, L=95, C=90)
+
+🏆 Best Accuracy (Top 5):
+
+1. ✅ Llama-3.1-70B on 2x H100      - $6,205/month (Scores: A=85, P=45, L=95, C=90)
+2. ⚠️ Llama-3.1-70B-FP8 on 2x A100  - $2,555/month (Scores: A=85, P=72, L=78, C=90) [Near-miss]
+3. ✅ Mixtral-8x7B on 4x A100       - $5,110/month (Scores: A=78, P=50, L=92, C=75)
+4. ✅ Llama-3.1-8B on 1x L4         - $584/month   (Scores: A=60, P=100, L=92, C=100)
+...
 ```
 
 ***
 
-### Implementation Phasing
+### Possible Future Enhancements
 
-**Phase 1**: Single-criterion ranking
-- Implement 0-100 scoring for all 4 criteria
-- Support minimum accuracy and maximum cost filters
-- Show top 5 for "Lowest Cost" (primary view)
-- Show top 5 for other criteria (Accuracy, Latency, Simplest, Balanced) as alternative views
+The following capabilities are documented for future implementation:
 
-**Phase 2**: Multi-priority views
-- Add tabs/buttons for all 5 ranking modes (Accuracy, Cost, Latency, Simplest, Balanced)
-- Include near-SLO configurations with clear warnings
-- Show top 5 for each mode (consistent across all views)
-
-**Phase 3**: Interactive refinement and visualization
-- User-adjustable weights for balanced score (slider controls or direct weight input)
-- Visual Pareto frontier chart for multi-dimensional tradeoff exploration
-  - 2D charts: Cost vs. Accuracy (most common)
-  - 3D charts: Cost vs. Accuracy vs. Complexity (advanced view)
-  - Interactive point selection to view full configuration details
-- Sensitivity analysis (e.g., "How does ranking change if budget increases to $600?")
-- Priority-driven weight selection (e.g., user selects "Quality first" and system sets weights automatically)
-
-***
-
-### Summary: Decision Framework
-
-**Ranking Criteria**:
-1. **Accuracy** (Primary) - Model capability (metadata → benchmark scores)
-2. **Price** (Primary) - TCO across deployment models (cloud, on-prem, existing)
-3. **Latency** (Secondary) - SLO headroom beyond compliance threshold (TTFT, ITL, E2E at p95)
-4. **Operational Complexity** (Secondary) - GPU count and deployment topology
-
-**Configuration Variants**:
-- Quantization (FP16/INT8/INT4) as selectable options within recommendations
-
-**Secondary Considerations**:
-- Throughput, GPU availability, reliability, scalability (future releases)
-
-***
-
-### Key Decisions for Team Discussion
-
-1. **Scoring Scale**: Use 0-100 or 0-1 normalization?
-   - **Recommendation**: 0-100 scale for better interpretability ("85/100" vs "0.85")
-   - Easier to explain to users and debug during development
-
-2. **Balanced Score Calculation**: How to determine the "Balanced" recommendation?
-   - **Option A**: Default weights reflecting primary vs. secondary criteria (e.g., 40% accuracy, 40% price, 10% latency, 10% complexity)
-   - **Option B**: User-adjustable weights via UI controls (sliders or direct input)
-   - **Option C**: Priority-driven weights derived from high-level user preferences ("Quality first", "Budget conscious", etc.)
-   - **Option D**: Pareto frontier - mathematically optimal but more complex
-   - **Recommendation**: Start with Option A for Phase 1, add Option B in Phase 3
-
-3. **Number of Options per View**: Show top 5 for each ranking criterion?
-   - **Recommendation**: Yes - provides good variety without overwhelming users
-   - UI can display as expandable list or tabbed views
-
-4. **Minimum Accuracy Threshold**: Should there be a default minimum, or always user-specified?
-   - **Option A**: No default, show all configurations
-   - **Option B**: Default minimum based on use case (e.g., production = 70, development = 50)
-   - **Recommendation**: Option B - prevents showing clearly inadequate models
-
-5. **Near-SLO Configurations**: Include by default or require opt-in?
-   - **Recommendation**: Include by default with clear ⚠️ warnings
-   - Significant cost savings justify showing, but must be clearly marked
-   - Allow users to toggle "Hide near-miss options" if desired
-
-6. **Multi-Cost Model Support**: How to handle cloud vs. on-prem vs. existing GPU pricing?
-   - **Option A**: Cloud GPU pricing only (standardized rates)
-   - **Option B**: Also support user-provided cost parameters for on-prem/existing infrastructure.
-   - **Option C (Future)**: Compare cloud vs. on-prem vs. existing GPU options
-   - Scoring logic remains the same, just the cost input source changes
-
-7. **Accuracy Scoring Method**: Model tiers vs. benchmark scores?
-   - **Phase 1 (Current Approach)**: Simple capability tiers (7B=60, 70B=85, 405B=95)
-   - **Phase 2 (WIP)**: Integrate actual benchmark scores (MMLU, HumanEval normalized to 0-100)
-   - Allows smooth evolution without changing scoring framework
-
-8. **Visualization Approaches**: How to present recommendations graphically?
-   - **Primary**: Ordered lists for each ranking criterion (simplest, always available)
-   - **Phase 3**: Pareto frontier charts for multi-dimensional tradeoff exploration
-     - 2D scatter plots: Cost vs. Accuracy (most intuitive)
-     - Interactive elements: Click points to view full configuration details
-     - Point styling: Size/color to represent secondary criteria (complexity, latency)
-   - **Benefits**: Graphical views help users understand tradeoff space and identify optimal regions
-   - **Note**: Lists remain primary interface; charts supplement for advanced users
-
+- **Benchmark-based accuracy scores**: Replace model size tiers with actual benchmark results (MMLU, HumanEval, MT-Bench)
+- **Pareto frontier visualization**: Graphical 2D/3D charts showing optimal tradeoff regions
+- **GPU availability scoring**: Factor in procurement constraints and lead times
+- **Multi-cost model support**: Compare cloud vs. on-premise vs. existing infrastructure pricing

@@ -85,7 +85,7 @@ print(f'  E2E p90: {slo.e2e_p90_target_ms}ms')
 ```bash
 python -c "
 from src.context_intent.schema import DeploymentIntent
-from src.recommendation.model_recommender import ModelRecommender
+from src.recommendation.model_evaluator import ModelEvaluator
 
 intent = DeploymentIntent(
     use_case='code_generation',
@@ -94,11 +94,23 @@ intent = DeploymentIntent(
     domain_specialization=['code']
 )
 
-recommender = ModelRecommender()
-models = recommender.recommend_models(intent, top_k=3)
+evaluator = ModelEvaluator()
+
+# Get all models from catalog
+all_models = evaluator.catalog.get_all_models()
+
+# Score each model for the intent
+scored_models = []
+for model in all_models:
+    score = evaluator.score_model(model, intent)
+    scored_models.append((model, score))
+
+# Sort by score and get top 3
+scored_models.sort(key=lambda x: x[1], reverse=True)
+top_models = scored_models[:3]
 
 print('Top Model Recommendations:')
-for i, (model, score) in enumerate(models, 1):
+for i, (model, score) in enumerate(top_models, 1):
     print(f'{i}. {model.name} (score: {score:.1f})')
     print(f'   Size: {model.size_parameters}')
     print(f'   Domains: {model.domain_specialization}')

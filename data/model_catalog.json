@@ -30,6 +30,38 @@
       "notes": "Excellent general-purpose model with strong instruction following"
     },
     {
+      "model_id": "meta-llama/llama-3.1-70b-instruct",
+      "name": "Llama 3.1 70B Instruct",
+      "provider": "Meta",
+      "family": "llama3",
+      "size_parameters": "70B",
+      "context_length": 128000,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "question_answering",
+        "summarization",
+        "reasoning"
+      ],
+      "domain_specialization": [
+        "general"
+      ],
+      "license": "Llama 3.1 Community License",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 80,
+      "recommended_for": [
+        "chatbot_conversational",
+        "code_generation_detailed",
+        "content_generation",
+        "summarization_short",
+        "document_analysis_rag",
+        "long_document_summarization",
+        "research_legal_analysis"
+      ],
+      "approval_status": "approved",
+      "notes": "High-performance model for complex reasoning tasks"
+    },
+    {
       "model_id": "meta-llama/llama-3.3-70b-instruct",
       "name": "Llama 3.3 70B Instruct",
       "provider": "Meta",
@@ -140,6 +172,34 @@
       "notes": "FP8 quantized variant for efficient inference"
     },
     {
+      "model_id": "mistralai/mistral-7b-instruct-v0.3",
+      "name": "Mistral 7B Instruct v0.3",
+      "provider": "Mistral AI",
+      "family": "mistral",
+      "size_parameters": "7B",
+      "context_length": 32768,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "code_generation"
+      ],
+      "domain_specialization": [
+        "general",
+        "code"
+      ],
+      "license": "Apache 2.0",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 14,
+      "recommended_for": [
+        "chatbot_conversational",
+        "code_generation_detailed",
+        "translation",
+        "content_generation"
+      ],
+      "approval_status": "approved",
+      "notes": "Efficient 7B Mistral model with strong code capabilities"
+    },
+    {
       "model_id": "mistralai/mistral-small-24b-instruct-2501",
       "name": "Mistral Small 24B Instruct",
       "provider": "Mistral AI",
@@ -223,6 +283,67 @@
       ],
       "approval_status": "approved",
       "notes": "Mixture-of-experts model with excellent multilingual support"
+    },
+    {
+      "model_id": "mistralai/mixtral-8x22b-instruct-v0.1",
+      "name": "Mixtral 8x22B Instruct",
+      "provider": "Mistral AI",
+      "family": "mixtral",
+      "size_parameters": "8x22B",
+      "context_length": 65536,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "code_generation",
+        "multilingual",
+        "reasoning"
+      ],
+      "domain_specialization": [
+        "general",
+        "code",
+        "multilingual"
+      ],
+      "license": "Apache 2.0",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 176,
+      "recommended_for": [
+        "code_generation_detailed",
+        "content_generation",
+        "translation",
+        "document_analysis_rag",
+        "research_legal_analysis"
+      ],
+      "approval_status": "approved",
+      "notes": "Large mixture-of-experts model with excellent reasoning and multilingual support"
+    },
+    {
+      "model_id": "ibm-granite/granite-3.0-8b-instruct",
+      "name": "Granite 3.0 8B Instruct",
+      "provider": "IBM",
+      "family": "granite",
+      "size_parameters": "8B",
+      "context_length": 128000,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "summarization",
+        "rag"
+      ],
+      "domain_specialization": [
+        "general",
+        "enterprise"
+      ],
+      "license": "Apache 2.0",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 16,
+      "recommended_for": [
+        "chatbot_conversational",
+        "document_analysis_rag",
+        "summarization_short",
+        "long_document_summarization"
+      ],
+      "approval_status": "approved",
+      "notes": "Enterprise-focused IBM Granite model with strong RAG capabilities"
     },
     {
       "model_id": "ibm-granite/granite-3.1-8b-instruct",
@@ -310,6 +431,38 @@
       ],
       "approval_status": "approved",
       "notes": "FP8 quantized model for efficient inference with large context"
+    },
+    {
+      "model_id": "qwen/qwen2.5-72b-instruct",
+      "name": "Qwen 2.5 72B Instruct",
+      "provider": "Alibaba Cloud",
+      "family": "qwen",
+      "size_parameters": "72B",
+      "context_length": 131072,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "code_generation",
+        "multilingual",
+        "reasoning"
+      ],
+      "domain_specialization": [
+        "general",
+        "code",
+        "multilingual"
+      ],
+      "license": "Apache 2.0",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 144,
+      "recommended_for": [
+        "chatbot_conversational",
+        "code_generation_detailed",
+        "translation",
+        "document_analysis_rag",
+        "research_legal_analysis"
+      ],
+      "approval_status": "approved",
+      "notes": "Large Qwen model with strong reasoning and multilingual capabilities"
     },
     {
       "model_id": "microsoft/phi-4",
@@ -973,6 +1126,60 @@
       "notes": "Compact NVIDIA Nemotron variant"
     },
     {
+      "model_id": "google/gemma-2-9b-it",
+      "name": "Gemma 2 9B Instruct",
+      "provider": "Google",
+      "family": "gemma",
+      "size_parameters": "9B",
+      "context_length": 8192,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "question_answering"
+      ],
+      "domain_specialization": [
+        "general"
+      ],
+      "license": "Gemma License",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 18,
+      "recommended_for": [
+        "chatbot_conversational",
+        "content_generation",
+        "summarization_short"
+      ],
+      "approval_status": "approved",
+      "notes": "Google's efficient Gemma 2 model with strong instruction following"
+    },
+    {
+      "model_id": "google/gemma-2-27b-it",
+      "name": "Gemma 2 27B Instruct",
+      "provider": "Google",
+      "family": "gemma",
+      "size_parameters": "27B",
+      "context_length": 8192,
+      "supported_tasks": [
+        "chat",
+        "instruction_following",
+        "question_answering",
+        "reasoning"
+      ],
+      "domain_specialization": [
+        "general"
+      ],
+      "license": "Gemma License",
+      "license_type": "permissive",
+      "min_gpu_memory_gb": 54,
+      "recommended_for": [
+        "chatbot_conversational",
+        "content_generation",
+        "summarization_short",
+        "document_analysis_rag"
+      ],
+      "approval_status": "approved",
+      "notes": "Large Gemma 2 model with improved reasoning capabilities"
+    },
+    {
       "model_id": "redhatai/gemma-3n-e4b-it-fp8-dynamic",
       "name": "Gemma 3N E4B FP8",
       "provider": "Red Hat",
@@ -1071,17 +1278,19 @@
   ],
   "gpu_types": [
     {
-      "gpu_type": "NVIDIA-L4",
+      "gpu_type": "L4",
+      "aliases": ["NVIDIA-L4", "L4"],
       "memory_gb": 24,
       "compute_capability": "8.9",
       "typical_use_cases": [
         "inference"
       ],
-      "cost_per_hour_usd": 0.5,
+      "cost_per_hour_usd": 0.8,
       "availability": "high"
     },
     {
-      "gpu_type": "NVIDIA-A10G",
+      "gpu_type": "A10G",
+      "aliases": ["NVIDIA-A10G", "A10G"],
       "memory_gb": 24,
       "compute_capability": "8.6",
       "typical_use_cases": [
@@ -1091,48 +1300,64 @@
       "availability": "high"
     },
     {
-      "gpu_type": "NVIDIA-A100-40GB",
+      "gpu_type": "A100-40",
+      "aliases": ["NVIDIA-A100-40GB", "A100-40", "A100-40GB"],
       "memory_gb": 40,
       "compute_capability": "8.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 3.0,
+      "cost_per_hour_usd": 3.5,
       "availability": "medium"
     },
     {
-      "gpu_type": "NVIDIA-A100-80GB",
+      "gpu_type": "A100-80",
+      "aliases": ["NVIDIA-A100-80GB", "A100-80", "A100-80GB"],
       "memory_gb": 80,
       "compute_capability": "8.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 4.5,
+      "cost_per_hour_usd": 5.0,
       "availability": "medium"
     },
     {
       "gpu_type": "H100",
+      "aliases": ["NVIDIA-H100", "H100", "H100-80GB"],
       "memory_gb": 80,
       "compute_capability": "9.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 8.0,
+      "cost_per_hour_usd": 8.5,
       "availability": "low"
     },
     {
       "gpu_type": "H200",
+      "aliases": ["NVIDIA-H200", "H200"],
       "memory_gb": 141,
       "compute_capability": "9.0",
       "typical_use_cases": [
         "inference",
         "training"
       ],
-      "cost_per_hour_usd": 10.0,
+      "cost_per_hour_usd": 12.0,
       "availability": "low"
+    },
+    {
+      "gpu_type": "B200",
+      "aliases": ["NVIDIA-B200", "B200"],
+      "memory_gb": 192,
+      "compute_capability": "10.0",
+      "typical_use_cases": [
+        "inference",
+        "training"
+      ],
+      "cost_per_hour_usd": 15.0,
+      "availability": "very_low"
     }
   ]
 }
