@@ -85,7 +85,7 @@ print(f'  E2E p90: {slo.e2e_p90_target_ms}ms')
 ```bash
 python -c "
 from src.context_intent.schema import DeploymentIntent
-from src.recommendation.model_recommender import ModelRecommender
+from src.recommendation.model_evaluator import ModelEvaluator
 
 intent = DeploymentIntent(
     use_case='code_generation',
@@ -94,15 +94,15 @@ intent = DeploymentIntent(
     domain_specialization=['code']
 )
 
-recommender = ModelRecommender()
+evaluator = ModelEvaluator()
 
 # Get all models from catalog
-all_models = recommender.catalog.get_all_models()
+all_models = evaluator.catalog.get_all_models()
 
 # Score each model for the intent
 scored_models = []
 for model in all_models:
-    score = recommender._score_model(model, intent)
+    score = evaluator.score_model(model, intent)
     scored_models.append((model, score))
 
 # Sort by score and get top 3

@@ -126,7 +126,7 @@ class CapacityPlanner:
         traffic_profile: TrafficProfile,
         slo_targets: SLOTargets,
         intent: DeploymentIntent,
-        model_recommender: "ModelRecommender | None" = None,
+        model_evaluator: "ModelEvaluator | None" = None,
         include_near_miss: bool = True,
         near_miss_tolerance: float = 0.2,
     ) -> list[DeploymentRecommendation]:
@@ -140,7 +140,7 @@ class CapacityPlanner:
             traffic_profile: Traffic characteristics (prompt_tokens, output_tokens)
             slo_targets: p95 SLO targets
             intent: Original deployment intent
-            model_recommender: Model recommender for accuracy scoring (optional)
+            model_evaluator: Model evaluator for accuracy scoring (optional)
             include_near_miss: Whether to include configs within tolerance of SLO
             near_miss_tolerance: How much over SLO to allow (0.2 = 20%)
 
@@ -148,7 +148,7 @@ class CapacityPlanner:
             List of DeploymentRecommendations with scores attached
         """
         # Import here to avoid circular import
-        from .model_recommender import ModelRecommender
+        from .model_evaluator import ModelEvaluator
         scorer = SolutionScorer()
         all_configs: list[DeploymentRecommendation] = []
 
@@ -233,10 +233,10 @@ class CapacityPlanner:
                 continue
 
             # Calculate accuracy score
-            # If model is in catalog and we have a recommender, use _score_model()
+            # If model is in catalog and we have an evaluator, use score_model()
             # Otherwise, accuracy = 0
-            if model and model_recommender:
-                accuracy_score = int(model_recommender._score_model(model, intent))
+            if model and model_evaluator:
+                accuracy_score = int(model_evaluator.score_model(model, intent))
             else:
                 accuracy_score = 0
 

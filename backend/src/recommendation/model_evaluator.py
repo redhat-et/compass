@@ -8,19 +8,19 @@ from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
 logger = logging.getLogger(__name__)
 
 
-class ModelRecommender:
-    """Recommend models based on deployment intent and requirements."""
+class ModelEvaluator:
+    """Evaluate models for deployment intent and calculate accuracy scores."""
 
     def __init__(self, catalog: ModelCatalog | None = None):
         """
-        Initialize model recommender.
+        Initialize model evaluator.
 
         Args:
             catalog: Model catalog (creates default if not provided)
         """
         self.catalog = catalog or ModelCatalog()
 
-    def _score_model(self, model: ModelInfo, intent: DeploymentIntent) -> float:
+    def score_model(self, model: ModelInfo, intent: DeploymentIntent) -> float:
         """
         Score a model for the given intent.
 
