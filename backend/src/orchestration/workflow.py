@@ -178,36 +178,18 @@ class RecommendationWorkflow:
             f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
         )
 
-        # Step 1: Recommend models based on intent
-        logger.info("Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=10)
+        # Generate all viable configurations with full scoring
+        # No model pre-filtering - all benchmark configs meeting SLO are scored
+        logger.info("Generating all viable configurations")
+        all_configs = self.capacity_planner.plan_all_capacities(
+            traffic_profile=traffic_profile,
+            slo_targets=slo_targets,
+            intent=intent,
+            model_recommender=self.model_recommender,
+            include_near_miss=False,  # Strict SLO for best recommendation
+        )
 
-        if not model_candidates:
-            raise ValueError(f"No suitable models found for use case: {intent.use_case}")
-
-        logger.info(f"Found {len(model_candidates)} model candidates")
-
-        # Step 2: Plan capacity for each model
-        logger.info("Planning GPU capacity")
-        viable_recommendations = []
-
-        for model, score in model_candidates:
-            logger.info(f"Planning capacity for {model.name} (score: {score:.1f})")
-
-            recommendation = self.capacity_planner.plan_capacity(
-                model, traffic_profile, slo_targets, intent
-            )
-
-            if recommendation:
-                viable_recommendations.append((recommendation, score))
-                logger.info(
-                    f"  Viable: {recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}, "
-                    f"${recommendation.cost_per_month_usd:.0f}/month"
-                )
-            else:
-                logger.info("  No viable configuration found")
-
-        if not viable_recommendations:
+        if not all_configs:
             # Build helpful error message with context
             error_msg = (
                 f"No viable deployment configurations found meeting SLO targets.\n\n"
@@ -223,79 +205,29 @@ class RecommendationWorkflow:
                 f"- TTFT <= {slo_targets.ttft_p95_target_ms}ms\n"
                 f"- ITL <= {slo_targets.itl_p95_target_ms}ms\n"
                 f"- E2E <= {slo_targets.e2e_p95_target_ms}ms\n\n"
-                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
-                f"None of these models can meet the SLO targets with available hardware configurations. "
+                f"No configurations can meet the SLO targets with available hardware configurations. "
                 f"Try relaxing latency requirements or considering a different use case."
             )
             raise ValueError(error_msg)
 
-        # Step 3: Sort and select best recommendation
-        # Sort by:
-        # 1. Model score (higher is better)
-        # 2. Throughput capacity (higher QPS is better for same cost)
-        # 3. Cost (lower is better)
-        viable_recommendations.sort(
-            key=lambda x: (-x[1], -x[0].predicted_throughput_qps, x[0].cost_per_month_usd)
+        # Sort by balanced score and pick best
+        all_configs.sort(
+            key=lambda x: x.scores.balanced_score if x.scores else 0, reverse=True
         )
-        best_recommendation = viable_recommendations[0][0]
+        best_recommendation = all_configs[0]
 
         logger.info(
             f"Selected: {best_recommendation.model_name} on "
-            f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type}"
+            f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type} "
+            f"(balanced score: {best_recommendation.scores.balanced_score if best_recommendation.scores else 0:.1f})"
         )
 
-        # Step 4: Filter and add valuable alternative options
-        if len(viable_recommendations) > 1:
-            # Filter alternatives to provide distinct value propositions
-            # Avoid showing strictly dominated options (higher cost, same/lower performance)
-            best = best_recommendation
-            valuable_alternatives = []
-
-            for rec, score in viable_recommendations[1:]:
-                # Always include if different model (provides choice)
-                if rec.model_id != best.model_id:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # Same model - only include if it provides distinct value:
-                # 1. Different GPU type (e.g., H100 vs H200)
-                if rec.gpu_config.gpu_type != best.gpu_config.gpu_type:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # 2. Significantly better performance for modest cost increase
-                #    (e.g., 50% more throughput for <30% more cost)
-                cost_ratio = rec.cost_per_month_usd / best.cost_per_month_usd
-                throughput_ratio = rec.predicted_throughput_qps / best.predicted_throughput_qps
-                if throughput_ratio >= 1.5 and cost_ratio < 1.3:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # 3. Significantly better latency (20%+ improvement) if cost is similar
-                latency_improvement = (
-                    (best.predicted_ttft_p95_ms - rec.predicted_ttft_p95_ms)
-                    / best.predicted_ttft_p95_ms
-                )
-                if latency_improvement >= 0.2 and cost_ratio <= 1.2:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # Otherwise skip - this is a dominated option
-                logger.debug(
-                    f"Skipping dominated alternative: {rec.model_name} on "
-                    f"{rec.gpu_config.gpu_count}x {rec.gpu_config.gpu_type} "
-                    f"(cost={cost_ratio:.2f}x, throughput={throughput_ratio:.2f}x)"
-                )
-
-            # Convert to dict format for alternatives
+        # Add top 3 alternatives
+        if len(all_configs) > 1:
             best_recommendation.alternative_options = [
-                rec.to_alternative_dict() for rec, _ in valuable_alternatives[:3]  # Limit to 3 alternatives
+                rec.to_alternative_dict() for rec in all_configs[1:4]
             ]
-
-            logger.info(
-                f"Added {len(best_recommendation.alternative_options)} valuable alternative options "
-                f"(filtered from {len(viable_recommendations)-1} total options)"
-            )
+            logger.info(f"Added {len(best_recommendation.alternative_options)} alternative options")
 
         return best_recommendation
 
@@ -383,34 +315,14 @@ class RecommendationWorkflow:
             self.generate_specification(user_message, conversation_history)
         )
 
-        # For ranked recommendations, use ALL approved models from catalog
-        # This allows the ranking to show the best solutions regardless of
-        # model recommendation score.
-        all_models = self.model_recommender.catalog.get_all_models()
-
-        if not all_models:
-            logger.warning("No models found in catalog")
-            return RankedRecommendationsResponse(
-                min_accuracy_threshold=min_accuracy,
-                max_cost_ceiling=max_cost,
-                include_near_miss=include_near_miss,
-                specification=specification,
-                total_configs_evaluated=0,
-                configs_after_filters=0,
-            )
-
-        logger.info(f"Using all {len(all_models)} models from catalog for ranking")
-
-        # Use all models for capacity planning
-        models = all_models
-
         # Get ALL configurations with scores
+        # No model pre-filtering - all benchmark configs meeting SLO are scored
         logger.info("Planning capacity for all model/GPU combinations")
         all_configs = self.capacity_planner.plan_all_capacities(
-            models=models,
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
+            model_recommender=self.model_recommender,
             include_near_miss=include_near_miss,
         )
 

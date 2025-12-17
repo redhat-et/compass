@@ -20,36 +20,6 @@ class ModelRecommender:
         """
         self.catalog = catalog or ModelCatalog()
 
-    def recommend_models(
-        self, intent: DeploymentIntent, top_k: int = 10
-    ) -> list[tuple[ModelInfo, float]]:
-        """
-        Recommend models for deployment intent.
-
-        Args:
-            intent: Deployment intent
-            top_k: Number of recommendations to return
-
-        Returns:
-            List of (ModelInfo, score) tuples, sorted by score (descending)
-        """
-        # Get candidate models for this use case
-        candidates = self.catalog.find_models_for_use_case(intent.use_case)
-
-        if not candidates:
-            logger.warning(f"No models found for use_case={intent.use_case}, using all models")
-            candidates = self.catalog.get_all_models()
-
-        # Score each candidate
-        scored_models = []
-        for model in candidates:
-            score = self._score_model(model, intent)
-            scored_models.append((model, score))
-
-        # Sort by score (descending) and return top_k
-        scored_models.sort(key=lambda x: x[1], reverse=True)
-        return scored_models[:top_k]
-
     def _score_model(self, model: ModelInfo, intent: DeploymentIntent) -> float:
         """
         Score a model for the given intent.

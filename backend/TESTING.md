@@ -95,10 +95,22 @@ intent = DeploymentIntent(
 )
 
 recommender = ModelRecommender()
-models = recommender.recommend_models(intent, top_k=3)
+
+# Get all models from catalog
+all_models = recommender.catalog.get_all_models()
+
+# Score each model for the intent
+scored_models = []
+for model in all_models:
+    score = recommender._score_model(model, intent)
+    scored_models.append((model, score))
+
+# Sort by score and get top 3
+scored_models.sort(key=lambda x: x[1], reverse=True)
+top_models = scored_models[:3]
 
 print('Top Model Recommendations:')
-for i, (model, score) in enumerate(models, 1):
+for i, (model, score) in enumerate(top_models, 1):
     print(f'{i}. {model.name} (score: {score:.1f})')
     print(f'   Size: {model.size_parameters}')
     print(f'   Domains: {model.domain_specialization}')
