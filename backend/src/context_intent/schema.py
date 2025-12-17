@@ -166,11 +166,6 @@ class DeploymentSpecification(BaseModel):
     traffic_profile: TrafficProfile
     slo_targets: SLOTargets
 
-    # Models that will be evaluated
-    models_to_evaluate: list[str] | None = Field(
-        default=None, description="Models that match the use case"
-    )
-
 
 class ConversationMessage(BaseModel):
     """Single message in the conversation history."""
