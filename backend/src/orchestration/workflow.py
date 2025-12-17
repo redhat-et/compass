@@ -10,7 +10,7 @@ from ..context_intent.schema import (
 )
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
-from ..recommendation.model_recommender import ModelRecommender
+from ..recommendation.model_evaluator import ModelEvaluator
 from ..recommendation.ranking_service import RankingService
 from ..context_intent.traffic_profile import TrafficProfileGenerator
 
@@ -25,7 +25,7 @@ class RecommendationWorkflow:
         llm_client: OllamaClient | None = None,
         intent_extractor: IntentExtractor | None = None,
         traffic_generator: TrafficProfileGenerator | None = None,
-        model_recommender: ModelRecommender | None = None,
+        model_evaluator: ModelEvaluator | None = None,
         capacity_planner: CapacityPlanner | None = None,
     ):
         """
@@ -35,13 +35,13 @@ class RecommendationWorkflow:
             llm_client: Ollama client (creates default if not provided)
             intent_extractor: Intent extractor
             traffic_generator: Traffic profile generator
-            model_recommender: Model recommender
+            model_evaluator: Model evaluator for accuracy scoring
             capacity_planner: Capacity planner
         """
         self.llm_client = llm_client or OllamaClient()
         self.intent_extractor = intent_extractor or IntentExtractor(self.llm_client)
         self.traffic_generator = traffic_generator or TrafficProfileGenerator()
-        self.model_recommender = model_recommender or ModelRecommender()
+        self.model_evaluator = model_evaluator or ModelEvaluator()
         self.capacity_planner = capacity_planner or CapacityPlanner()
 
     def generate_specification(
@@ -185,7 +185,7 @@ class RecommendationWorkflow:
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
-            model_recommender=self.model_recommender,
+            model_evaluator=self.model_evaluator,
             include_near_miss=False,  # Strict SLO for best recommendation
         )
 
@@ -322,7 +322,7 @@ class RecommendationWorkflow:
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
-            model_recommender=self.model_recommender,
+            model_evaluator=self.model_evaluator,
             include_near_miss=include_near_miss,
         )
 
