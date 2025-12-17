@@ -50,11 +50,11 @@ class RecommendationWorkflow:
         """
         Generate deployment specification from user message.
 
-        This always succeeds and returns the specification even if no viable
-        configurations exist.
+        This extracts intent and generates traffic/SLO specs from conversation.
+        Model recommendation happens later in generate_recommendation_from_specs.
 
         Returns:
-            Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets, model_candidates)
+            Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets)
         """
         from ..context_intent.schema import DeploymentSpecification
 
@@ -77,48 +77,107 @@ class RecommendationWorkflow:
             f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
         )
 
-        logger.info("Step 3: Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=10)
-
-        if not model_candidates:
-            logger.warning(f"No suitable models found for use case: {intent.use_case}")
-            model_candidates = []
-
-        models_to_evaluate = [m.name for m, _ in model_candidates] if model_candidates else []
-
         specification = DeploymentSpecification(
             intent=intent,
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
-            models_to_evaluate=models_to_evaluate if models_to_evaluate else None,
         )
 
-        return specification, intent, traffic_profile, slo_targets, model_candidates
+        return specification, intent, traffic_profile, slo_targets
 
-    def _recommend_from_specs(
-        self,
-        intent: "DeploymentIntent",
-        traffic_profile: "TrafficProfile",
-        slo_targets: "SLOTargets",
+    def generate_recommendation(
+        self, user_message: str, conversation_history: list[ConversationMessage] | None = None
     ) -> DeploymentRecommendation:
         """
-        Shared logic to generate recommendation from specifications.
+        Generate deployment recommendation from user message.
 
-        This is the core recommendation algorithm used by both:
-        - generate_recommendation() - after extracting specs from conversation
-        - generate_recommendation_from_specs() - using user-edited specs
+        This is the main workflow that orchestrates all components:
+        1. Extract intent from conversation
+        2. Generate traffic profile and SLO targets
+        3. Delegate to generate_recommendation_from_specs for recommendation
 
         Args:
-            intent: Deployment intent
-            traffic_profile: Traffic characteristics
-            slo_targets: SLO targets
+            user_message: User's deployment request
+            conversation_history: Optional conversation context
 
         Returns:
             DeploymentRecommendation
 
         Raises:
-            ValueError: If no viable configurations found
+            ValueError: If recommendation cannot be generated
         """
+        logger.info("Starting recommendation workflow")
+
+        # Generate specification from conversation
+        specification, intent, traffic_profile, slo_targets = (
+            self.generate_specification(user_message, conversation_history)
+        )
+
+        # Convert to dict format and delegate to single recommendation path
+        specs = {
+            "intent": intent.model_dump(),
+            "traffic_profile": traffic_profile.model_dump(),
+            "slo_targets": slo_targets.model_dump(),
+        }
+        return self.generate_recommendation_from_specs(specs)
+
+    def generate_recommendation_from_specs(self, specifications: dict) -> DeploymentRecommendation:
+        """
+        Generate recommendation from specifications.
+
+        This is the single entry point for recommendation generation.
+        Used by both:
+        - generate_recommendation() - after extracting specs from conversation
+        - Direct calls with user-edited specifications
+
+        Args:
+            specifications: Dict with keys: intent, traffic_profile, slo_targets
+
+        Returns:
+            DeploymentRecommendation
+
+        Raises:
+            ValueError: If recommendation cannot be generated
+        """
+        from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
+
+        logger.info("Generating recommendation from specifications")
+
+        # Infer experience_class if not provided in intent
+        intent_data = specifications["intent"].copy()
+        if "experience_class" not in intent_data or not intent_data.get("experience_class"):
+            # Use the same inference logic as the extractor
+            use_case = intent_data.get("use_case", "")
+            if use_case == "code_completion":
+                intent_data["experience_class"] = "instant"
+            elif use_case in [
+                "chatbot_conversational",
+                "code_generation_detailed",
+                "translation",
+                "content_generation",
+                "summarization_short",
+            ]:
+                intent_data["experience_class"] = "conversational"
+            elif use_case == "document_analysis_rag":
+                intent_data["experience_class"] = "interactive"
+            elif use_case == "long_document_summarization":
+                intent_data["experience_class"] = "deferred"
+            elif use_case == "research_legal_analysis":
+                intent_data["experience_class"] = "batch"
+            else:
+                intent_data["experience_class"] = "conversational"  # Default
+
+        # Parse specifications into proper schema objects
+        intent = DeploymentIntent(**intent_data)
+        traffic_profile = TrafficProfile(**specifications["traffic_profile"])
+        slo_targets = SLOTargets(**specifications["slo_targets"])
+
+        logger.info(
+            f"Specs: {intent.use_case}, {intent.user_count} users, "
+            f"{traffic_profile.expected_qps} QPS, "
+            f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
+        )
+
         # Step 1: Recommend models based on intent
         logger.info("Recommending models")
         model_candidates = self.model_recommender.recommend_models(intent, top_k=10)
@@ -142,11 +201,11 @@ class RecommendationWorkflow:
             if recommendation:
                 viable_recommendations.append((recommendation, score))
                 logger.info(
-                    f"  ✓ Viable: {recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}, "
+                    f"  Viable: {recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}, "
                     f"${recommendation.cost_per_month_usd:.0f}/month"
                 )
             else:
-                logger.info("  ✗ No viable configuration found")
+                logger.info("  No viable configuration found")
 
         if not viable_recommendations:
             # Build helpful error message with context
@@ -158,12 +217,12 @@ class RecommendationWorkflow:
                 f"- Latency requirement: {intent.latency_requirement}\n"
                 f"- Budget: {intent.budget_constraint}\n\n"
                 f"**Traffic profile:**\n"
-                f"- {traffic_profile.prompt_tokens} prompt tokens → {traffic_profile.output_tokens} output tokens\n"
+                f"- {traffic_profile.prompt_tokens} prompt tokens -> {traffic_profile.output_tokens} output tokens\n"
                 f"- Expected load: {traffic_profile.expected_qps} queries/second\n\n"
                 f"**SLO targets (p95):**\n"
-                f"- TTFT ≤ {slo_targets.ttft_p95_target_ms}ms\n"
-                f"- ITL ≤ {slo_targets.itl_p95_target_ms}ms\n"
-                f"- E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"- TTFT <= {slo_targets.ttft_p95_target_ms}ms\n"
+                f"- ITL <= {slo_targets.itl_p95_target_ms}ms\n"
+                f"- E2E <= {slo_targets.e2e_p95_target_ms}ms\n\n"
                 f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
                 f"None of these models can meet the SLO targets with available hardware configurations. "
                 f"Try relaxing latency requirements or considering a different use case."
@@ -239,96 +298,6 @@ class RecommendationWorkflow:
             )
 
         return best_recommendation
-
-    def generate_recommendation(
-        self, user_message: str, conversation_history: list[ConversationMessage] | None = None
-    ) -> DeploymentRecommendation:
-        """
-        Generate deployment recommendation from user message.
-
-        This is the main workflow that orchestrates all components:
-        1. Extract intent from conversation
-        2. Generate traffic profile and SLO targets
-        3. Recommend models
-        4. Plan GPU capacity
-        5. Return best recommendation
-
-        Args:
-            user_message: User's deployment request
-            conversation_history: Optional conversation context
-
-        Returns:
-            DeploymentRecommendation
-
-        Raises:
-            ValueError: If recommendation cannot be generated
-        """
-        logger.info("Starting recommendation workflow")
-
-        # Generate specification from conversation
-        specification, intent, traffic_profile, slo_targets, model_candidates = (
-            self.generate_specification(user_message, conversation_history)
-        )
-
-        # Generate recommendation from specification (shared logic)
-        return self._recommend_from_specs(intent, traffic_profile, slo_targets)
-
-    def generate_recommendation_from_specs(self, specifications: dict) -> DeploymentRecommendation:
-        """
-        Generate recommendation from user-edited specifications (exploration mode).
-
-        This bypasses intent extraction and uses the provided specifications directly.
-
-        Args:
-            specifications: Dict with keys: intent, traffic_profile, slo_targets
-
-        Returns:
-            DeploymentRecommendation
-
-        Raises:
-            ValueError: If recommendation cannot be generated
-        """
-        from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
-
-        logger.info("Starting re-recommendation workflow with edited specifications")
-
-        # Infer experience_class if not provided in intent
-        intent_data = specifications["intent"].copy()
-        if "experience_class" not in intent_data or not intent_data.get("experience_class"):
-            # Use the same inference logic as the extractor
-            use_case = intent_data.get("use_case", "")
-            if use_case == "code_completion":
-                intent_data["experience_class"] = "instant"
-            elif use_case in [
-                "chatbot_conversational",
-                "code_generation_detailed",
-                "translation",
-                "content_generation",
-                "summarization_short",
-            ]:
-                intent_data["experience_class"] = "conversational"
-            elif use_case == "document_analysis_rag":
-                intent_data["experience_class"] = "interactive"
-            elif use_case == "long_document_summarization":
-                intent_data["experience_class"] = "deferred"
-            elif use_case == "research_legal_analysis":
-                intent_data["experience_class"] = "batch"
-            else:
-                intent_data["experience_class"] = "conversational"  # Default
-
-        # Parse specifications into proper schema objects
-        intent = DeploymentIntent(**intent_data)
-        traffic_profile = TrafficProfile(**specifications["traffic_profile"])
-        slo_targets = SLOTargets(**specifications["slo_targets"])
-
-        logger.info(
-            f"Specs: {intent.use_case}, {intent.user_count} users, "
-            f"{traffic_profile.expected_qps} QPS, "
-            f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
-        )
-
-        # Generate recommendation from specification (shared logic)
-        return self._recommend_from_specs(intent, traffic_profile, slo_targets)
 
     def validate_recommendation(self, recommendation: DeploymentRecommendation) -> bool:
         """
@@ -410,13 +379,13 @@ class RecommendationWorkflow:
         logger.info("Starting ranked recommendation workflow")
 
         # Generate specification from conversation
-        specification, intent, traffic_profile, slo_targets, model_candidates = (
+        specification, intent, traffic_profile, slo_targets = (
             self.generate_specification(user_message, conversation_history)
         )
 
         # For ranked recommendations, use ALL approved models from catalog
-        # instead of just the top-k recommended models. This allows the
-        # ranking to show the best solutions regardless of model recommendation score.
+        # This allows the ranking to show the best solutions regardless of
+        # model recommendation score.
         all_models = self.model_recommender.catalog.get_all_models()
 
         if not all_models:
