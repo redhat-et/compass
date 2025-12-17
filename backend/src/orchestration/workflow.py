@@ -3,10 +3,15 @@
 import logging
 
 from ..context_intent.extractor import IntentExtractor
-from ..context_intent.schema import ConversationMessage, DeploymentRecommendation
+from ..context_intent.schema import (
+    ConversationMessage,
+    DeploymentRecommendation,
+    RankedRecommendationsResponse,
+)
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
-from ..recommendation.model_recommender import ModelRecommender
+from ..recommendation.model_evaluator import ModelEvaluator
+from ..recommendation.ranking_service import RankingService
 from ..context_intent.traffic_profile import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
@@ -20,7 +25,7 @@ class RecommendationWorkflow:
         llm_client: OllamaClient | None = None,
         intent_extractor: IntentExtractor | None = None,
         traffic_generator: TrafficProfileGenerator | None = None,
-        model_recommender: ModelRecommender | None = None,
+        model_evaluator: ModelEvaluator | None = None,
         capacity_planner: CapacityPlanner | None = None,
     ):
         """
@@ -30,13 +35,13 @@ class RecommendationWorkflow:
             llm_client: Ollama client (creates default if not provided)
             intent_extractor: Intent extractor
             traffic_generator: Traffic profile generator
-            model_recommender: Model recommender
+            model_evaluator: Model evaluator for accuracy scoring
             capacity_planner: Capacity planner
         """
         self.llm_client = llm_client or OllamaClient()
         self.intent_extractor = intent_extractor or IntentExtractor(self.llm_client)
         self.traffic_generator = traffic_generator or TrafficProfileGenerator()
-        self.model_recommender = model_recommender or ModelRecommender()
+        self.model_evaluator = model_evaluator or ModelEvaluator()
         self.capacity_planner = capacity_planner or CapacityPlanner()
 
     def generate_specification(
@@ -45,11 +50,11 @@ class RecommendationWorkflow:
         """
         Generate deployment specification from user message.
 
-        This always succeeds and returns the specification even if no viable
-        configurations exist.
+        This extracts intent and generates traffic/SLO specs from conversation.
+        Model recommendation happens later in generate_recommendation_from_specs.
 
         Returns:
-            Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets, model_candidates)
+            Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets)
         """
         from ..context_intent.schema import DeploymentSpecification
 
@@ -72,168 +77,13 @@ class RecommendationWorkflow:
             f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
         )
 
-        logger.info("Step 3: Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
-
-        if not model_candidates:
-            logger.warning(f"No suitable models found for use case: {intent.use_case}")
-            model_candidates = []
-
-        models_to_evaluate = [m.name for m, _ in model_candidates] if model_candidates else []
-
         specification = DeploymentSpecification(
             intent=intent,
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
-            models_to_evaluate=models_to_evaluate if models_to_evaluate else None,
         )
 
-        return specification, intent, traffic_profile, slo_targets, model_candidates
-
-    def _recommend_from_specs(
-        self,
-        intent: "DeploymentIntent",
-        traffic_profile: "TrafficProfile",
-        slo_targets: "SLOTargets",
-    ) -> DeploymentRecommendation:
-        """
-        Shared logic to generate recommendation from specifications.
-
-        This is the core recommendation algorithm used by both:
-        - generate_recommendation() - after extracting specs from conversation
-        - generate_recommendation_from_specs() - using user-edited specs
-
-        Args:
-            intent: Deployment intent
-            traffic_profile: Traffic characteristics
-            slo_targets: SLO targets
-
-        Returns:
-            DeploymentRecommendation
-
-        Raises:
-            ValueError: If no viable configurations found
-        """
-        # Step 1: Recommend models based on intent
-        logger.info("Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
-
-        if not model_candidates:
-            raise ValueError(f"No suitable models found for use case: {intent.use_case}")
-
-        logger.info(f"Found {len(model_candidates)} model candidates")
-
-        # Step 2: Plan capacity for each model
-        logger.info("Planning GPU capacity")
-        viable_recommendations = []
-
-        for model, score in model_candidates:
-            logger.info(f"Planning capacity for {model.name} (score: {score:.1f})")
-
-            recommendation = self.capacity_planner.plan_capacity(
-                model, traffic_profile, slo_targets, intent
-            )
-
-            if recommendation:
-                viable_recommendations.append((recommendation, score))
-                logger.info(
-                    f"  ✓ Viable: {recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}, "
-                    f"${recommendation.cost_per_month_usd:.0f}/month"
-                )
-            else:
-                logger.info("  ✗ No viable configuration found")
-
-        if not viable_recommendations:
-            # Build helpful error message with context
-            error_msg = (
-                f"No viable deployment configurations found meeting SLO targets.\n\n"
-                f"**Requirements:**\n"
-                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
-                f"- Scale: {intent.user_count:,} users\n"
-                f"- Latency requirement: {intent.latency_requirement}\n"
-                f"- Budget: {intent.budget_constraint}\n\n"
-                f"**Traffic profile:**\n"
-                f"- {traffic_profile.prompt_tokens} prompt tokens → {traffic_profile.output_tokens} output tokens\n"
-                f"- Expected load: {traffic_profile.expected_qps} queries/second\n\n"
-                f"**SLO targets (p95):**\n"
-                f"- TTFT ≤ {slo_targets.ttft_p95_target_ms}ms\n"
-                f"- ITL ≤ {slo_targets.itl_p95_target_ms}ms\n"
-                f"- E2E ≤ {slo_targets.e2e_p95_target_ms}ms\n\n"
-                f"**Models evaluated:** {', '.join(m.name for m, _ in model_candidates)}\n\n"
-                f"None of these models can meet the SLO targets with available hardware configurations. "
-                f"Try relaxing latency requirements or considering a different use case."
-            )
-            raise ValueError(error_msg)
-
-        # Step 3: Sort and select best recommendation
-        # Sort by:
-        # 1. Model score (higher is better)
-        # 2. Throughput capacity (higher QPS is better for same cost)
-        # 3. Cost (lower is better)
-        viable_recommendations.sort(
-            key=lambda x: (-x[1], -x[0].predicted_throughput_qps, x[0].cost_per_month_usd)
-        )
-        best_recommendation = viable_recommendations[0][0]
-
-        logger.info(
-            f"Selected: {best_recommendation.model_name} on "
-            f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type}"
-        )
-
-        # Step 4: Filter and add valuable alternative options
-        if len(viable_recommendations) > 1:
-            # Filter alternatives to provide distinct value propositions
-            # Avoid showing strictly dominated options (higher cost, same/lower performance)
-            best = best_recommendation
-            valuable_alternatives = []
-
-            for rec, score in viable_recommendations[1:]:
-                # Always include if different model (provides choice)
-                if rec.model_id != best.model_id:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # Same model - only include if it provides distinct value:
-                # 1. Different GPU type (e.g., H100 vs H200)
-                if rec.gpu_config.gpu_type != best.gpu_config.gpu_type:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # 2. Significantly better performance for modest cost increase
-                #    (e.g., 50% more throughput for <30% more cost)
-                cost_ratio = rec.cost_per_month_usd / best.cost_per_month_usd
-                throughput_ratio = rec.predicted_throughput_qps / best.predicted_throughput_qps
-                if throughput_ratio >= 1.5 and cost_ratio < 1.3:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # 3. Significantly better latency (20%+ improvement) if cost is similar
-                latency_improvement = (
-                    (best.predicted_ttft_p95_ms - rec.predicted_ttft_p95_ms)
-                    / best.predicted_ttft_p95_ms
-                )
-                if latency_improvement >= 0.2 and cost_ratio <= 1.2:
-                    valuable_alternatives.append((rec, score))
-                    continue
-
-                # Otherwise skip - this is a dominated option
-                logger.debug(
-                    f"Skipping dominated alternative: {rec.model_name} on "
-                    f"{rec.gpu_config.gpu_count}x {rec.gpu_config.gpu_type} "
-                    f"(cost={cost_ratio:.2f}x, throughput={throughput_ratio:.2f}x)"
-                )
-
-            # Convert to dict format for alternatives
-            best_recommendation.alternative_options = [
-                rec.to_alternative_dict() for rec, _ in valuable_alternatives[:3]  # Limit to 3 alternatives
-            ]
-
-            logger.info(
-                f"Added {len(best_recommendation.alternative_options)} valuable alternative options "
-                f"(filtered from {len(viable_recommendations)-1} total options)"
-            )
-
-        return best_recommendation
+        return specification, intent, traffic_profile, slo_targets
 
     def generate_recommendation(
         self, user_message: str, conversation_history: list[ConversationMessage] | None = None
@@ -244,9 +94,7 @@ class RecommendationWorkflow:
         This is the main workflow that orchestrates all components:
         1. Extract intent from conversation
         2. Generate traffic profile and SLO targets
-        3. Recommend models
-        4. Plan GPU capacity
-        5. Return best recommendation
+        3. Delegate to generate_recommendation_from_specs for recommendation
 
         Args:
             user_message: User's deployment request
@@ -261,18 +109,26 @@ class RecommendationWorkflow:
         logger.info("Starting recommendation workflow")
 
         # Generate specification from conversation
-        specification, intent, traffic_profile, slo_targets, model_candidates = (
+        specification, intent, traffic_profile, slo_targets = (
             self.generate_specification(user_message, conversation_history)
         )
 
-        # Generate recommendation from specification (shared logic)
-        return self._recommend_from_specs(intent, traffic_profile, slo_targets)
+        # Convert to dict format and delegate to single recommendation path
+        specs = {
+            "intent": intent.model_dump(),
+            "traffic_profile": traffic_profile.model_dump(),
+            "slo_targets": slo_targets.model_dump(),
+        }
+        return self.generate_recommendation_from_specs(specs)
 
     def generate_recommendation_from_specs(self, specifications: dict) -> DeploymentRecommendation:
         """
-        Generate recommendation from user-edited specifications (exploration mode).
+        Generate recommendation from specifications.
 
-        This bypasses intent extraction and uses the provided specifications directly.
+        This is the single entry point for recommendation generation.
+        Used by both:
+        - generate_recommendation() - after extracting specs from conversation
+        - Direct calls with user-edited specifications
 
         Args:
             specifications: Dict with keys: intent, traffic_profile, slo_targets
@@ -285,7 +141,7 @@ class RecommendationWorkflow:
         """
         from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
 
-        logger.info("Starting re-recommendation workflow with edited specifications")
+        logger.info("Generating recommendation from specifications")
 
         # Infer experience_class if not provided in intent
         intent_data = specifications["intent"].copy()
@@ -322,8 +178,58 @@ class RecommendationWorkflow:
             f"TTFT target={slo_targets.ttft_p95_target_ms}ms (p95)"
         )
 
-        # Generate recommendation from specification (shared logic)
-        return self._recommend_from_specs(intent, traffic_profile, slo_targets)
+        # Generate all viable configurations with full scoring
+        # No model pre-filtering - all benchmark configs meeting SLO are scored
+        logger.info("Generating all viable configurations")
+        all_configs = self.capacity_planner.plan_all_capacities(
+            traffic_profile=traffic_profile,
+            slo_targets=slo_targets,
+            intent=intent,
+            model_evaluator=self.model_evaluator,
+            include_near_miss=False,  # Strict SLO for best recommendation
+        )
+
+        if not all_configs:
+            # Build helpful error message with context
+            error_msg = (
+                f"No viable deployment configurations found meeting SLO targets.\n\n"
+                f"**Requirements:**\n"
+                f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
+                f"- Scale: {intent.user_count:,} users\n"
+                f"- Latency requirement: {intent.latency_requirement}\n"
+                f"- Budget: {intent.budget_constraint}\n\n"
+                f"**Traffic profile:**\n"
+                f"- {traffic_profile.prompt_tokens} prompt tokens -> {traffic_profile.output_tokens} output tokens\n"
+                f"- Expected load: {traffic_profile.expected_qps} queries/second\n\n"
+                f"**SLO targets (p95):**\n"
+                f"- TTFT <= {slo_targets.ttft_p95_target_ms}ms\n"
+                f"- ITL <= {slo_targets.itl_p95_target_ms}ms\n"
+                f"- E2E <= {slo_targets.e2e_p95_target_ms}ms\n\n"
+                f"No configurations can meet the SLO targets with available hardware configurations. "
+                f"Try relaxing latency requirements or considering a different use case."
+            )
+            raise ValueError(error_msg)
+
+        # Sort by balanced score and pick best
+        all_configs.sort(
+            key=lambda x: x.scores.balanced_score if x.scores else 0, reverse=True
+        )
+        best_recommendation = all_configs[0]
+
+        logger.info(
+            f"Selected: {best_recommendation.model_name} on "
+            f"{best_recommendation.gpu_config.gpu_count}x {best_recommendation.gpu_config.gpu_type} "
+            f"(balanced score: {best_recommendation.scores.balanced_score if best_recommendation.scores else 0:.1f})"
+        )
+
+        # Add top 3 alternatives
+        if len(all_configs) > 1:
+            best_recommendation.alternative_options = [
+                rec.to_alternative_dict() for rec in all_configs[1:4]
+            ]
+            logger.info(f"Added {len(best_recommendation.alternative_options)} alternative options")
+
+        return best_recommendation
 
     def validate_recommendation(self, recommendation: DeploymentRecommendation) -> bool:
         """
@@ -373,3 +279,92 @@ class RecommendationWorkflow:
             return False
 
         return True
+
+    def generate_ranked_recommendations(
+        self,
+        user_message: str,
+        conversation_history: list[ConversationMessage] | None = None,
+        min_accuracy: int | None = None,
+        max_cost: float | None = None,
+        include_near_miss: bool = True,
+        weights: dict[str, int] | None = None,
+    ) -> RankedRecommendationsResponse:
+        """
+        Generate ranked recommendation lists from user message.
+
+        This is the enhanced workflow that returns multiple ranked views
+        instead of a single best recommendation. Useful for exploring
+        trade-offs between accuracy, cost, latency, and complexity.
+
+        Args:
+            user_message: User's deployment request
+            conversation_history: Optional conversation context
+            min_accuracy: Minimum accuracy score filter (0-100)
+            max_cost: Maximum monthly cost filter (USD)
+            include_near_miss: Whether to include near-SLO configurations
+            weights: Optional custom weights for balanced score (0-10 scale)
+                     Keys: accuracy, price, latency, complexity
+
+        Returns:
+            RankedRecommendationsResponse with 5 ranked lists
+        """
+        logger.info("Starting ranked recommendation workflow")
+
+        # Generate specification from conversation
+        specification, intent, traffic_profile, slo_targets = (
+            self.generate_specification(user_message, conversation_history)
+        )
+
+        # Get ALL configurations with scores
+        # No model pre-filtering - all benchmark configs meeting SLO are scored
+        logger.info("Planning capacity for all model/GPU combinations")
+        all_configs = self.capacity_planner.plan_all_capacities(
+            traffic_profile=traffic_profile,
+            slo_targets=slo_targets,
+            intent=intent,
+            model_evaluator=self.model_evaluator,
+            include_near_miss=include_near_miss,
+        )
+
+        if not all_configs:
+            logger.warning("No viable configurations found")
+            return RankedRecommendationsResponse(
+                min_accuracy_threshold=min_accuracy,
+                max_cost_ceiling=max_cost,
+                include_near_miss=include_near_miss,
+                specification=specification,
+                total_configs_evaluated=0,
+                configs_after_filters=0,
+            )
+
+        # Generate ranked lists (top 10 solutions per criterion)
+        ranking_service = RankingService()
+        ranked_lists = ranking_service.generate_ranked_lists(
+            configurations=all_configs,
+            min_accuracy=min_accuracy,
+            max_cost=max_cost,
+            top_n=10,
+            weights=weights,
+        )
+
+        # Count configs after filtering
+        configs_after_filters = ranking_service.get_unique_configs_count(ranked_lists)
+
+        logger.info(
+            f"Generated ranked recommendations: {len(all_configs)} total configs, "
+            f"{configs_after_filters} after filters"
+        )
+
+        return RankedRecommendationsResponse(
+            min_accuracy_threshold=min_accuracy,
+            max_cost_ceiling=max_cost,
+            include_near_miss=include_near_miss,
+            specification=specification,
+            best_accuracy=ranked_lists["best_accuracy"],
+            lowest_cost=ranked_lists["lowest_cost"],
+            lowest_latency=ranked_lists["lowest_latency"],
+            simplest=ranked_lists["simplest"],
+            balanced=ranked_lists["balanced"],
+            total_configs_evaluated=len(all_configs),
+            configs_after_filters=configs_after_filters,
+        )

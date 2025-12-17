@@ -30,6 +30,19 @@ class GPUConfig(BaseModel):
     replicas: int = Field(1, description="Number of independent replicas")
 
 
+class ConfigurationScores(BaseModel):
+    """Scores for a deployment configuration (0-100 scale)."""
+
+    accuracy_score: int = Field(..., description="Model accuracy/capability score (0-100)")
+    price_score: int = Field(..., description="Cost efficiency score - inverse of cost (0-100)")
+    latency_score: int = Field(..., description="SLO headroom score (0-100)")
+    complexity_score: int = Field(..., description="Deployment simplicity score (0-100)")
+    balanced_score: float = Field(..., description="Weighted composite score (0-100)")
+    slo_status: Literal["compliant", "near_miss", "exceeds"] = Field(
+        ..., description="SLO compliance status"
+    )
+
+
 class DeploymentIntent(BaseModel):
     """Extracted deployment requirements from user conversation."""
 
@@ -108,6 +121,11 @@ class DeploymentRecommendation(BaseModel):
         default=None, description="Alternative configurations with trade-offs"
     )
 
+    # Multi-criteria scores (added for Solution Ranking feature)
+    scores: ConfigurationScores | None = Field(
+        default=None, description="Multi-criteria scores for ranking"
+    )
+
     def to_alternative_dict(self) -> dict:
         """
         Convert recommendation to alternative option format.
@@ -129,6 +147,7 @@ class DeploymentRecommendation(BaseModel):
             "cost_per_hour_usd": self.cost_per_hour_usd,
             "cost_per_month_usd": self.cost_per_month_usd,
             "reasoning": self.reasoning,
+            "scores": self.scores.model_dump() if self.scores else None,
         }
 
 
@@ -147,11 +166,6 @@ class DeploymentSpecification(BaseModel):
     traffic_profile: TrafficProfile
     slo_targets: SLOTargets
 
-    # Models that will be evaluated
-    models_to_evaluate: list[str] | None = Field(
-        default=None, description="Models that match the use case"
-    )
-
 
 class ConversationMessage(BaseModel):
     """Single message in the conversation history."""
@@ -159,3 +173,52 @@ class ConversationMessage(BaseModel):
     role: Literal["user", "assistant", "system"]
     content: str
     timestamp: str | None = None
+
+
+class RankedRecommendationsResponse(BaseModel):
+    """Response containing multiple ranked recommendation lists.
+
+    Provides 5 different views of the same configurations, each sorted
+    by a different criterion to help users explore trade-offs.
+    """
+
+    # Filters applied
+    min_accuracy_threshold: int | None = Field(
+        default=None, description="Minimum accuracy score filter applied"
+    )
+    max_cost_ceiling: float | None = Field(
+        default=None, description="Maximum monthly cost filter applied (USD)"
+    )
+    include_near_miss: bool = Field(
+        default=True, description="Whether near-SLO configurations are included"
+    )
+
+    # Original specification
+    specification: DeploymentSpecification | None = Field(
+        default=None, description="The generated deployment specification"
+    )
+
+    # Ranked lists (top 5 each, sorted by respective criterion)
+    best_accuracy: list[DeploymentRecommendation] = Field(
+        default_factory=list, description="Top configs sorted by accuracy score"
+    )
+    lowest_cost: list[DeploymentRecommendation] = Field(
+        default_factory=list, description="Top configs sorted by price score"
+    )
+    lowest_latency: list[DeploymentRecommendation] = Field(
+        default_factory=list, description="Top configs sorted by latency score"
+    )
+    simplest: list[DeploymentRecommendation] = Field(
+        default_factory=list, description="Top configs sorted by complexity score"
+    )
+    balanced: list[DeploymentRecommendation] = Field(
+        default_factory=list, description="Top configs sorted by weighted composite score"
+    )
+
+    # Statistics
+    total_configs_evaluated: int = Field(
+        default=0, description="Total number of configurations evaluated"
+    )
+    configs_after_filters: int = Field(
+        default=0, description="Number of configurations after applying filters"
+    )
