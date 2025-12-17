@@ -78,7 +78,7 @@ class RecommendationWorkflow:
         )
 
         logger.info("Step 3: Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
+        model_candidates = self.model_recommender.recommend_models(intent, top_k=10)
 
         if not model_candidates:
             logger.warning(f"No suitable models found for use case: {intent.use_case}")
@@ -121,7 +121,7 @@ class RecommendationWorkflow:
         """
         # Step 1: Recommend models based on intent
         logger.info("Recommending models")
-        model_candidates = self.model_recommender.recommend_models(intent, top_k=3)
+        model_candidates = self.model_recommender.recommend_models(intent, top_k=10)
 
         if not model_candidates:
             raise ValueError(f"No suitable models found for use case: {intent.use_case}")
@@ -411,8 +411,13 @@ class RecommendationWorkflow:
             self.generate_specification(user_message, conversation_history)
         )
 
-        if not model_candidates:
-            logger.warning("No model candidates found")
+        # For ranked recommendations, use ALL approved models from catalog
+        # instead of just the top-k recommended models. This allows the
+        # ranking to show the best solutions regardless of model recommendation score.
+        all_models = self.model_recommender.catalog.get_all_models()
+
+        if not all_models:
+            logger.warning("No models found in catalog")
             return RankedRecommendationsResponse(
                 min_accuracy_threshold=min_accuracy,
                 max_cost_ceiling=max_cost,
@@ -422,8 +427,10 @@ class RecommendationWorkflow:
                 configs_after_filters=0,
             )
 
-        # Get all models from candidates
-        models = [model for model, _ in model_candidates]
+        logger.info(f"Using all {len(all_models)} models from catalog for ranking")
+
+        # Use all models for capacity planning
+        models = all_models
 
         # Get ALL configurations with scores
         logger.info("Planning capacity for all model/GPU combinations")
@@ -446,13 +453,13 @@ class RecommendationWorkflow:
                 configs_after_filters=0,
             )
 
-        # Generate ranked lists
+        # Generate ranked lists (top 10 solutions per criterion)
         ranking_service = RankingService()
         ranked_lists = ranking_service.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
-            top_n=5,
+            top_n=10,
         )
 
         # Count configs after filtering

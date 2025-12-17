@@ -369,16 +369,17 @@ def render_ranked_options_tab():
     # Display table header
     st.markdown(f"### Top {len(configs)} - {selected_view}")
 
-    header_cols = st.columns([0.5, 1.8, 1.5, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
+    header_cols = st.columns([0.5, 1.8, 1.2, 0.6, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
     header_cols[0].markdown("**#**")
     header_cols[1].markdown("**Model**")
     header_cols[2].markdown("**GPU Config**")
-    header_cols[3].markdown("**Accuracy**")
-    header_cols[4].markdown("**Price**")
-    header_cols[5].markdown("**Latency**")
-    header_cols[6].markdown("**Simple**")
-    header_cols[7].markdown("**Balanced**")
-    header_cols[8].markdown("**Cost/Month**")
+    header_cols[3].markdown("**Replicas**")
+    header_cols[4].markdown("**Accuracy**")
+    header_cols[5].markdown("**Price**")
+    header_cols[6].markdown("**Latency**")
+    header_cols[7].markdown("**Simple**")
+    header_cols[8].markdown("**Balanced**")
+    header_cols[9].markdown("**Cost/Month**")
 
     # Display each configuration
     for i, config in enumerate(configs, 1):
@@ -387,18 +388,21 @@ def render_ranked_options_tab():
         status_icon = "✅" if slo_status == "compliant" else "⚠️"
 
         gpu_config = config.get("gpu_config", {})
-        gpu_str = f"{gpu_config.get('tensor_parallel', 1)}x {gpu_config.get('gpu_type', 'Unknown')}"
+        tensor_parallel = gpu_config.get("tensor_parallel", 1)
+        replicas = gpu_config.get("replicas", 1)
+        gpu_str = f"{tensor_parallel}x {gpu_config.get('gpu_type', 'Unknown')}"
 
-        cols = st.columns([0.5, 1.8, 1.5, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
+        cols = st.columns([0.5, 1.8, 1.2, 0.6, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
         cols[0].markdown(f"**{i}.**")
         cols[1].markdown(f"{status_icon} {config.get('model_name', 'Unknown')}")
         cols[2].markdown(gpu_str)
-        cols[3].markdown(f"{scores.get('accuracy_score', '-')}")
-        cols[4].markdown(f"{scores.get('price_score', '-')}")
-        cols[5].markdown(f"{scores.get('latency_score', '-')}")
-        cols[6].markdown(f"{scores.get('complexity_score', '-')}")
-        cols[7].markdown(f"{scores.get('balanced_score', '-'):.1f}")
-        cols[8].markdown(f"${config.get('cost_per_month_usd', 0):,.0f}")
+        cols[3].markdown(f"{replicas}")
+        cols[4].markdown(f"{scores.get('accuracy_score', '-')}")
+        cols[5].markdown(f"{scores.get('price_score', '-')}")
+        cols[6].markdown(f"{scores.get('latency_score', '-')}")
+        cols[7].markdown(f"{scores.get('complexity_score', '-')}")
+        cols[8].markdown(f"{scores.get('balanced_score', '-'):.1f}")
+        cols[9].markdown(f"${config.get('cost_per_month_usd', 0):,.0f}")
 
     # Legend
     st.markdown("---")

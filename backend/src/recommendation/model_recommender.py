@@ -21,7 +21,7 @@ class ModelRecommender:
         self.catalog = catalog or ModelCatalog()
 
     def recommend_models(
-        self, intent: DeploymentIntent, top_k: int = 3
+        self, intent: DeploymentIntent, top_k: int = 10
     ) -> list[tuple[ModelInfo, float]]:
         """
         Recommend models for deployment intent.
