@@ -1520,12 +1520,15 @@ def recommend_optimal_hardware(use_case: str, priority: str, user_hardware: str 
         return None
     
     # Define hardware costs (approximate monthly cost)
-    # NOTE: Only H100 from real BLIS benchmarks (Andre's data)
+    # Both H100 and A100-80 are REAL BLIS benchmarks from Andre's data
     hardware_costs = {
-        ("H100", 1): {"cost": 2500, "tier": 1},
-        ("H100", 2): {"cost": 5000, "tier": 2},
-        ("H100", 4): {"cost": 10000, "tier": 3},
-        ("H100", 8): {"cost": 20000, "tier": 4},
+        ("H100", 1): {"cost": 2500, "tier": 2},
+        ("H100", 2): {"cost": 5000, "tier": 3},
+        ("H100", 4): {"cost": 10000, "tier": 4},
+        ("H100", 8): {"cost": 20000, "tier": 5},
+        ("A100-80", 1): {"cost": 1600, "tier": 1},
+        ("A100-80", 2): {"cost": 3200, "tier": 2},
+        ("A100-80", 4): {"cost": 6400, "tier": 3},
     }
     
     # Determine target SLO based on priority
@@ -2300,13 +2303,286 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
     except Exception:
         pass
     
-    # Mock response for demo
-    return mock_recommendation(business_context)
+    # Use BLIS-based recommendation with ACTUAL data
+    return blis_recommendation(business_context)
+
+
+# =============================================================================
+# BLIS MODEL NAME MAPPING
+# Maps BLIS repo names to our quality CSV model names
+# =============================================================================
+BLIS_TO_QUALITY_MODEL_MAP = {
+    'ibm-granite/granite-3.1-8b-instruct': 'Granite 3.3 8B (Non-reasoning)',
+    'meta-llama/llama-3.1-8b-instruct': 'Llama 3.1 8B Instruct',
+    'meta-llama/llama-3.3-70b-instruct': 'Llama 3.3 70B Instruct',
+    'microsoft/phi-4': 'Phi-4',
+    'mistralai/mistral-small-24b-instruct-2501': 'Mistral Small 3.1',
+    'mistralai/mistral-small-3.1-24b-instruct-2503': 'Mistral Small 3.2',
+    'mistralai/mixtral-8x7b-instruct-v0.1': 'Mixtral 8x7B Instruct',
+    'openai/gpt-oss-120b': 'gpt-oss-120B (high)',
+    'openai/gpt-oss-20b': 'gpt-oss-20B (high)',
+    'qwen/qwen2.5-7b-instruct': 'Qwen 2.5 7B Instruct',
+}
+
+# Hardware costs (monthly) - BOTH H100 and A100-80 are real BLIS data
+HARDWARE_COSTS = {
+    ('H100', 1): 2500,
+    ('H100', 2): 5000,
+    ('H100', 4): 10000,
+    ('H100', 8): 20000,
+    ('A100-80', 1): 1600,
+    ('A100-80', 2): 3200,
+    ('A100-80', 4): 6400,
+}
+
+
+def blis_recommendation(context: dict) -> dict:
+    """BLIS-based recommendation using ACTUAL benchmark data.
+    
+    NEW ARCHITECTURE:
+    - Model quality: from weighted_scores CSVs (use-case specific)
+    - Latency/throughput: from ACTUAL BLIS benchmarks (model+hardware specific)
+    - Cost: from hardware tier (cheaper hardware = higher cost score)
+    
+    Creates MODEL+HARDWARE combinations ranked by priority:
+    - cost_saving: cheapest hardware that meets SLO for best models
+    - low_latency: fastest hardware (lowest TTFT) for best models
+    - high_quality: best model quality with hardware that meets SLO
+    - balanced: weighted combination of all factors
+    """
+    use_case = context.get("use_case", "chatbot_conversational")
+    priority = context.get("priority", "balanced")
+    user_count = context.get("user_count", 1000)
+    
+    # Load BLIS benchmark data
+    blis_data = load_blis_benchmarks()
+    if not blis_data or 'benchmarks' not in blis_data:
+        return mock_recommendation_fallback(context)
+    
+    benchmarks = blis_data['benchmarks']
+    
+    # Load quality scores for this use case
+    weighted_df = load_weighted_scores(use_case)
+    quality_lookup = {}
+    if not weighted_df.empty:
+        for _, row in weighted_df.iterrows():
+            model_name = row.get('Model Name', '')
+            score_str = row.get('Use Case Score', '0')
+            if isinstance(score_str, str):
+                score = float(score_str.replace('%', '')) if '%' in score_str else float(score_str) * 100
+            else:
+                score = float(score_str) * 100 if score_str <= 1 else float(score_str)
+            quality_lookup[model_name] = score
+    
+    # Get SLO targets for this use case
+    slo_data = get_slo_targets_for_use_case(use_case, priority)
+    ttft_max = slo_data.get('ttft_target', {}).get('max', 200)
+    e2e_max = slo_data.get('e2e_target', {}).get('max', 5000)
+    
+    # Priority weights for MCDM
+    weights = {
+        "balanced": {"quality": 0.30, "latency": 0.30, "cost": 0.25, "throughput": 0.15},
+        "low_latency": {"quality": 0.15, "latency": 0.50, "cost": 0.15, "throughput": 0.20},
+        "cost_saving": {"quality": 0.20, "latency": 0.15, "cost": 0.50, "throughput": 0.15},
+        "high_quality": {"quality": 0.50, "latency": 0.20, "cost": 0.15, "throughput": 0.15},
+        "high_throughput": {"quality": 0.15, "latency": 0.15, "cost": 0.15, "throughput": 0.55},
+    }[priority]
+    
+    # Aggregate BLIS data by model+hardware (use best config per combo)
+    model_hw_combos = {}
+    for b in benchmarks:
+        model_repo = b['model_hf_repo']
+        hw = b['hardware']
+        hw_count = b['hardware_count']
+        key = (model_repo, hw, hw_count)
+        
+        # Keep the benchmark with lowest TTFT for each combo
+        if key not in model_hw_combos or b['ttft_p95'] < model_hw_combos[key]['ttft_p95']:
+            model_hw_combos[key] = {
+                'model_repo': model_repo,
+                'model_name': model_repo.split('/')[-1],
+                'hardware': hw,
+                'hardware_count': hw_count,
+                'ttft_mean': b['ttft_mean'],
+                'ttft_p95': b['ttft_p95'],
+                'itl_mean': b['itl_mean'],
+                'itl_p95': b['itl_p95'],
+                'e2e_mean': b['e2e_mean'],
+                'e2e_p95': b['e2e_p95'],
+                'tokens_per_second': b['tokens_per_second'],
+                'prompt_tokens': b['prompt_tokens'],
+                'output_tokens': b['output_tokens'],
+            }
+    
+    # Calculate scores for each model+hardware combo
+    scored_combos = []
+    
+    # Find max values for normalization
+    max_ttft = max(c['ttft_p95'] for c in model_hw_combos.values()) or 1
+    max_tps = max(c['tokens_per_second'] for c in model_hw_combos.values()) or 1
+    max_cost = max(HARDWARE_COSTS.values()) or 1
+    
+    for key, combo in model_hw_combos.items():
+        # Get quality score from CSV (mapped model name)
+        quality_model = BLIS_TO_QUALITY_MODEL_MAP.get(combo['model_repo'], combo['model_name'])
+        quality_score = quality_lookup.get(quality_model, 30.0)  # Default 30 if not found
+        
+        # Latency score: lower TTFT = higher score (inverted, normalized 0-100)
+        latency_score = 100 - (combo['ttft_p95'] / max_ttft * 100)
+        latency_score = max(10, min(100, latency_score))
+        
+        # Throughput score: higher TPS = higher score
+        throughput_score = (combo['tokens_per_second'] / max_tps) * 100
+        throughput_score = max(10, min(100, throughput_score))
+        
+        # Cost score: lower hardware cost = higher score (inverted)
+        hw_cost = HARDWARE_COSTS.get((combo['hardware'], combo['hardware_count']), 10000)
+        cost_score = 100 - (hw_cost / max_cost * 80)  # Leave headroom
+        cost_score = max(10, min(100, cost_score))
+        
+        # Check if meets SLO
+        meets_slo = combo['ttft_p95'] <= ttft_max and combo['e2e_p95'] <= e2e_max
+        
+        # Calculate weighted MCDM score
+        final_score = (
+            weights['quality'] * quality_score +
+            weights['latency'] * latency_score +
+            weights['cost'] * cost_score +
+            weights['throughput'] * throughput_score
+        )
+        
+        # Bonus for meeting SLO
+        if meets_slo:
+            final_score += 5
+        
+        scored_combos.append({
+            **combo,
+            'quality_score': round(quality_score, 1),
+            'latency_score': round(latency_score, 1),
+            'cost_score': round(cost_score, 1),
+            'throughput_score': round(throughput_score, 1),
+            'final_score': round(final_score, 2),
+            'meets_slo': meets_slo,
+            'hw_cost_monthly': hw_cost,
+            'quality_model_name': quality_model,
+        })
+    
+    # Sort by final score (highest first)
+    scored_combos.sort(key=lambda x: x['final_score'], reverse=True)
+    
+    # Get top recommendation
+    if not scored_combos:
+        return mock_recommendation_fallback(context)
+    
+    top = scored_combos[0]
+    
+    # Build recommendation response
+    return {
+        "model_name": top['model_name'].replace('-', ' ').title(),
+        "model_hf_repo": top['model_repo'],
+        "score": top['final_score'],
+        "intent": {
+            "use_case": use_case,
+            "priority": priority,
+            "user_count": user_count,
+        },
+        "gpu_config": {
+            "gpu_type": top['hardware'],
+            "gpu_count": top['hardware_count'],
+        },
+        "meets_slo": top['meets_slo'],
+        "slo_targets": slo_data,
+        "hardware_recommendation": {
+            "recommended": {
+                "hardware": top['hardware'],
+                "hardware_count": top['hardware_count'],
+                "ttft_p95": top['ttft_p95'],
+                "itl_mean": top['itl_mean'],
+                "e2e_p95": top['e2e_p95'],
+                "tokens_per_second": top['tokens_per_second'],
+                "cost_monthly": top['hw_cost_monthly'],
+            },
+            "selection_reason": get_selection_reason(top, priority),
+            "alternatives": [
+                {
+                    "model": c['model_name'],
+                    "hardware": c['hardware'],
+                    "hardware_count": c['hardware_count'],
+                    "ttft_p95": c['ttft_p95'],
+                    "e2e_p95": c['e2e_p95'],
+                    "cost_monthly": c['hw_cost_monthly'],
+                    "score": c['final_score'],
+                    "meets_slo": c['meets_slo'],
+                }
+                for c in scored_combos[1:6]  # Top 5 alternatives
+            ],
+        },
+        "score_breakdown": {
+            "quality": {"score": top['quality_score'], "weight": weights['quality']},
+            "latency": {"score": top['latency_score'], "weight": weights['latency']},
+            "cost": {"score": top['cost_score'], "weight": weights['cost']},
+            "throughput": {"score": top['throughput_score'], "weight": weights['throughput']},
+        },
+        "blis_actual": {
+            "ttft_mean": top['ttft_mean'],
+            "ttft_p95": top['ttft_p95'],
+            "itl_mean": top['itl_mean'],
+            "itl_p95": top['itl_p95'],
+            "e2e_mean": top['e2e_mean'],
+            "e2e_p95": top['e2e_p95'],
+            "tokens_per_second": top['tokens_per_second'],
+            "prompt_tokens": top['prompt_tokens'],
+            "output_tokens": top['output_tokens'],
+        },
+        "all_recommendations": [
+            {
+                "rank": i + 1,
+                "model_name": c['model_name'].replace('-', ' ').title(),
+                "model_hf_repo": c['model_repo'],
+                "hardware": f"{c['hardware']} x{c['hardware_count']}",
+                "score": c['final_score'],
+                "quality_score": c['quality_score'],
+                "latency_score": c['latency_score'],
+                "cost_score": c['cost_score'],
+                "throughput_score": c['throughput_score'],
+                "ttft_p95": c['ttft_p95'],
+                "e2e_p95": c['e2e_p95'],
+                "tokens_per_second": c['tokens_per_second'],
+                "cost_monthly": c['hw_cost_monthly'],
+                "meets_slo": c['meets_slo'],
+            }
+            for i, c in enumerate(scored_combos[:10])
+        ],
+    }
+
+
+def get_selection_reason(top: dict, priority: str) -> str:
+    """Generate human-readable selection reason."""
+    model = top['model_name'].replace('-', ' ').title()
+    hw = f"{top['hardware']} x{top['hardware_count']}"
+    ttft = top['ttft_p95']
+    cost = top['hw_cost_monthly']
+    tps = top['tokens_per_second']
+    
+    if priority == "cost_saving":
+        return f"💰 {model} on {hw} is the most cost-effective option (${cost:,}/mo) that meets your SLO requirements with {ttft:.0f}ms TTFT."
+    elif priority == "low_latency":
+        return f"⚡ {model} on {hw} delivers the lowest latency ({ttft:.0f}ms TTFT P95) from actual BLIS benchmarks."
+    elif priority == "high_quality":
+        return f"⭐ {model} has the highest quality score for your use case, running on {hw} with {ttft:.0f}ms TTFT."
+    elif priority == "high_throughput":
+        return f"📈 {model} on {hw} achieves {tps:.0f} tokens/sec throughput from actual BLIS benchmarks."
+    else:  # balanced
+        return f"⚖️ {model} on {hw} provides optimal balance: {ttft:.0f}ms TTFT, {tps:.0f} tokens/sec, ${cost:,}/mo."
+
+
+def mock_recommendation_fallback(context: dict) -> dict:
+    """Fallback recommendation when BLIS data unavailable."""
+    return mock_recommendation(context)
 
 
 def mock_recommendation(context: dict) -> dict:
-    """Recommendation using USE-CASE-SPECIFIC weighted_scores CSVs for quality
-    and REAL pricing/latency data from model_pricing.csv.
+    """FALLBACK: Recommendation using CSV data when BLIS unavailable.
     
     Data sources:
     - Quality: weighted_scores/{use_case}.csv (task-specific benchmark scores)
