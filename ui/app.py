@@ -1410,10 +1410,12 @@ def load_research_workload_patterns():
 def load_blis_benchmarks():
     """Load BLIS benchmark data for real hardware/model performance validation."""
     try:
-        json_path = DATA_DIR / "benchmarks" / "benchmarks_BLIS.json"
+        # BLIS file is in data/ root, not data/benchmarks/
+        json_path = DATA_DIR / "benchmarks_BLIS.json"
         with open(json_path, 'r') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Could not load BLIS data: {e}")
         return None
 
 def get_blis_benchmark_for_config(prompt_tokens: int, output_tokens: int, hardware: str = None):
