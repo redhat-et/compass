@@ -1520,14 +1520,12 @@ def recommend_optimal_hardware(use_case: str, priority: str, user_hardware: str 
         return None
     
     # Define hardware costs (approximate monthly cost)
+    # NOTE: Only H100 from real BLIS benchmarks (Andre's data)
     hardware_costs = {
         ("H100", 1): {"cost": 2500, "tier": 1},
         ("H100", 2): {"cost": 5000, "tier": 2},
         ("H100", 4): {"cost": 10000, "tier": 3},
         ("H100", 8): {"cost": 20000, "tier": 4},
-        ("A100-80", 1): {"cost": 1600, "tier": 0},
-        ("A100-80", 2): {"cost": 3200, "tier": 1},
-        ("A100-80", 4): {"cost": 6400, "tier": 2},
     }
     
     # Determine target SLO based on priority
