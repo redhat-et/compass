@@ -5,17 +5,91 @@ This module provides the main Streamlit interface for Compass, featuring:
 2. Recommendation display with all specification details
 3. Editable specification component for user review/modification
 4. Integration with FastAPI backend
+
+Environment Variables:
+    API_BASE_URL: Backend API URL (default: http://localhost:8000)
 """
 
 import contextlib
+import json
+import os
 import time
+from pathlib import Path
 from typing import Any
 
 import requests
 import streamlit as st
 
-# Configuration
-API_BASE_URL = "http://localhost:8000"
+# Configuration from environment variables
+# In production, set API_BASE_URL to your backend service URL
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+
+# Load research-based SLO/Workload config
+def load_usecase_slo_workload():
+    """Load use case SLO and workload configuration from JSON file."""
+    config_path = Path(__file__).parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+    try:
+        with open(config_path, "r") as f:
+            return json.load(f).get("use_case_slo_workload", {})
+    except FileNotFoundError:
+        return {}
+
+USECASE_SLO_WORKLOAD = load_usecase_slo_workload()
+
+# Priority-based SLO adjustment factors (from research)
+# Based on: Nielsen UX (1993), SCORPIO, vLLM, GitHub Copilot
+PRIORITY_ADJUSTMENTS = {
+    "low_latency": {
+        "ttft_factor": 0.5,   # Tighten by 50%
+        "itl_factor": 0.6,
+        "e2e_factor": 0.5,
+        "description": "Tightened for real-time applications"
+    },
+    "balanced": {
+        "ttft_factor": 1.0,
+        "itl_factor": 1.0,
+        "e2e_factor": 1.0,
+        "description": "Research-backed defaults"
+    },
+    "cost_saving": {
+        "ttft_factor": 1.5,   # Relax by 50%
+        "itl_factor": 1.3,
+        "e2e_factor": 1.5,
+        "description": "Relaxed for cost efficiency"
+    },
+    "high_throughput": {
+        "ttft_factor": 1.3,
+        "itl_factor": 1.2,
+        "e2e_factor": 1.4,
+        "description": "Relaxed for batching efficiency"
+    }
+}
+
+def apply_priority_adjustment(slo_targets: dict, priority: str) -> dict:
+    """Apply priority-based adjustment to SLO targets."""
+    if priority not in PRIORITY_ADJUSTMENTS or priority == "balanced":
+        return slo_targets
+    
+    factors = PRIORITY_ADJUSTMENTS[priority]
+    adjusted = {}
+    
+    for key, value in slo_targets.items():
+        if isinstance(value, dict) and "min" in value and "max" in value:
+            factor_key = key.replace("_ms", "_factor")
+            factor = factors.get(factor_key, 1.0)
+            
+            if priority == "low_latency":
+                # Tighten: reduce max towards min
+                new_max = int(value["min"] + (value["max"] - value["min"]) * factor)
+                adjusted[key] = {"min": value["min"], "max": new_max}
+            else:
+                # Relax: increase max
+                new_max = int(value["max"] * factor)
+                adjusted[key] = {"min": value["min"], "max": new_max}
+        else:
+            adjusted[key] = value
+    
+    return adjusted
 
 # Page configuration
 st.set_page_config(
@@ -80,10 +154,6 @@ if "cluster_accessible" not in st.session_state:
     st.session_state.cluster_accessible = None
 if "deployed_to_cluster" not in st.session_state:
     st.session_state.deployed_to_cluster = False
-if "ranked_recommendations" not in st.session_state:
-    st.session_state.ranked_recommendations = None
-if "ranked_request_message" not in st.session_state:
-    st.session_state.ranked_request_message = None
 
 
 def main():
@@ -104,9 +174,7 @@ def main():
     render_sidebar()
 
     # Top-level tabs
-    main_tabs = st.tabs(
-        ["💬 Chat", "📊 Recommendation Details", "🏆 Ranked Options", "📦 Deployment Management"]
-    )
+    main_tabs = st.tabs(["💬 Chat", "📊 Recommendation Details", "📦 Deployment Management"])
 
     with main_tabs[0]:
         render_assistant_tab()
@@ -115,9 +183,6 @@ def main():
         render_recommendation_details_tab()
 
     with main_tabs[2]:
-        render_ranked_options_tab()
-
-    with main_tabs[3]:
         render_deployment_management_tab()
 
 
@@ -245,234 +310,6 @@ def render_recommendation_details_tab():
         st.info(
             "👈 Start a conversation in the **Assistant** tab to get deployment recommendations"
         )
-
-
-def fetch_ranked_recommendations(
-    message: str,
-    min_accuracy: int | None = None,
-    max_cost: float | None = None,
-    weights: dict | None = None,
-):
-    """Fetch ranked recommendations from the API."""
-    try:
-        request_data = {
-            "message": message,
-            "include_near_miss": True,
-        }
-        if min_accuracy and min_accuracy > 0:
-            request_data["min_accuracy"] = min_accuracy
-        if max_cost and max_cost > 0:
-            request_data["max_cost"] = max_cost
-        if weights:
-            request_data["weights"] = weights
-
-        response = requests.post(
-            f"{API_BASE_URL}/api/ranked-recommend", json=request_data, timeout=60
-        )
-        response.raise_for_status()
-        st.session_state.ranked_recommendations = response.json()
-        st.session_state.ranked_request_message = message
-        return True
-    except requests.RequestException as e:
-        st.error(f"Failed to fetch ranked recommendations: {e}")
-        return False
-
-
-def render_ranked_options_tab():
-    """Render the ranked options tab with multi-criteria views."""
-    st.markdown("### 🏆 Ranked Deployment Options")
-    st.caption("Explore configurations ranked by different criteria")
-
-    # Check if we have a recommendation to base ranking on
-    if not st.session_state.recommendation:
-        st.info(
-            "👈 Start a conversation in the **Chat** tab to get ranked deployment recommendations"
-        )
-        return
-
-    # Get the original message from the conversation
-    user_messages = [m for m in st.session_state.messages if m["role"] == "user"]
-    if not user_messages:
-        st.warning("No conversation history found")
-        return
-
-    last_user_message = user_messages[-1]["content"]
-
-    # Configuration section
-    with st.expander("⚙️ Configuration", expanded=False):
-        # Filters row
-        st.markdown("**Filters**")
-        filter_col1, filter_col2 = st.columns(2)
-        with filter_col1:
-            min_accuracy = st.slider(
-                "Minimum Accuracy Score",
-                min_value=0,
-                max_value=100,
-                value=0,
-                help="Filter out configurations below this accuracy threshold (0 = no filter)",
-            )
-        with filter_col2:
-            max_cost = st.number_input(
-                "Maximum Monthly Cost ($)",
-                min_value=0,
-                value=0,
-                help="Filter out configurations above this cost (0 = no filter)",
-            )
-
-        st.markdown("---")
-
-        # Balanced weights row
-        st.markdown("**Balanced Score Weights** (0-10 scale)")
-        weight_col1, weight_col2, weight_col3, weight_col4 = st.columns(4)
-        with weight_col1:
-            weight_accuracy = st.number_input(
-                "Accuracy",
-                min_value=0,
-                max_value=10,
-                value=4,
-                help="Weight for accuracy score (default: 4)",
-            )
-        with weight_col2:
-            weight_price = st.number_input(
-                "Price",
-                min_value=0,
-                max_value=10,
-                value=4,
-                help="Weight for price score (default: 4)",
-            )
-        with weight_col3:
-            weight_latency = st.number_input(
-                "Latency",
-                min_value=0,
-                max_value=10,
-                value=1,
-                help="Weight for latency score (default: 1)",
-            )
-        with weight_col4:
-            weight_complexity = st.number_input(
-                "Complexity",
-                min_value=0,
-                max_value=10,
-                value=1,
-                help="Weight for complexity score (default: 1)",
-            )
-
-        # Show normalized weights
-        total_weight = weight_accuracy + weight_price + weight_latency + weight_complexity
-        if total_weight > 0:
-            st.caption(
-                f"Normalized: Accuracy={weight_accuracy/total_weight:.0%}, "
-                f"Price={weight_price/total_weight:.0%}, "
-                f"Latency={weight_latency/total_weight:.0%}, "
-                f"Complexity={weight_complexity/total_weight:.0%}"
-            )
-        else:
-            st.warning("At least one weight must be greater than 0")
-
-        if st.button("Apply Configuration & Refresh"):
-            # Build weights dict
-            weights = {
-                "accuracy": weight_accuracy,
-                "price": weight_price,
-                "latency": weight_latency,
-                "complexity": weight_complexity,
-            }
-            with st.spinner("Fetching ranked recommendations..."):
-                fetch_ranked_recommendations(
-                    last_user_message,
-                    min_accuracy if min_accuracy > 0 else None,
-                    max_cost if max_cost > 0 else None,
-                    weights=weights,
-                )
-            st.rerun()
-
-    # Fetch rankings if not cached or message changed
-    if (
-        st.session_state.ranked_recommendations is None
-        or st.session_state.ranked_request_message != last_user_message
-    ):
-        with st.spinner("Fetching ranked recommendations..."):
-            if not fetch_ranked_recommendations(last_user_message):
-                return
-
-    ranked = st.session_state.ranked_recommendations
-    if not ranked:
-        st.warning("No ranked recommendations available")
-        return
-
-    # Statistics
-    st.markdown(
-        f"**{ranked.get('total_configs_evaluated', 0)}** configurations evaluated, "
-        f"**{ranked.get('configs_after_filters', 0)}** after filters"
-    )
-
-    st.markdown("---")
-
-    # Ranking view selector
-    ranking_views = {
-        "⚖️ Balanced": "balanced",
-        "🎯 Best Accuracy": "best_accuracy",
-        "💰 Lowest Cost": "lowest_cost",
-        "⚡ Lowest Latency": "lowest_latency",
-        "🔧 Simplest": "simplest",
-    }
-
-    selected_view = st.selectbox(
-        "Sort by:",
-        options=list(ranking_views.keys()),
-        index=0,
-        help="Choose how to rank the configurations",
-    )
-
-    view_key = ranking_views[selected_view]
-    configs = ranked.get(view_key, [])
-
-    if not configs:
-        st.info(f"No configurations available for {selected_view} ranking")
-        return
-
-    # Display table header
-    st.markdown(f"### Top {len(configs)} - {selected_view}")
-
-    header_cols = st.columns([0.5, 1.8, 1.2, 0.6, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
-    header_cols[0].markdown("**#**")
-    header_cols[1].markdown("**Model**")
-    header_cols[2].markdown("**GPU Config**")
-    header_cols[3].markdown("**Replicas**")
-    header_cols[4].markdown("**Accuracy**")
-    header_cols[5].markdown("**Price**")
-    header_cols[6].markdown("**Latency**")
-    header_cols[7].markdown("**Complexity**")
-    header_cols[8].markdown("**Balanced**")
-    header_cols[9].markdown("**Cost/Month**")
-
-    # Display each configuration
-    for i, config in enumerate(configs, 1):
-        scores = config.get("scores", {})
-        slo_status = scores.get("slo_status", "unknown")
-        status_icon = "✅" if slo_status == "compliant" else "⚠️"
-
-        gpu_config = config.get("gpu_config", {})
-        tensor_parallel = gpu_config.get("tensor_parallel", 1)
-        replicas = gpu_config.get("replicas", 1)
-        gpu_str = f"{tensor_parallel}x {gpu_config.get('gpu_type', 'Unknown')}"
-
-        cols = st.columns([0.5, 1.8, 1.2, 0.6, 0.8, 0.8, 0.8, 0.8, 0.8, 1])
-        cols[0].markdown(f"**{i}.**")
-        cols[1].markdown(f"{status_icon} {config.get('model_name', 'Unknown')}")
-        cols[2].markdown(gpu_str)
-        cols[3].markdown(f"{replicas}")
-        cols[4].markdown(f"{scores.get('accuracy_score', '-')}")
-        cols[5].markdown(f"{scores.get('price_score', '-')}")
-        cols[6].markdown(f"{scores.get('latency_score', '-')}")
-        cols[7].markdown(f"{scores.get('complexity_score', '-')}")
-        cols[8].markdown(f"{scores.get('balanced_score', '-'):.1f}")
-        cols[9].markdown(f"${config.get('cost_per_month_usd', 0):,.0f}")
-
-    # Legend
-    st.markdown("---")
-    st.caption("✅ Meets SLO targets | ⚠️ Near-miss (within 20% of SLO)")
-    st.caption("Scores are 0-100 (higher is better)")
 
 
 def render_deployment_management_tab():
@@ -819,6 +656,86 @@ def render_overview_tab(rec: dict[str, Any]):
         st.markdown("---")
         st.markdown("### 📝 Details")
         st.markdown(rec.get("reasoning", "No additional details available"))
+        
+        # ═══════════════════════════════════════════════════════════════════════════
+        # JSON OUTPUT SECTION - Always show even when no recommendation
+        # ═══════════════════════════════════════════════════════════════════════════
+        st.markdown("---")
+        st.markdown("### 📋 Structured Output (JSON)")
+        st.caption("Machine-readable outputs showing what was extracted from your request")
+        
+        intent = rec.get("intent", {})
+        slo = rec.get("slo_targets", {})
+        traffic = rec.get("traffic_profile", {})
+        
+        json_col1, json_col2 = st.columns(2)
+        
+        with json_col1:
+            st.markdown("#### JSON 1: Task Analysis")
+            task_json = {
+                "use_case": intent.get("use_case", "unknown"),
+                "user_count": intent.get("user_count", 0),
+            }
+            if intent.get("priority"):
+                task_json["priority"] = intent["priority"]
+            if intent.get("hardware_preference"):
+                task_json["hardware"] = intent["hardware_preference"]
+            if intent.get("domain_specialization") and intent["domain_specialization"] != ["general"]:
+                task_json["domain"] = intent["domain_specialization"]
+            st.json(task_json)
+        
+        with json_col2:
+            st.markdown("#### JSON 2: SLO Specification")
+            # Load from usecase_slo_workload.json based on detected use case
+            use_case_id = intent.get("use_case", "chatbot_conversational")
+            use_case_config = USECASE_SLO_WORKLOAD.get(use_case_id, {})
+            
+            # Detect priority from intent
+            priority = intent.get("priority", "balanced")
+            if not priority:
+                # Infer from latency_requirement
+                latency_req = intent.get("latency_requirement", "medium")
+                priority = "low_latency" if latency_req in ["very_high", "high"] else "balanced"
+            
+            # Build JSON 2 in the exact format from usecase_slo_workload.json
+            if use_case_config:
+                base_slo_targets = use_case_config.get("slo_targets", {})
+                # Apply priority-based adjustment
+                adjusted_slo_targets = apply_priority_adjustment(base_slo_targets, priority)
+                
+                slo_json = {
+                    "description": use_case_config.get("description", ""),
+                    "workload": use_case_config.get("workload", {}),
+                    "slo_targets": adjusted_slo_targets
+                }
+                
+                # Add adjustment info if priority was applied
+                if priority != "balanced" and priority in PRIORITY_ADJUSTMENTS:
+                    slo_json["adjustment"] = {
+                        "priority": priority,
+                        "note": PRIORITY_ADJUSTMENTS[priority]["description"]
+                    }
+            else:
+                # Fallback to API response if config not found
+                ttft_range = slo.get("ttft_range", {"min": 0, "max": slo.get("ttft_p95_target_ms", 0)})
+                itl_range = slo.get("itl_range", {"min": 0, "max": slo.get("itl_p95_target_ms", 0)})
+                e2e_range = slo.get("e2e_range", {"min": 0, "max": slo.get("e2e_p95_target_ms", 0)})
+                slo_json = {
+                    "workload": {
+                        "distribution": "poisson",
+                        "active_fraction": 0.20,
+                        "requests_per_active_user_per_min": 0.4,
+                        "peak_multiplier": 2.0
+                    },
+                    "slo_targets": {
+                        "ttft_ms": {"min": ttft_range.get("min", 0), "max": ttft_range.get("max", 0)},
+                        "itl_ms": {"min": itl_range.get("min", 0), "max": itl_range.get("max", 0)},
+                        "e2e_ms": {"min": e2e_range.get("min", 0), "max": e2e_range.get("max", 0)},
+                    }
+                }
+            
+            st.json(slo_json)
+        
         return
 
     # SLO Status Badge
@@ -1304,6 +1221,84 @@ def render_specifications_tab(rec: dict[str, Any]):
                 # Increment session key to force widget recreation with original values
                 st.session_state.edit_session_key += 1
                 st.rerun()
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # JSON OUTPUT SECTION - Shows the 2 structured JSONs
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.markdown("---")
+    st.markdown("### 📋 Structured Output (JSON)")
+    st.caption("Machine-readable outputs for integration with other systems")
+
+    json_col1, json_col2 = st.columns(2)
+
+    with json_col1:
+        st.markdown("#### JSON 1: Task Analysis")
+        # Build Task Analysis JSON
+        task_json = {
+            "use_case": intent["use_case"],
+            "user_count": intent["user_count"],
+        }
+        # Add optional fields only if present
+        if intent.get("priority"):
+            task_json["priority"] = intent["priority"]
+        if intent.get("hardware_preference"):
+            task_json["hardware"] = intent["hardware_preference"]
+        if intent.get("domain_specialization") and intent["domain_specialization"] != ["general"]:
+            task_json["domain"] = intent["domain_specialization"]
+
+        st.json(task_json)
+
+    with json_col2:
+        st.markdown("#### JSON 2: SLO Specification")
+        # Load from usecase_slo_workload.json based on detected use case
+        use_case_id = intent.get("use_case", "chatbot_conversational")
+        use_case_config = USECASE_SLO_WORKLOAD.get(use_case_id, {})
+        
+        # Detect priority from intent
+        priority = intent.get("priority", "balanced")
+        if not priority:
+            # Infer from latency_requirement
+            latency_req = intent.get("latency_requirement", "medium")
+            priority = "low_latency" if latency_req in ["very_high", "high"] else "balanced"
+        
+        # Build JSON 2 in the exact format from usecase_slo_workload.json
+        if use_case_config:
+            base_slo_targets = use_case_config.get("slo_targets", {})
+            # Apply priority-based adjustment
+            adjusted_slo_targets = apply_priority_adjustment(base_slo_targets, priority)
+            
+            slo_json = {
+                "description": use_case_config.get("description", ""),
+                "workload": use_case_config.get("workload", {}),
+                "slo_targets": adjusted_slo_targets
+            }
+            
+            # Add adjustment info if priority was applied
+            if priority != "balanced" and priority in PRIORITY_ADJUSTMENTS:
+                slo_json["adjustment"] = {
+                    "priority": priority,
+                    "note": PRIORITY_ADJUSTMENTS[priority]["description"]
+                }
+        else:
+            # Fallback to API response if config not found
+            ttft_range = slo.get("ttft_range", {"min": 0, "max": slo.get("ttft_p95_target_ms", 0)})
+            itl_range = slo.get("itl_range", {"min": 0, "max": slo.get("itl_p95_target_ms", 0)})
+            e2e_range = slo.get("e2e_range", {"min": 0, "max": slo.get("e2e_p95_target_ms", 0)})
+            slo_json = {
+                "workload": {
+                    "distribution": "poisson",
+                    "active_fraction": 0.20,
+                    "requests_per_active_user_per_min": 0.4,
+                    "peak_multiplier": 2.0
+                },
+                "slo_targets": {
+                    "ttft_ms": {"min": ttft_range.get("min", 0), "max": ttft_range.get("max", 0)},
+                    "itl_ms": {"min": itl_range.get("min", 0), "max": itl_range.get("max", 0)},
+                    "e2e_ms": {"min": e2e_range.get("min", 0), "max": e2e_range.get("max", 0)},
+                }
+            }
+
+        st.json(slo_json)
 
 
 def render_performance_tab(rec: dict[str, Any]):
