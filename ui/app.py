@@ -3374,26 +3374,14 @@ def render_slo_cards(use_case: str, user_count: int):
         </div>
         """, unsafe_allow_html=True)
         
-        # Display datasets with weights
-        datasets_html = ""
+        # Display datasets with weights - build HTML as single string
+        datasets_items = []
         for name, weight, color in datasets:
-            datasets_html += f"""
-            <div style="display: flex; justify-content: space-between; align-items: center; 
-                        padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <span style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">{name}</span>
-                <span style="color: {color}; font-weight: 700; font-size: 0.9rem; 
-                             background: {color}22; padding: 2px 8px; border-radius: 4px;">{weight}%</span>
-            </div>
-            """
+            datasets_items.append(f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.9); font-size: 0.9rem;">{name}</span><span style="color: {color}; font-weight: 700; font-size: 0.9rem; background: {color}22; padding: 2px 8px; border-radius: 4px;">{weight}%</span></div>')
         
-        st.markdown(f"""
-        <div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">
-            {datasets_html}
-        </div>
-        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem; font-style: italic;">
-            📖 Weights from Artificial Analysis Intelligence Index methodology
-        </div>
-        """, unsafe_allow_html=True)
+        datasets_html = "".join(datasets_items)
+        full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{datasets_html}</div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem; font-style: italic;">📖 Weights from Artificial Analysis Intelligence Index methodology</div>'
+        st.markdown(full_html, unsafe_allow_html=True)
     
     # Note: col4 removed - "How Your Inputs Affect" section is shown separately on the right side
 
@@ -3424,31 +3412,14 @@ def render_impact_factors_mini(priority: str, user_count: int, hardware: str):
     if hardware and hardware not in ["Any GPU", "Any", None, ""]:
         items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
     
-    # Build HTML
+    # Build HTML as single-line strings to avoid rendering issues
     if items:
-        items_html = "".join([f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">{icon} {label}</span>
-            <span style="color: {color}; font-weight: 600; font-size: 0.85rem;">{value}</span>
-        </div>
-        """ for icon, label, value, color in items])
+        items_html = "".join([f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">{icon} {label}</span><span style="color: {color}; font-weight: 600; font-size: 0.85rem;">{value}</span></div>' for icon, label, value, color in items])
     else:
-        items_html = """
-        <div style="display: flex; justify-content: center; padding: 0.5rem 0;">
-            <span style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-style: italic;">Default settings applied</span>
-        </div>
-        """
+        items_html = '<div style="display: flex; justify-content: center; padding: 0.5rem 0;"><span style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-style: italic;">Default settings applied</span></div>'
     
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); 
-                padding: 1rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);">
-        <div style="color: white; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; 
-                    border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
-            📋 Optional Spec Fields
-        </div>
-        {items_html}
-    </div>
-    """, unsafe_allow_html=True)
+    full_html = f'<div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);"><div style="color: white; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">📋 Optional Spec Fields</div>{items_html}</div>'
+    st.markdown(full_html, unsafe_allow_html=True)
 
 
 def render_impact_factors(priority: str, user_count: int, hardware: str):
@@ -3483,25 +3454,11 @@ def render_impact_factors(priority: str, user_count: int, hardware: str):
     if not items:
         items.append(("⚖️", "Configuration", "Default (Balanced)", "#9ca3af"))
     
-    # Render with clean inline styles (no CSS classes)
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); 
-                padding: 1.25rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);">
-        <div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 1rem; 
-                    display: flex; align-items: center; gap: 0.5rem;
-                    border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;">
-            <span>📋</span> Technical Spec (Optional Fields)
-        </div>
-        {"".join([f'''
-        <div style="display: flex; justify-content: space-between; align-items: center; 
-                    padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.95rem;">{icon} {label}</span>
-            <span style="color: {color}; font-weight: 700; font-size: 0.95rem; 
-                         background: {color}22; padding: 4px 12px; border-radius: 6px;">{value}</span>
-        </div>
-        ''' for icon, label, value, color in items])}
-    </div>
-    """, unsafe_allow_html=True)
+    # Render with clean inline styles - build HTML as single line to avoid rendering issues
+    items_html = "".join([f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.95rem;">{icon} {label}</span><span style="color: {color}; font-weight: 700; font-size: 0.95rem; background: {color}22; padding: 4px 12px; border-radius: 6px;">{value}</span></div>' for icon, label, value, color in items])
+    
+    full_html = f'<div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); padding: 1.25rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);"><div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;"><span>📋</span> Technical Spec (Optional Fields)</div>{items_html}</div>'
+    st.markdown(full_html, unsafe_allow_html=True)
 
 
 # =============================================================================
