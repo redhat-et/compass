@@ -2534,22 +2534,33 @@ def blis_recommendation(context: dict) -> dict:
             "prompt_tokens": top['prompt_tokens'],
             "output_tokens": top['output_tokens'],
         },
-        "all_recommendations": [
+        "recommendations": [
             {
                 "rank": i + 1,
-                "model_name": c['model_name'].replace('-', ' ').title(),
-                "model_hf_repo": c['model_repo'],
-                "hardware": f"{c['hardware']} x{c['hardware_count']}",
-                "score": c['final_score'],
-                "quality_score": c['quality_score'],
-                "latency_score": c['latency_score'],
-                "cost_score": c['cost_score'],
-                "throughput_score": c['throughput_score'],
-                "ttft_p95": c['ttft_p95'],
-                "e2e_p95": c['e2e_p95'],
-                "tokens_per_second": c['tokens_per_second'],
+                "model_name": f"{c['model_name'].replace('-', ' ').title()} on {c['hardware']} x{c['hardware_count']}",
+                "model_id": c['model_repo'],
+                "hardware": c['hardware'],
+                "hardware_count": c['hardware_count'],
+                "final_score": c['final_score'],
+                "score_breakdown": {
+                    "quality_score": c['quality_score'],
+                    "latency_score": c['latency_score'],
+                    "cost_score": c['cost_score'],
+                    "capacity_score": c['throughput_score'],
+                    "quality_contribution": round(c['quality_score'] * weights['quality'] / 100 * c['final_score'], 1),
+                    "latency_contribution": round(c['latency_score'] * weights['latency'] / 100 * c['final_score'], 1),
+                    "cost_contribution": round(c['cost_score'] * weights['cost'] / 100 * c['final_score'], 1),
+                    "capacity_contribution": round(c['throughput_score'] * weights['throughput'] / 100 * c['final_score'], 1),
+                },
+                "blis_metrics": {
+                    "ttft_p95_ms": c['ttft_p95'],
+                    "e2e_p95_ms": c['e2e_p95'],
+                    "tokens_per_second": c['tokens_per_second'],
+                },
                 "cost_monthly": c['hw_cost_monthly'],
                 "meets_slo": c['meets_slo'],
+                "pros": get_model_pros(c, priority),
+                "cons": get_model_cons(c, priority),
             }
             for i, c in enumerate(scored_combos[:10])
         ],
@@ -2574,6 +2585,62 @@ def get_selection_reason(top: dict, priority: str) -> str:
         return f"📈 {model} on {hw} achieves {tps:.0f} tokens/sec throughput from actual BLIS benchmarks."
     else:  # balanced
         return f"⚖️ {model} on {hw} provides optimal balance: {ttft:.0f}ms TTFT, {tps:.0f} tokens/sec, ${cost:,}/mo."
+
+
+def get_model_pros(combo: dict, priority: str) -> list:
+    """Generate pros based on ACTUAL BLIS metrics."""
+    pros = []
+    ttft = combo['ttft_p95']
+    tps = combo['tokens_per_second']
+    cost = combo['hw_cost_monthly']
+    quality = combo['quality_score']
+    
+    if ttft < 50:
+        pros.append(f"⚡ Ultra-fast TTFT ({ttft:.0f}ms)")
+    elif ttft < 100:
+        pros.append(f"⚡ Fast TTFT ({ttft:.0f}ms)")
+    
+    if tps > 400:
+        pros.append(f"🚀 High throughput ({tps:.0f} tok/s)")
+    elif tps > 200:
+        pros.append(f"📈 Good throughput ({tps:.0f} tok/s)")
+    
+    if cost < 3000:
+        pros.append(f"💰 Cost-efficient (${cost:,}/mo)")
+    
+    if quality > 50:
+        pros.append(f"⭐ High quality ({quality:.0f}%)")
+    
+    if combo['meets_slo']:
+        pros.append("✅ Meets SLO targets")
+    
+    return pros[:4] if pros else ["📊 BLIS benchmarked"]
+
+
+def get_model_cons(combo: dict, priority: str) -> list:
+    """Generate cons based on ACTUAL BLIS metrics."""
+    cons = []
+    ttft = combo['ttft_p95']
+    tps = combo['tokens_per_second']
+    cost = combo['hw_cost_monthly']
+    quality = combo['quality_score']
+    
+    if ttft > 200:
+        cons.append(f"⏱️ Higher latency ({ttft:.0f}ms)")
+    
+    if tps < 100:
+        cons.append(f"📉 Lower throughput ({tps:.0f} tok/s)")
+    
+    if cost > 10000:
+        cons.append(f"💸 Premium cost (${cost:,}/mo)")
+    
+    if quality < 40:
+        cons.append(f"📊 Lower quality score ({quality:.0f}%)")
+    
+    if not combo['meets_slo']:
+        cons.append("⚠️ May not meet SLO")
+    
+    return cons[:2]
 
 
 def mock_recommendation_fallback(context: dict) -> dict:
