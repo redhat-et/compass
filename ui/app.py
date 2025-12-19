@@ -1880,15 +1880,6 @@ def validate_slo_against_research(use_case: str, ttft: int, itl: int, e2e: int, 
             "success"
         ))
     
-    # Add BLIS benchmark summary
-    token_config = use_case_ranges.get('token_config', {})
-    if token_config:
-        messages.append((
-            "📊", "#6366f1",
-            f"BLIS Config: {token_config.get('prompt', '?')} prompt / {token_config.get('output', '?')} output tokens",
-            "info"
-        ))
-    
     # Add research note
     if use_case_ranges.get('research_note'):
         messages.append((
@@ -2044,32 +2035,6 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
             f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
             "info"
         ))
-        
-        # Check if QPS matches BLIS tested range
-        if qps > blis_max_rps:
-            messages.append((
-                "⚠️", "#f5576c",
-                f"QPS ({qps}) exceeds BLIS max tested ({blis_max_rps}). May need horizontal scaling!",
-                "warning"
-            ))
-        elif qps < expected_peak_rps * 0.5:
-            messages.append((
-                "⚠️", "#fbbf24",
-                f"QPS ({qps}) LOW vs expected peak ({int(expected_peak_rps)}). Risk of under-provisioning!",
-                "warning"
-            ))
-        elif qps > expected_peak_rps * 2:
-            messages.append((
-                "💸", "#3b82f6",
-                f"QPS ({qps}) HIGH vs expected ({int(expected_peak_rps)}). Consider smaller deployment.",
-                "info"
-            ))
-        else:
-            messages.append((
-                "✅", "#10b981",
-                f"QPS ({qps}) ✓ within BLIS tested range (optimal: {blis_optimal_rps})",
-                "success"
-            ))
         
         # Add BLIS E2E latency at optimal load
         if blis_e2e_p95:
@@ -3509,20 +3474,20 @@ def render_score_bar(label: str, icon: str, score: float, bar_class: str, contri
     """, unsafe_allow_html=True)
 
 
-def render_slo_cards(use_case: str, user_count: int):
+def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced", hardware: str = None):
     """Render SLO and workload impact cards with editable fields."""
     slo_templates = load_slo_templates()
     slo = slo_templates.get(use_case, slo_templates["chatbot_conversational"])
-    
+
     # Calculate QPS based on user count
     estimated_qps = max(1, user_count // 50)
-    
+
     # Use custom values if set, otherwise use defaults
     ttft = st.session_state.custom_ttft if st.session_state.custom_ttft else slo['ttft']
     itl = st.session_state.custom_itl if st.session_state.custom_itl else slo['itl']
     e2e = st.session_state.custom_e2e if st.session_state.custom_e2e else slo['e2e']
     qps = st.session_state.custom_qps if st.session_state.custom_qps else estimated_qps
-    
+
     # Golden styled section header
     st.markdown("""
     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
@@ -3530,9 +3495,9 @@ def render_slo_cards(use_case: str, user_count: int):
         <span style="color: #D4AF37; font-size: 0.85rem; font-weight: 600;">CLICK VALUES TO EDIT</span>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Create 3 columns for the SLO cards (Impact section shown separately)
-    col1, col2, col3 = st.columns(3)
+
+    # Create 4 columns for all cards in one row
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("""
@@ -3603,45 +3568,51 @@ def render_slo_cards(use_case: str, user_count: int):
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Editable QPS - support up to 10M QPS for enterprise scale
+
+        # Load token config and workload data from research
+        research_data = load_research_slo_ranges()
+        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
+        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
+        prompt_tokens = token_config.get('prompt', 512)
+        output_tokens = token_config.get('output', 256)
+
+        workload_data = load_research_workload_patterns()
+        pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
+        peak_mult = pattern.get('peak_multiplier', 2.0)
+
+        # 1. Editable QPS - support up to 10M QPS for enterprise scale
         new_qps = st.number_input("Expected QPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
         st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">📊 Expected QPS: <span style="color: #4facfe; font-weight: 700; font-size: 1rem;">{new_qps}</span></div>', unsafe_allow_html=True)
-        
+
         if new_qps != qps:
             st.session_state.custom_qps = new_qps
-        
-        # Get workload insights from research data
+
+        # 2-4. Fixed workload values in a styled box (Mean Prompt Tokens, Mean Output Tokens, Peak Multiplier)
+        st.markdown(f"""
+        <div style="margin-top: 0.5rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: help;" title="Value determined by use case">
+                <span style="color: rgba(255,255,255,0.8);">📏 Mean Prompt Tokens</span>
+                <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem;">{prompt_tokens}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); cursor: help;" title="Value determined by use case">
+                <span style="color: rgba(255,255,255,0.8);">📏 Mean Output Tokens</span>
+                <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem;">{output_tokens}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 1rem; cursor: help;" title="Value determined by use case">
+                <span style="color: rgba(255,255,255,0.8);">📈 Peak Multiplier</span>
+                <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem;">{peak_mult}x</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 5. Informational messages from research data
         workload_messages = get_workload_insights(use_case, new_qps, user_count)
-        
-        # Show workload pattern insights - bigger font
+
         for icon, color, text, severity in workload_messages[:3]:  # Limit to 3 for space
             bg_color = "rgba(245, 87, 108, 0.1)" if severity == "error" else \
                        "rgba(251, 191, 36, 0.1)" if severity == "warning" else \
                        "rgba(56, 239, 125, 0.08)" if severity == "success" else "rgba(88, 166, 255, 0.08)"
             st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: {bg_color}; border-radius: 6px; margin: 4px 0;">{icon} {text}</div>', unsafe_allow_html=True)
-        
-        # Legacy QPS validation (fallback)
-        if new_qps > 500 and not any(m[3] == 'warning' for m in workload_messages):
-            st.markdown('<div style="font-size: 0.85rem; color: #f5576c; padding: 0.4rem 0.5rem; background: rgba(245, 87, 108, 0.1); border-radius: 6px; margin: 4px 0;">⚠️ QPS > 500 needs multiple replicas</div>', unsafe_allow_html=True)
-        
-        # Fixed workload values from research
-        workload_data = load_research_workload_patterns()
-        pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
-        peak_mult = pattern.get('peak_multiplier', 2.0)
-        
-        st.markdown(f"""
-        <div style="margin-top: 0.75rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px;">
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <span style="color: rgba(255,255,255,0.8);">Peak Multiplier</span>
-                <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem;">{peak_mult}x</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; font-size: 1rem;">
-                <span style="color: rgba(255,255,255,0.8);">Concurrency</span>
-                <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem;">{min(100, new_qps * 2)}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
     
     with col3:
         # Task Datasets - show which benchmarks are used for this use case
@@ -3727,83 +3698,53 @@ def render_slo_cards(use_case: str, user_count: int):
         datasets_html = "".join(datasets_items)
         full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{datasets_html}</div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem; font-style: italic;">📖 Weights from Artificial Analysis Intelligence Index methodology</div>'
         st.markdown(full_html, unsafe_allow_html=True)
-    
-    # Note: col4 removed - "How Your Inputs Affect" section is shown separately on the right side
 
+    with col4:
+        # Technical Spec (Optional Fields) - same style as other cards
+        st.markdown("""
+        <div class="slo-card">
+            <div class="slo-header">
+                <span class="slo-icon">📋</span>
+                <span class="slo-title">Technical Spec (Optional Fields)</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-def render_impact_factors_mini(priority: str, user_count: int, hardware: str):
-    """Compact impact factors display - shows only fields from Technical Spec schema."""
-    # Build items based on what user mentioned
-    items = []
-    
-    # Priority - only show if not balanced
-    if priority and priority != "balanced":
-        priority_display = priority.replace('_', ' ').title()
-        priority_color = {
-            "low_latency": "#667eea",
-            "cost_saving": "#f5576c", 
-            "high_quality": "#38ef7d",
-            "high_throughput": "#4facfe"
-        }.get(priority, "#9ca3af")
-        priority_icon = {
-            "low_latency": "⚡",
-            "cost_saving": "💰", 
-            "high_quality": "⭐",
-            "high_throughput": "📈"
-        }.get(priority, "🎯")
-        items.append((priority_icon, "Priority", priority_display, priority_color))
-    
-    # Hardware - only show if user explicitly mentioned it
-    if hardware and hardware not in ["Any GPU", "Any", None, ""]:
-        items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
-    
-    # Build HTML as single-line strings to avoid rendering issues
-    if items:
-        items_html = "".join([f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">{icon} {label}</span><span style="color: {color}; font-weight: 600; font-size: 0.85rem;">{value}</span></div>' for icon, label, value, color in items])
-    else:
-        items_html = '<div style="display: flex; justify-content: center; padding: 0.5rem 0;"><span style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-style: italic;">Default settings applied</span></div>'
-    
-    full_html = f'<div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);"><div style="color: white; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">📋 Optional Spec Fields</div>{items_html}</div>'
-    st.markdown(full_html, unsafe_allow_html=True)
+        # Build items based on what user mentioned
+        items = []
 
+        # Priority - only show if not balanced
+        if priority and priority != "balanced":
+            priority_display = priority.replace('_', ' ').title()
+            priority_color = {
+                "low_latency": "#667eea",
+                "cost_saving": "#f5576c",
+                "high_quality": "#38ef7d",
+                "high_throughput": "#4facfe"
+            }.get(priority, "#9ca3af")
+            priority_icon = {
+                "low_latency": "⚡",
+                "cost_saving": "💰",
+                "high_quality": "⭐",
+                "high_throughput": "📈"
+            }.get(priority, "🎯")
+            items.append((priority_icon, "Priority", priority_display, priority_color))
 
-def render_impact_factors(priority: str, user_count: int, hardware: str):
-    """Render how different factors impact the recommendation.
-    Based on Technical Spec schema - only shows fields that were explicitly mentioned.
-    """
-    # Build items dynamically based on what user mentioned
-    items = []
-    
-    # Priority - only show if not balanced (user explicitly mentioned a priority)
-    if priority and priority != "balanced":
-        priority_display = priority.replace('_', ' ').title()
-        priority_icon = {
-            "low_latency": "⚡",
-            "cost_saving": "💰", 
-            "high_quality": "⭐",
-            "high_throughput": "📈"
-        }.get(priority, "🎯")
-        priority_color = {
-            "low_latency": "#667eea",
-            "cost_saving": "#f5576c", 
-            "high_quality": "#38ef7d",
-            "high_throughput": "#4facfe"
-        }.get(priority, "#9ca3af")
-        items.append((priority_icon, "Priority", priority_display, priority_color))
-    
-    # Hardware - only show if user explicitly mentioned it
-    if hardware and hardware not in ["Any GPU", "Any", None, ""]:
-        items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
-    
-    # If nothing to show
-    if not items:
-        items.append(("⚖️", "Configuration", "Default (Balanced)", "#9ca3af"))
-    
-    # Render with clean inline styles - build HTML as single line to avoid rendering issues
-    items_html = "".join([f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.95rem;">{icon} {label}</span><span style="color: {color}; font-weight: 700; font-size: 0.95rem; background: {color}22; padding: 4px 12px; border-radius: 6px;">{value}</span></div>' for icon, label, value, color in items])
-    
-    full_html = f'<div style="background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); padding: 1.25rem; border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);"><div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;"><span>📋</span> Technical Spec (Optional Fields)</div>{items_html}</div>'
-    st.markdown(full_html, unsafe_allow_html=True)
+        # Hardware - only show if user explicitly mentioned it
+        if hardware and hardware not in ["Any GPU", "Any", None, ""]:
+            items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
+
+        # Build content HTML
+        if items:
+            items_html = "".join([
+                f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{icon} {label}</span><span style="color: {color}; font-weight: 700; font-size: 0.9rem; background: {color}22; padding: 4px 10px; border-radius: 6px;">{value}</span></div>'
+                for icon, label, value, color in items
+            ])
+        else:
+            items_html = '<div style="display: flex; justify-content: center; padding: 1rem 0;"><span style="color: rgba(255,255,255,0.5); font-size: 0.85rem; font-style: italic;">Default settings applied</span></div>'
+
+        full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{items_html}</div>'
+        st.markdown(full_html, unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -4318,13 +4259,9 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     use_case = extraction.get("use_case", "chatbot_conversational")
     user_count = extraction.get("user_count", 1000)
     hardware = extraction.get("hardware")
-    
-    # SLO and Impact Cards
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        render_slo_cards(use_case, user_count)
-    with col2:
-        render_impact_factors(priority, user_count, hardware)
+
+    # SLO and Impact Cards - all 4 cards in one row
+    render_slo_cards(use_case, user_count, priority, hardware)
     
     # Proceed button
     st.markdown("<br>", unsafe_allow_html=True)
