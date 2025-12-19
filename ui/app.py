@@ -1880,8 +1880,6 @@ def validate_slo_against_research(use_case: str, ttft: int, itl: int, e2e: int, 
             "success"
         ))
     
-    # Note: BLIS token config is now shown in the Workload Profile column
-    
     # Add research note
     if use_case_ranges.get('research_note'):
         messages.append((
@@ -2037,32 +2035,6 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
             f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
             "info"
         ))
-        
-        # Check if QPS matches BLIS tested range
-        if qps > blis_max_rps:
-            messages.append((
-                "⚠️", "#f5576c",
-                f"QPS ({qps}) exceeds BLIS max tested ({blis_max_rps}). May need horizontal scaling!",
-                "warning"
-            ))
-        elif qps < expected_peak_rps * 0.5:
-            messages.append((
-                "⚠️", "#fbbf24",
-                f"QPS ({qps}) LOW vs expected peak ({int(expected_peak_rps)}). Risk of under-provisioning!",
-                "warning"
-            ))
-        elif qps > expected_peak_rps * 2:
-            messages.append((
-                "💸", "#3b82f6",
-                f"QPS ({qps}) HIGH vs expected ({int(expected_peak_rps)}). Consider smaller deployment.",
-                "info"
-            ))
-        else:
-            messages.append((
-                "✅", "#10b981",
-                f"QPS ({qps}) ✓ within BLIS tested range (optimal: {blis_optimal_rps})",
-                "success"
-            ))
         
         # Add BLIS E2E latency at optimal load
         if blis_e2e_p95:
@@ -3641,10 +3613,6 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                        "rgba(251, 191, 36, 0.1)" if severity == "warning" else \
                        "rgba(56, 239, 125, 0.08)" if severity == "success" else "rgba(88, 166, 255, 0.08)"
             st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: {bg_color}; border-radius: 6px; margin: 4px 0;">{icon} {text}</div>', unsafe_allow_html=True)
-
-        # Legacy QPS validation (fallback)
-        if new_qps > 500 and not any(m[3] == 'warning' for m in workload_messages):
-            st.markdown('<div style="font-size: 0.85rem; color: #f5576c; padding: 0.4rem 0.5rem; background: rgba(245, 87, 108, 0.1); border-radius: 6px; margin: 4px 0;">⚠️ QPS > 500 needs multiple replicas</div>', unsafe_allow_html=True)
     
     with col3:
         # Task Datasets - show which benchmarks are used for this use case
