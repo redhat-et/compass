@@ -3509,20 +3509,20 @@ def render_score_bar(label: str, icon: str, score: float, bar_class: str, contri
     """, unsafe_allow_html=True)
 
 
-def render_slo_cards(use_case: str, user_count: int):
+def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced", hardware: str = None):
     """Render SLO and workload impact cards with editable fields."""
     slo_templates = load_slo_templates()
     slo = slo_templates.get(use_case, slo_templates["chatbot_conversational"])
-    
+
     # Calculate QPS based on user count
     estimated_qps = max(1, user_count // 50)
-    
+
     # Use custom values if set, otherwise use defaults
     ttft = st.session_state.custom_ttft if st.session_state.custom_ttft else slo['ttft']
     itl = st.session_state.custom_itl if st.session_state.custom_itl else slo['itl']
     e2e = st.session_state.custom_e2e if st.session_state.custom_e2e else slo['e2e']
     qps = st.session_state.custom_qps if st.session_state.custom_qps else estimated_qps
-    
+
     # Golden styled section header
     st.markdown("""
     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
@@ -3530,9 +3530,9 @@ def render_slo_cards(use_case: str, user_count: int):
         <span style="color: #D4AF37; font-size: 0.85rem; font-weight: 600;">CLICK VALUES TO EDIT</span>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Create 3 columns for the SLO cards (Impact section shown separately)
-    col1, col2, col3 = st.columns(3)
+
+    # Create 4 columns for all cards in one row
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("""
@@ -3727,8 +3727,53 @@ def render_slo_cards(use_case: str, user_count: int):
         datasets_html = "".join(datasets_items)
         full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{datasets_html}</div><div style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 0.5rem; font-style: italic;">📖 Weights from Artificial Analysis Intelligence Index methodology</div>'
         st.markdown(full_html, unsafe_allow_html=True)
-    
-    # Note: col4 removed - "How Your Inputs Affect" section is shown separately on the right side
+
+    with col4:
+        # Technical Spec (Optional Fields) - same style as other cards
+        st.markdown("""
+        <div class="slo-card">
+            <div class="slo-header">
+                <span class="slo-icon">📋</span>
+                <span class="slo-title">Technical Spec (Optional Fields)</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Build items based on what user mentioned
+        items = []
+
+        # Priority - only show if not balanced
+        if priority and priority != "balanced":
+            priority_display = priority.replace('_', ' ').title()
+            priority_color = {
+                "low_latency": "#667eea",
+                "cost_saving": "#f5576c",
+                "high_quality": "#38ef7d",
+                "high_throughput": "#4facfe"
+            }.get(priority, "#9ca3af")
+            priority_icon = {
+                "low_latency": "⚡",
+                "cost_saving": "💰",
+                "high_quality": "⭐",
+                "high_throughput": "📈"
+            }.get(priority, "🎯")
+            items.append((priority_icon, "Priority", priority_display, priority_color))
+
+        # Hardware - only show if user explicitly mentioned it
+        if hardware and hardware not in ["Any GPU", "Any", None, ""]:
+            items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
+
+        # Build content HTML
+        if items:
+            items_html = "".join([
+                f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{icon} {label}</span><span style="color: {color}; font-weight: 700; font-size: 0.9rem; background: {color}22; padding: 4px 10px; border-radius: 6px;">{value}</span></div>'
+                for icon, label, value, color in items
+            ])
+        else:
+            items_html = '<div style="display: flex; justify-content: center; padding: 1rem 0;"><span style="color: rgba(255,255,255,0.5); font-size: 0.85rem; font-style: italic;">Default settings applied</span></div>'
+
+        full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{items_html}</div>'
+        st.markdown(full_html, unsafe_allow_html=True)
 
 
 def render_impact_factors_mini(priority: str, user_count: int, hardware: str):
@@ -4318,13 +4363,9 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     use_case = extraction.get("use_case", "chatbot_conversational")
     user_count = extraction.get("user_count", 1000)
     hardware = extraction.get("hardware")
-    
-    # SLO and Impact Cards
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        render_slo_cards(use_case, user_count)
-    with col2:
-        render_impact_factors(priority, user_count, hardware)
+
+    # SLO and Impact Cards - all 4 cards in one row
+    render_slo_cards(use_case, user_count, priority, hardware)
     
     # Proceed button
     st.markdown("<br>", unsafe_allow_html=True)
