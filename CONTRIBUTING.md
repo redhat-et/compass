@@ -5,9 +5,8 @@ Thank you for your interest in contributing to Compass! This document provides g
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Pull Request Guidelines](#pull-request-guidelines)
+- [Recommended Git Workflow](#recommended-git-workflow)
+- [Guidelines](#guidelines)
 - [Commit Message Guidelines](#commit-message-guidelines)
 - [Testing Requirements](#testing-requirements)
 - [Documentation](#documentation)
@@ -17,25 +16,104 @@ Thank you for your interest in contributing to Compass! This document provides g
 
 This project follows standard open source community guidelines. Be respectful, inclusive, and constructive in all interactions.
 
-## Getting Started
+## Recommended Git Workflow
 
-### Setting Up Your Development Environment
+This section describes the complete workflow from setup to submitting a pull request.
 
-1. **Fork the repository** to your own GitHub account
-2. **Clone your fork** locally:
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/compass.git
-   cd compass
-   ```
-3. **Add upstream remote**:
-   ```bash
-   git remote add upstream https://github.com/redhat-et/compass.git
-   ```
-4. **Follow the Quick Start guide** in the [README.md](README.md#quick-start) to set up your environment
+### Initial Setup (One-Time)
 
-## Development Workflow
+**1. Fork the repository** on GitHub to your own account.
 
-### 1. Discuss Before You Code
+**2. Clone your fork locally:**
+```bash
+git clone https://github.com/YOUR_USERNAME/compass.git
+cd compass
+```
+
+**3. Set up remotes:**
+```bash
+# Your fork is already set as 'origin' by the clone
+# Add the main repository as 'upstream'
+git remote add upstream https://github.com/redhat-et/compass.git
+```
+
+Verify your remotes:
+```bash
+git remote -v
+# origin    https://github.com/YOUR_USERNAME/compass.git (fetch)
+# origin    https://github.com/YOUR_USERNAME/compass.git (push)
+# upstream  https://github.com/redhat-et/compass.git (fetch)
+# upstream  https://github.com/redhat-et/compass.git (push)
+```
+
+**4. Set up your development environment** by following the [Quick Start guide](README.md#quick-start).
+
+### Keep Your Main Branch Synchronized
+
+Before starting new work, sync your local main with upstream:
+```bash
+git checkout main
+git fetch upstream
+git rebase upstream/main
+git push origin main    # Keeps your fork's main updated on GitHub
+```
+
+NOTE: Don't make any changes directly on your fork's main branch -- keep it in sync with upstream/main.
+
+### Development Workflow
+
+**1. Create a branch from main:**
+```bash
+git checkout main
+git checkout -b your-feature-name  # branch names like feature/your-feature-name are common but not required.
+git push -u origin your-feature-name
+```
+
+The `-u` flag sets up tracking so future `git push` and `git pull` commands work without specifying the remote.
+
+**2. Do your work and create logical commits:**
+```bash
+# Make changes...
+git add <files>
+git commit -s -m "feat: Add your feature description"
+```
+
+Use the `-s` flag to add the required DCO sign-off. See [Commit Message Guidelines](#commit-message-guidelines) for formatting details.
+
+**3. Push to your fork:**
+```bash
+git push
+```
+
+### Submitting a Pull Request
+
+**1. Before submitting, rebase on upstream/main:**
+```bash
+git fetch upstream
+git rebase upstream/main
+```
+
+Resolve any conflicts if they occur, then force push (needed because rebasing rewrites history):
+```bash
+git push -f
+```
+
+**2. Run tests locally:**
+```bash
+make test
+make lint
+```
+
+**3. Create the PR from GitHub:**
+
+When you're ready to submit your changes in a PR, visit either your fork or the main repo on GitHub. 
+If you've pushed recently, you'll see a prompt: "Compare & pull request" — click it.
+
+Alternatively, go to the upstream repository and click "New pull request", then select your fork and branch.
+
+## Guidelines
+
+### Discuss Before You Code
 
 **For significant changes**, discuss your approach upfront:
 - Open an issue describing the problem and proposed solution
@@ -43,21 +121,7 @@ This project follows standard open source community guidelines. Be respectful, i
 - Wait for feedback from maintainers before investing significant effort
 - Small bug fixes and typos don't require prior discussion
 
-### 2. Work in Your Fork
-
-- Develop all changes in your own fork
-- Create feature branches from `main`:
-  ```bash
-  git checkout -b feature/your-feature-name
-  ```
-- Keep your fork's `main` branch in sync with upstream:
-  ```bash
-  git fetch upstream
-  git checkout main
-  git merge upstream/main
-  ```
-
-### 3. Keep PRs Small and Targeted
+### Keep PRs Small and Targeted
 
 - **Aim for PRs under 500 lines** whenever possible (not counting auto-generated code)
 - Each PR should address a single concern or feature
@@ -76,7 +140,7 @@ PR 3: Add UI components
 PR 4: Wire up UI to backend and add integration tests
 ```
 
-### 4. Coordinate Breaking Changes
+### Coordinate Breaking Changes
 
 If a breaking change is unavoidable:
 - Discuss in an issue first with the "breaking-change" label
@@ -84,23 +148,6 @@ If a breaking change is unavoidable:
 - Consider deprecation warnings before removal
 - For very large refactors, consider working from a branch in the main repository
 - Provide upgrade instructions in the PR description
-
-## Pull Request Guidelines
-
-### Before Submitting
-
-1. **Rebase on upstream/main** to ensure clean integration:
-   ```bash
-   git fetch upstream
-   git rebase upstream/main
-   ```
-2. **Run tests locally**:
-   ```bash
-   make test
-   make lint
-   ```
-3. **Update documentation** if your changes affect user-facing behavior
-4. **Add tests** for new functionality or bug fixes
 
 ### PR Requirements
 
