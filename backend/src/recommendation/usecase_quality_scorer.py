@@ -91,6 +91,63 @@ class UseCaseQualityScorer:
         
         return scores
     
+    # BLIS model variant to AA model mapping (for models with valid AA data)
+    BLIS_TO_AA_MAP = {
+        # === OPTION A: 25 VALID VARIANTS WITH REAL BLIS DATA ===
+        # GPT-OSS (61.62%, 55.23%)
+        "gpt-oss-120b": "gpt-oss-120b (high)",
+        "gpt-oss-20b": "gpt-oss-20b (high)",
+        # Llama 4 Maverick (46.86%)
+        "llama-4-maverick-17b-128e-instruct-fp8": "llama 4 maverick",
+        # Qwen 2.5 7B (44.71%) - maps to Qwen2.5 Max
+        "qwen2.5-7b-instruct": "qwen2.5 max",
+        "qwen2.5-7b-instruct-fp8-dynamic": "qwen2.5 max",
+        "qwen2.5-7b-instruct-quantized.w4a16": "qwen2.5 max",
+        "qwen2.5-7b-instruct-quantized.w8a8": "qwen2.5 max",
+        # Llama 3.3 70B (42.99%)
+        "llama-3.3-70b-instruct": "llama 3.3 instruct 70b",
+        "llama-3.3-70b-instruct-quantized.w4a16": "llama 3.3 instruct 70b",
+        "llama-3.3-70b-instruct-quantized.w8a8": "llama 3.3 instruct 70b",
+        # Llama 4 Scout (42.42%)
+        "llama-4-scout-17b-16e-instruct": "llama 4 scout",
+        "llama-4-scout-17b-16e-instruct-fp8-dynamic": "llama 4 scout",
+        "llama-4-scout-17b-16e-instruct-quantized.w4a16": "llama 4 scout",
+        # Mistral Small 3.1 (35.70%)
+        "mistral-small-3.1-24b-instruct-2503": "mistral small 3.1",
+        "mistral-small-3.1-24b-instruct-2503-fp8-dynamic": "mistral small 3.1",
+        "mistral-small-3.1-24b-instruct-2503-quantized.w4a16": "mistral small 3.1",
+        "mistral-small-3.1-24b-instruct-2503-quantized.w8a8": "mistral small 3.1",
+        # Phi-4 (35.57%)
+        "phi-4": "phi-4",
+        "phi-4-fp8-dynamic": "phi-4",
+        "phi-4-quantized.w4a16": "phi-4",
+        "phi-4-quantized.w8a8": "phi-4",
+        # Mistral Small 24B (33.79%)
+        "mistral-small-24b-instruct-2501": "mistral small 3",
+        # Mixtral 8x7B (20.51%)
+        "mixtral-8x7b-instruct-v0.1": "mixtral 8x7b instruct",
+    }
+    
+    def _normalize_model_name(self, model_name: str) -> str:
+        """Normalize model name by removing quantization suffixes and org prefixes."""
+        name = model_name.lower()
+        
+        # Remove org prefixes
+        if '/' in name:
+            name = name.split('/')[-1]
+        
+        # Remove quantization suffixes
+        suffixes_to_remove = [
+            '-fp8-dynamic', '-fp8', 
+            '-quantized.w4a16', '-quantized.w8a8',
+            '-instruct-2501', '-instruct-2503', '-instruct-hf',
+            '-instruct-v0.1', '-instruct'
+        ]
+        for suffix in suffixes_to_remove:
+            name = name.replace(suffix, '')
+        
+        return name.strip('-').strip()
+    
     def get_quality_score(self, model_name: str, use_case: str) -> float:
         """Get quality score for a model on a specific use case.
         
@@ -99,7 +156,7 @@ class UseCaseQualityScorer:
             use_case: Use case identifier (e.g., "code_completion")
             
         Returns:
-            Quality score 0-100 (higher is better)
+            Quality score 0-100 (higher is better), or 0 if no valid AA data
         """
         # Normalize use case
         use_case_normalized = use_case.lower().replace(" ", "_").replace("-", "_")
@@ -110,27 +167,35 @@ class UseCaseQualityScorer:
         
         scores = self._cache.get(use_case_normalized, {})
         
-        # Try exact match first
+        # Normalize the model name
         model_lower = model_name.lower()
+        base_model = self._normalize_model_name(model_name)
+        
+        # Try exact match first
         if model_lower in scores:
             return scores[model_lower]
         
+        # Try BLIS to AA mapping (for known valid models)
+        for blis_pattern, aa_name in self.BLIS_TO_AA_MAP.items():
+            if blis_pattern in base_model:
+                if aa_name in scores:
+                    logger.debug(f"Matched {model_name} -> {aa_name} via BLIS mapping")
+                    return scores[aa_name]
+        
         # Try partial matching (for HuggingFace repo names)
         for cached_name, score in scores.items():
-            model_words = set(model_lower.replace("-", " ").replace("/", " ").replace("_", " ").split())
+            model_words = set(base_model.replace("-", " ").replace("/", " ").replace("_", " ").split())
             cached_words = set(cached_name.replace("-", " ").replace("/", " ").replace("_", " ").split())
             
             common_words = model_words & cached_words
-            if len(common_words) >= 3:
+            if len(common_words) >= 2:  # Reduced from 3 to 2 for better matching
+                logger.debug(f"Partial match {model_name} -> {cached_name} (common: {common_words})")
                 return score
         
-        # Fallback: return median score for the use case
-        if scores:
-            median_score = sorted(scores.values())[len(scores) // 2]
-            logger.debug(f"No score found for {model_name}, using median: {median_score:.1f}")
-            return median_score
-        
-        return 50.0  # Default fallback
+        # No valid AA data found - return 0 to indicate missing data
+        # This allows filtering out models without quality scores
+        logger.debug(f"No AA score found for {model_name} (base: {base_model})")
+        return 0.0  # Return 0 so min_accuracy filter can exclude these
     
     def get_top_models_for_usecase(self, use_case: str, top_n: int = 10) -> List[Tuple[str, float]]:
         """Get top N models for a specific use case."""

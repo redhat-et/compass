@@ -32,11 +32,11 @@
     "chatbot_conversational": {
       "description": "Real-time conversational chatbots",
       "token_config": {"prompt": 512, "output": 256},
-      "ttft_ms": {"min": 50, "max": 200, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
-      "itl_ms": {"min": 10, "max": 40, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
-      "e2e_ms": {"min": 1000, "max": 5000, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
+      "ttft_ms": {"min": 50, "max": 500, "default": 150, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
+      "itl_ms": {"min": 10, "max": 80, "default": 30, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
+      "e2e_ms": {"min": 500, "max": 5000, "default": 1500, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
       "tokens_per_sec": {"target": 200, "blis_range": [238, 27878]},
-      "research_note": "Nielsen's 1s guideline for conversational flow. BLIS: 345 samples show E2E mean of 3.3s."
+      "research_note": "Nielsen's 1s guideline for conversational flow. Research-based ranges for user experience."
     },
     
     "code_generation_detailed": {
