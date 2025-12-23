@@ -232,13 +232,20 @@ class CapacityPlanner:
             if slo_status == "exceeds" and not include_near_miss:
                 continue
 
-            # Calculate accuracy score
-            # If model is in catalog and we have an evaluator, use score_model()
-            # Otherwise, accuracy = 0
-            if model and model_evaluator:
-                accuracy_score = int(model_evaluator.score_model(model, intent))
-            else:
-                accuracy_score = 0
+            # Calculate accuracy score - USE RAW AA BENCHMARK SCORE
+            # This is the actual model accuracy from Artificial Analysis benchmarks
+            # NOT a composite score with latency/budget bonuses
+            from .usecase_quality_scorer import score_model_quality
+            
+            # Try to get raw AA score using the benchmark model name
+            model_name_for_scoring = model.name if model else bench.model_hf_repo
+            raw_accuracy = score_model_quality(model_name_for_scoring, intent.use_case)
+            
+            # If no score found, try with benchmark's model_hf_repo
+            if raw_accuracy == 0 and bench.model_hf_repo:
+                raw_accuracy = score_model_quality(bench.model_hf_repo, intent.use_case)
+            
+            accuracy_score = int(raw_accuracy)
 
             complexity_score = scorer.score_complexity(gpu_config.gpu_count)
 
