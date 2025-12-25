@@ -4184,7 +4184,20 @@ def render_top5_table(recommendations: list, priority: str):
     
     # Find TOP 5 models for each category
     top5_balanced = sorted(recommendations, key=lambda x: get_scores(x)["final"], reverse=True)[:5]
-    top5_accuracy = sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True)[:5]
+    
+    # For ACCURACY: Show unique models only (accuracy is independent of hardware)
+    # Deduplicate by model_name, keeping the highest scoring config for each model
+    seen_models = set()
+    unique_accuracy_recs = []
+    for rec in sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True):
+        model_name = rec.get('model_name', rec.get('model_id', 'Unknown'))
+        if model_name not in seen_models:
+            seen_models.add(model_name)
+            unique_accuracy_recs.append(rec)
+            if len(unique_accuracy_recs) >= 5:
+                break
+    top5_accuracy = unique_accuracy_recs
+    
     top5_latency = sorted(recommendations, key=lambda x: get_scores(x)["latency"], reverse=True)[:5]
     top5_cost = sorted(recommendations, key=lambda x: get_scores(x)["cost"], reverse=True)[:5]
     top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
