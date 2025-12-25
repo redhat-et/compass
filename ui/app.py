@@ -697,18 +697,12 @@ st.markdown("""
         box-shadow: 0 8px 25px rgba(88, 166, 255, 0.1);
     }
     .extraction-icon {
-        font-size: 2.25rem;
-        width: 60px;
-        height: 60px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 14px;
+        display: none;  /* Hide extraction icons */
     }
-    .extraction-icon-usecase { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2); }
-    .extraction-icon-users { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2); }
-    .extraction-icon-priority { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2); }
-    .extraction-icon-hardware { background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2); }
+    .extraction-icon-usecase { display: none; }
+    .extraction-icon-users { display: none; }
+    .extraction-icon-priority { display: none; }
+    .extraction-icon-hardware { display: none; }
     .extraction-label {
         font-size: 0.8rem;
         color: var(--text-muted);
@@ -892,7 +886,7 @@ st.markdown("""
         background: rgba(255,255,255,0.05);
     }
     
-    /* Priority Badges - Clean pill design */
+    /* Priority Badges - Clean pill design with black background */
     .priority-badge {
         display: inline-flex;
         align-items: center;
@@ -902,16 +896,17 @@ st.markdown("""
         font-weight: 600;
         font-size: 0.9rem;
         color: white;
+        background: #000000;
         transition: transform 0.2s ease;
     }
     .priority-badge:hover {
         transform: scale(1.03);
     }
-    .priority-low_latency { background: linear-gradient(135deg, #059669, var(--accent-green)); }
-    .priority-cost_saving { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); }
-    .priority-high_accuracy { background: linear-gradient(135deg, var(--accent-purple), #7c3aed); }
-    .priority-high_throughput { background: linear-gradient(135deg, var(--accent-orange), var(--accent-pink)); }
-    .priority-balanced { background: linear-gradient(135deg, #6b7280, #4b5563); }
+    .priority-low_latency { background: #000000; color: white; }
+    .priority-cost_saving { background: #000000; color: white; }
+    .priority-high_accuracy { background: #000000; color: white; }
+    .priority-high_throughput { background: #000000; color: white; }
+    .priority-balanced { background: #000000; color: white; }
     
     /* Score Bars - Clean, readable with AA-style */
     .score-container {
@@ -2670,7 +2665,7 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
         expected_peak_rps = expected_rps * peak_multiplier
         
         messages.append((
-            "📊", "#8b5cf6",
+            "", "#000000",
             f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
             "info"
         ))
@@ -4381,22 +4376,22 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     e2e = st.session_state.custom_e2e if st.session_state.custom_e2e else research_defaults['e2e']
     qps = st.session_state.custom_qps if st.session_state.custom_qps else estimated_qps
     
-    # Section header - Step 3: SLO Targets (editable)
+    # Section header - Technical Specifications
     st.markdown("""
-    <div class="section-header" style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(166, 124, 0, 0.1)); border: 1px solid rgba(212, 175, 55, 0.2);">
-        <span>⏱️</span> Step 3: Set Your SLO Targets
+    <div class="section-header" style="background: #000000; border: 1px solid rgba(255,255,255,0.2);">
+        Set Technical Specifications
     </div>
     """, unsafe_allow_html=True)
     
     # Explanation box
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(56, 239, 125, 0.1), rgba(102, 126, 234, 0.05)); 
-                padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border-left: 4px solid #38ef7d;">
+    <div style="background: #000000; 
+                padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.2);">
         <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 0.9rem; line-height: 1.6;">
-            <strong style="color: #38ef7d;">📊 Research-Based Defaults:</strong> Values are set to the <strong>maximum acceptable</strong> 
+            <strong style="color: white;">Research-Based Defaults:</strong> Values are set to the <strong>maximum acceptable</strong> 
             for <em>{use_case.replace('_', ' ').title()}</em> with <em>{priority.replace('_', ' ').title()}</em> priority — showing you <strong>all viable options</strong>.
             <br><br>
-            <strong style="color: #D4AF37;">🎯 How it works:</strong> Only models whose <strong>actual benchmark performance</strong> 
+            <strong style="color: white;">How it works:</strong> Only models whose <strong>actual benchmark performance</strong> 
             meets these SLO targets will be shown. <strong>Lower the values</strong> to filter down to faster/better models.
         </p>
     </div>
@@ -4406,9 +4401,9 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     if 'ttft_range' in research_defaults:
         st.markdown(f"""
         <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-            <span>📐 TTFT Range: {research_defaults['ttft_range']['min']}-{research_defaults['ttft_range']['max']}ms</span>
-            <span>📐 ITL Range: {research_defaults['itl_range']['min']}-{research_defaults['itl_range']['max']}ms</span>
-            <span>📐 E2E Range: {research_defaults['e2e_range']['min']}-{research_defaults['e2e_range']['max']}ms</span>
+            <span>TTFT Range: {research_defaults['ttft_range']['min']}-{research_defaults['ttft_range']['max']}ms</span>
+            <span>ITL Range: {research_defaults['itl_range']['min']}-{research_defaults['itl_range']['max']}ms</span>
+            <span>E2E Range: {research_defaults['e2e_range']['min']}-{research_defaults['e2e_range']['max']}ms</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -4478,13 +4473,15 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         for icon, color, text, _ in warnings:
             st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: rgba(251, 191, 36, 0.1); border-radius: 6px; margin: 4px 0; border-left: 3px solid {color};">{icon} {text}</div>', unsafe_allow_html=True)
         
-        # Show successes (green) - more visible
+        # Show successes - black background white text
         if successes and not errors and not warnings:
-            st.markdown(f'<div style="font-size: 0.9rem; color: #38ef7d; padding: 0.4rem 0.5rem; line-height: 1.4; background: rgba(56, 239, 125, 0.1); border-radius: 6px; margin: 4px 0;">✅ All SLO values within research-backed ranges</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size: 0.9rem; color: white; padding: 0.4rem 0.5rem; line-height: 1.4; background: #000000; border-radius: 6px; margin: 4px 0;">All SLO values within research-backed ranges</div>', unsafe_allow_html=True)
         
-        # Show research note (purple) - bigger font
+        # Show research note - black background
         for icon, color, text, _ in infos:
-            st.markdown(f'<div style="font-size: 0.8rem; color: {color}; padding: 0.35rem 0.5rem; line-height: 1.4; font-style: italic; background: rgba(139, 92, 246, 0.08); border-radius: 5px; margin: 3px 0;">{icon} {text}</div>', unsafe_allow_html=True)
+            # Remove emoji prefix if present
+            clean_text = text.replace('📚 ', '').replace('📐 ', '')
+            st.markdown(f'<div style="font-size: 0.8rem; color: white; padding: 0.35rem 0.5rem; line-height: 1.4; font-style: italic; background: #000000; border-radius: 5px; margin: 3px 0;">{clean_text}</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown("""
@@ -4510,7 +4507,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
         new_qps = st.number_input("Expected QPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">📊 Expected QPS: <span style="color: #4facfe; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected QPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
         
         if new_qps != qps:
             st.session_state.custom_qps = new_qps
@@ -4554,99 +4551,96 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
-                    <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem; background: rgba(56,239,125,0.15); padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
+                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
                 </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
             </div>
             <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
-                    <span style="color: #38ef7d; font-weight: 700; font-size: 1.1rem; background: rgba(56,239,125,0.15); padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
+                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
                 </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
             </div>
             <div style="padding: 0.5rem 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
-                    <span style="color: #f59e0b; font-weight: 700; font-size: 1.1rem; background: rgba(245,158,11,0.15); padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
+                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
                 </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # 5. Informational messages from research data
+        # 5. Informational messages from research data - black background, no emojis
         workload_messages = get_workload_insights(use_case, new_qps, user_count)
         
         for icon, color, text, severity in workload_messages[:3]:  # Limit to 3 for space
-            bg_color = "rgba(245, 87, 108, 0.1)" if severity == "error" else \
-                       "rgba(251, 191, 36, 0.1)" if severity == "warning" else \
-                       "rgba(56, 239, 125, 0.08)" if severity == "success" else "rgba(88, 166, 255, 0.08)"
-            st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: {bg_color}; border-radius: 6px; margin: 4px 0;">{icon} {text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size: 0.85rem; color: white; padding: 0.4rem 0.5rem; line-height: 1.4; background: #000000; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
     
     with col3:
         # Task Datasets - show which benchmarks are used for this use case
-        # Each entry: (name, weight, color, tooltip_description)
+        # Each entry: (name, weight, color, tooltip_description) - all black background
         TASK_DATASETS = {
             "chatbot_conversational": [
-                ("MMLU-Pro", 30, "#38ef7d", "General knowledge critical for conversations (12,032 questions)"),
-                ("IFBench", 30, "#4facfe", "Instruction following CRITICAL for chat behavior (294 questions)"),
-                ("HLE", 20, "#a855f7", "Reasoning capabilities (Humanity's Last Exam - 2,684 questions)"),
-                ("Intelligence Index", 15, "#f59e0b", "Overall intelligence composite score"),
-                ("GPQA", 5, "#667eea", "Scientific reasoning - less needed for general chat (198 questions)"),
+                ("MMLU-Pro", 30, "#000000", "General knowledge critical for conversations (12,032 questions)"),
+                ("IFBench", 30, "#000000", "Instruction following CRITICAL for chat behavior (294 questions)"),
+                ("HLE", 20, "#000000", "Reasoning capabilities (Humanity's Last Exam - 2,684 questions)"),
+                ("Intelligence Index", 15, "#000000", "Overall intelligence composite score"),
+                ("GPQA", 5, "#000000", "Scientific reasoning - less needed for general chat (198 questions)"),
             ],
             "code_completion": [
-                ("LiveCodeBench", 35, "#38ef7d", "Primary code generation benchmark (315 questions)"),
-                ("SciCode", 30, "#4facfe", "Scientific code understanding (338 subproblems)"),
-                ("Coding Index", 20, "#a855f7", "Overall coding ability composite score"),
-                ("Terminal-Bench", 10, "#f59e0b", "Agentic workflows for terminal commands (47 tasks)"),
-                ("IFBench", 5, "#667eea", "Follow code patterns and conventions"),
+                ("LiveCodeBench", 35, "#000000", "Primary code generation benchmark (315 questions)"),
+                ("SciCode", 30, "#000000", "Scientific code understanding (338 subproblems)"),
+                ("Coding Index", 20, "#000000", "Overall coding ability composite score"),
+                ("Terminal-Bench", 10, "#000000", "Agentic workflows for terminal commands (47 tasks)"),
+                ("IFBench", 5, "#000000", "Follow code patterns and conventions"),
             ],
             "code_generation_detailed": [
-                ("LiveCodeBench", 30, "#38ef7d", "Code generation benchmark (315 questions)"),
-                ("SciCode", 25, "#4facfe", "Scientific code generation (338 subproblems)"),
-                ("IFBench", 20, "#a855f7", "Instruction following for generating explanations"),
-                ("Coding Index", 15, "#f59e0b", "Overall coding ability composite"),
-                ("HLE", 10, "#667eea", "Reasoning for code explanations"),
+                ("LiveCodeBench", 30, "#000000", "Code generation benchmark (315 questions)"),
+                ("SciCode", 25, "#000000", "Scientific code generation (338 subproblems)"),
+                ("IFBench", 20, "#000000", "Instruction following for generating explanations"),
+                ("Coding Index", 15, "#000000", "Overall coding ability composite"),
+                ("HLE", 10, "#000000", "Reasoning for code explanations"),
             ],
             "translation": [
-                ("IFBench", 35, "#38ef7d", "Instruction following CRITICAL for accurate translation"),
-                ("MMLU-Pro", 30, "#4facfe", "Language understanding and knowledge"),
-                ("HLE", 20, "#a855f7", "Reasoning capabilities"),
-                ("Intelligence Index", 15, "#f59e0b", "Overall intelligence"),
+                ("IFBench", 35, "#000000", "Instruction following CRITICAL for accurate translation"),
+                ("MMLU-Pro", 30, "#000000", "Language understanding and knowledge"),
+                ("HLE", 20, "#000000", "Reasoning capabilities"),
+                ("Intelligence Index", 15, "#000000", "Overall intelligence"),
             ],
             "content_generation": [
-                ("MMLU-Pro", 30, "#38ef7d", "General knowledge - facts to include in content"),
-                ("HLE", 25, "#4facfe", "Reasoning for coherent content"),
-                ("IFBench", 25, "#a855f7", "Instruction following for creative tasks"),
-                ("Intelligence Index", 20, "#f59e0b", "Overall intelligence"),
+                ("MMLU-Pro", 30, "#000000", "General knowledge - facts to include in content"),
+                ("HLE", 25, "#000000", "Reasoning for coherent content"),
+                ("IFBench", 25, "#000000", "Instruction following for creative tasks"),
+                ("Intelligence Index", 20, "#000000", "Overall intelligence"),
             ],
             "summarization_short": [
-                ("HLE", 30, "#38ef7d", "Reasoning CRITICAL for identifying key points"),
-                ("MMLU-Pro", 25, "#4facfe", "Understanding content to summarize"),
-                ("IFBench", 25, "#a855f7", "Instruction following for summary format"),
-                ("Intelligence Index", 20, "#f59e0b", "Overall intelligence"),
+                ("HLE", 30, "#000000", "Reasoning CRITICAL for identifying key points"),
+                ("MMLU-Pro", 25, "#000000", "Understanding content to summarize"),
+                ("IFBench", 25, "#000000", "Instruction following for summary format"),
+                ("Intelligence Index", 20, "#000000", "Overall intelligence"),
             ],
             "document_analysis_rag": [
-                ("AA-LCR", 40, "#38ef7d", "Long Context Reasoning - CRITICAL for RAG (100 questions)"),
-                ("MMLU-Pro", 20, "#4facfe", "Knowledge retrieval from context"),
-                ("HLE", 20, "#a855f7", "Reasoning over retrieved content"),
-                ("IFBench", 10, "#f59e0b", "Instruction following for queries"),
-                ("τ²-Bench", 10, "#667eea", "Agentic workflows for complex queries (114 tasks)"),
+                ("AA-LCR", 40, "#000000", "Long Context Reasoning - CRITICAL for RAG (100 questions)"),
+                ("MMLU-Pro", 20, "#000000", "Knowledge retrieval from context"),
+                ("HLE", 20, "#000000", "Reasoning over retrieved content"),
+                ("IFBench", 10, "#000000", "Instruction following for queries"),
+                ("τ²-Bench", 10, "#000000", "Agentic workflows for complex queries (114 tasks)"),
             ],
             "long_document_summarization": [
-                ("AA-LCR", 45, "#38ef7d", "Long Context Reasoning - CRITICAL for 50+ page docs"),
-                ("MMLU-Pro", 20, "#4facfe", "Understanding document content"),
-                ("HLE", 20, "#a855f7", "Reasoning for key point extraction"),
-                ("IFBench", 15, "#f59e0b", "Instruction following for summary format"),
+                ("AA-LCR", 45, "#000000", "Long Context Reasoning - CRITICAL for 50+ page docs"),
+                ("MMLU-Pro", 20, "#000000", "Understanding document content"),
+                ("HLE", 20, "#000000", "Reasoning for key point extraction"),
+                ("IFBench", 15, "#000000", "Instruction following for summary format"),
             ],
             "research_legal_analysis": [
-                ("AA-LCR", 40, "#38ef7d", "Long Context Reasoning - CRITICAL for 16K-128K token docs"),
-                ("MMLU-Pro", 25, "#4facfe", "Knowledge - CRITICAL for domain expertise"),
-                ("HLE", 15, "#a855f7", "Reasoning for analysis"),
-                ("GPQA", 10, "#f59e0b", "Scientific reasoning for research papers"),
-                ("IFBench", 5, "#667eea", "Instruction following"),
-                ("τ²-Bench", 5, "#f5576c", "Agentic workflows for complex analysis"),
+                ("AA-LCR", 40, "#000000", "Long Context Reasoning - CRITICAL for 16K-128K token docs"),
+                ("MMLU-Pro", 25, "#000000", "Knowledge - CRITICAL for domain expertise"),
+                ("HLE", 15, "#000000", "Reasoning for analysis"),
+                ("GPQA", 10, "#000000", "Scientific reasoning for research papers"),
+                ("IFBench", 5, "#000000", "Instruction following"),
+                ("τ²-Bench", 5, "#000000", "Agentic workflows for complex analysis"),
             ],
         }
         
@@ -4689,32 +4683,18 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Build items - always show priority
         items = []
     
-        # Always show priority (including balanced)
+        # Always show priority (including balanced) - black background, white text
         priority_display = priority.replace('_', ' ').title() if priority else "Balanced"
-        priority_color = {
-            "low_latency": "#667eea",
-            "cost_saving": "#f5576c", 
-            "high_accuracy": "#38ef7d",
-            "high_throughput": "#4facfe",
-            "balanced": "#D4AF37"
-        }.get(priority, "#D4AF37")
-        priority_icon = {
-            "low_latency": "",
-            "cost_saving": "", 
-            "high_accuracy": "",
-            "high_throughput": "",
-            "balanced": ""
-        }.get(priority, "")
-        items.append((priority_icon, "Priority", priority_display, priority_color))
+        items.append(("", "Priority", priority_display))
     
         # Hardware - only show if user explicitly mentioned it
         if hardware and hardware not in ["Any GPU", "Any", None, ""]:
-            items.append(("🖥️", "Hardware", hardware, "#38ef7d"))
+            items.append(("", "Hardware", hardware))
     
-        # Build content HTML
+        # Build content HTML - black background with white text
         items_html = "".join([
-            f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{icon} {label}</span><span style="color: {color}; font-weight: 700; font-size: 0.9rem; background: {color}22; padding: 4px 10px; border-radius: 6px;">{value}</span></div>'
-            for icon, label, value, color in items
+            f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{icon} {label}</span><span style="color: white; font-weight: 700; font-size: 0.9rem; background: #000000; padding: 4px 10px; border-radius: 6px;">{value}</span></div>'
+            for icon, label, value in items
         ])
         
         full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{items_html}</div>'
@@ -4994,10 +4974,9 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     )
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Show character count
+    # Show character count - white text
     char_count = len(user_input) if user_input else 0
-    char_color = "#38ef7d" if char_count < 1500 else "#f5576c" if char_count > 1800 else "#f093fb"
-    st.markdown(f'<div style="text-align: right; font-size: 0.75rem; color: {char_color}; margin-top: -0.5rem;">{char_count}/2000 characters</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: right; font-size: 0.75rem; color: white; margin-top: -0.5rem;">{char_count}/2000 characters</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1.5, 1, 2])
     with col1:
@@ -5169,28 +5148,24 @@ def render_extraction_result(extraction: dict, priority: str):
     <div class="extraction-card">
         <div class="extraction-grid">
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-usecase"></div>
                 <div>
                     <div class="extraction-label">Use Case</div>
                     <div class="extraction-value">{use_case.replace("_", " ").title() if use_case else "Unknown"}</div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-users"></div>
                 <div>
                     <div class="extraction-label">Expected Users</div>
                     <div class="extraction-value">{user_count:,}</div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-priority"></div>
                 <div>
                     <div class="extraction-label">Priority</div>
                     <div class="extraction-value"><span class="priority-badge priority-{priority}">{priority.replace("_", " ").title()}</span></div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-hardware"></div>
                 <div>
                     <div class="extraction-label">Hardware</div>
                     <div class="extraction-value">{hardware if hardware else "Any GPU"}</div>
@@ -5210,31 +5185,27 @@ def render_extraction_with_approval(extraction: dict, priority: str, models_df: 
     hardware = extraction.get("hardware")
     
     st.markdown(f"""
-    <div class="extraction-card" style="border: 2px solid #D4AF37;">
+    <div class="extraction-card" style="border: 2px solid #EE0000;">
         <div class="extraction-grid">
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-usecase"></div>
                 <div>
                     <div class="extraction-label">Use Case</div>
                     <div class="extraction-value">{use_case.replace("_", " ").title() if use_case else "Unknown"}</div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-users"></div>
                 <div>
                     <div class="extraction-label">Expected Users</div>
                     <div class="extraction-value">{user_count:,}</div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-priority"></div>
                 <div>
                     <div class="extraction-label">Priority</div>
                     <div class="extraction-value"><span class="priority-badge priority-{priority}">{priority.replace("_", " ").title()}</span></div>
                 </div>
             </div>
             <div class="extraction-item">
-                <div class="extraction-icon extraction-icon-hardware"></div>
                 <div>
                     <div class="extraction-label">Hardware</div>
                     <div class="extraction-value">{hardware if hardware else "Any GPU"}</div>
@@ -5246,9 +5217,9 @@ def render_extraction_with_approval(extraction: dict, priority: str, models_df: 
     
     # Approval question
     st.markdown("""
-    <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(56, 239, 125, 0.1)); 
+    <div style="background: #000000; 
                 padding: 1.25rem; border-radius: 1rem; margin: 1.5rem 0; text-align: center;
-                border: 1px solid rgba(212, 175, 55, 0.3);">
+                border: 1px solid rgba(255, 255, 255, 0.2);">
         <p style="color: white; font-size: 1.2rem; font-weight: 600; margin: 0;">
             Is this extraction correct?
         </p>
@@ -5563,10 +5534,9 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     st.markdown("---")
     st.markdown("""
     <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(166, 124, 0, 0.05)); 
-                padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(212, 175, 55, 0.2); margin-top: 1rem;">
+                padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.2); margin-top: 1rem; background: #000000;">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-            <span style="font-size: 1.2rem;">🔄</span>
-            <span style="color: #D4AF37; font-weight: 700; font-size: 1rem;">Want Different Results?</span>
+            <span style="color: white; font-weight: 700; font-size: 1rem;">Want Different Results?</span>
         </div>
         <p style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin: 0;">
             Adjust SLO targets above to find models with different latency/performance trade-offs. 
