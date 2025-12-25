@@ -301,13 +301,31 @@ class CapacityPlanner:
                     )
                     rec.scores.price_score = price_score
 
-                    # Calculate balanced score
-                    rec.scores.balanced_score = scorer.score_balanced(
+                    # Calculate base balanced score
+                    base_balanced = scorer.score_balanced(
                         accuracy_score=rec.scores.accuracy_score,
                         price_score=price_score,
                         latency_score=rec.scores.latency_score,
                         complexity_score=rec.scores.complexity_score,
                     )
+                    
+                    # Apply scalability penalty based on replica count
+                    # Configs needing many replicas are less efficient for high workloads
+                    replicas = rec.gpu_config.replicas if rec.gpu_config else 1
+                    if replicas <= 1:
+                        scalability_factor = 1.0  # No penalty
+                    elif replicas <= 3:
+                        scalability_factor = 0.98  # 2% penalty
+                    elif replicas <= 6:
+                        scalability_factor = 0.95  # 5% penalty
+                    elif replicas <= 10:
+                        scalability_factor = 0.90  # 10% penalty
+                    elif replicas <= 20:
+                        scalability_factor = 0.80  # 20% penalty
+                    else:
+                        scalability_factor = 0.65  # 35% penalty for very large deployments
+                    
+                    rec.scores.balanced_score = round(base_balanced * scalability_factor, 1)
 
         # Count unique models in configurations
         unique_models = {rec.model_id for rec in all_configs}

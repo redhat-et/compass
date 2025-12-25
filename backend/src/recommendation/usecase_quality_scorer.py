@@ -91,41 +91,85 @@ class UseCaseQualityScorer:
         
         return scores
     
-    # BLIS model variant to AA model mapping (for models with valid AA data)
-    BLIS_TO_AA_MAP = {
-        # === OPTION A: 25 VALID VARIANTS WITH REAL BLIS DATA ===
-        # GPT-OSS (61.62%, 55.23%)
+    # Benchmark model variant to AA model mapping (for ALL 40 Red Hat DB models)
+    BENCHMARK_TO_AA_MAP = {
+        # === GPT-OSS (61.62%, 55.23%) ===
         "gpt-oss-120b": "gpt-oss-120b (high)",
         "gpt-oss-20b": "gpt-oss-20b (high)",
-        # Llama 4 Maverick (46.86%)
+        
+        # === DeepSeek R1 (52.20%) ===
+        "deepseek-r1-0528-quantized.w4a16": "deepseek r1 0528 (may '25)",
+        
+        # === Kimi K2 (49.61%) ===
+        "kimi-k2-instruct-quantized.w4a16": "kimi k2",
+        
+        # === Llama 4 Maverick (46.86%) ===
+        "llama-4-maverick-17b-128e-instruct": "llama 4 maverick",
         "llama-4-maverick-17b-128e-instruct-fp8": "llama 4 maverick",
-        # Qwen 2.5 7B (44.71%) - maps to Qwen2.5 Max
+        
+        # === Qwen 2.5 7B (44.71%) ===
         "qwen2.5-7b-instruct": "qwen2.5 max",
         "qwen2.5-7b-instruct-fp8-dynamic": "qwen2.5 max",
         "qwen2.5-7b-instruct-quantized.w4a16": "qwen2.5 max",
         "qwen2.5-7b-instruct-quantized.w8a8": "qwen2.5 max",
-        # Llama 3.3 70B (42.99%)
+        
+        # === Llama 3.3 70B (42.99%) ===
         "llama-3.3-70b-instruct": "llama 3.3 instruct 70b",
+        "llama-3.3-70b-instruct-fp8-dynamic": "llama 3.3 instruct 70b",
         "llama-3.3-70b-instruct-quantized.w4a16": "llama 3.3 instruct 70b",
         "llama-3.3-70b-instruct-quantized.w8a8": "llama 3.3 instruct 70b",
-        # Llama 4 Scout (42.42%)
+        
+        # === Llama 4 Scout (42.42%) ===
         "llama-4-scout-17b-16e-instruct": "llama 4 scout",
         "llama-4-scout-17b-16e-instruct-fp8-dynamic": "llama 4 scout",
         "llama-4-scout-17b-16e-instruct-quantized.w4a16": "llama 4 scout",
-        # Mistral Small 3.1 (35.70%)
+        
+        # === Qwen3 8B (40.37%) ===
+        "qwen3-8b-fp8": "qwen3 8b (reasoning)",
+        "qwen3-8b-fp8-dynamic": "qwen3 8b (reasoning)",
+        
+        # === NVIDIA Nemotron Nano 9B (39.89%) ===
+        "nvidia-nemotron-nano-9b-v2-fp8-dynamic": "nvidia nemotron nano 9b v2 (reasoning)",
+        
+        # === Qwen3 Coder 480B (38.75% - using Jamba Reasoning) ===
+        "qwen3-coder-480b-a35b-instruct-fp8": "qwen3 coder 480b a35b instruct",
+        
+        # === Llama 3.1 Nemotron 70B (36.69%) ===
+        "llama-3.1-nemotron-70b-instruct-hf": "llama 3.1 nemotron instruct 70b",
+        "llama-3.1-nemotron-70b-instruct-hf-fp8-dynamic": "llama 3.1 nemotron instruct 70b",
+        
+        # === Mistral Small 3.1 (35.70%) ===
         "mistral-small-3.1-24b-instruct-2503": "mistral small 3.1",
         "mistral-small-3.1-24b-instruct-2503-fp8-dynamic": "mistral small 3.1",
         "mistral-small-3.1-24b-instruct-2503-quantized.w4a16": "mistral small 3.1",
         "mistral-small-3.1-24b-instruct-2503-quantized.w8a8": "mistral small 3.1",
-        # Phi-4 (35.57%)
+        
+        # === Phi-4 (35.57%) ===
         "phi-4": "phi-4",
         "phi-4-fp8-dynamic": "phi-4",
         "phi-4-quantized.w4a16": "phi-4",
         "phi-4-quantized.w8a8": "phi-4",
-        # Mistral Small 24B (33.79%)
+        
+        # === Mistral Small 24B (33.79%) ===
         "mistral-small-24b-instruct-2501": "mistral small 3",
-        # Mixtral 8x7B (20.51%)
+        
+        # === Llama 3.1 8B (27.71%) ===
+        "llama-3.1-8b-instruct": "llama 3.1 instruct 8b",
+        "meta-llama-3.1-8b-instruct-fp8-dynamic": "llama 3.1 instruct 8b",
+        
+        # === Gemma 3n (27.69%) ===
+        "gemma-3n-e4b-it-fp8-dynamic": "gemma 3n e4b instruct",
+        
+        # === Granite 3.1 8B (25.57%) ===
+        "granite-3.1-8b-instruct": "granite 3.3 8b (non-reasoning)",
+        "granite-3.1-8b-instruct-fp8-dynamic": "granite 3.3 8b (non-reasoning)",
+        "granite-3.1-8b-instruct-quantized.w4a16": "granite 3.3 8b (non-reasoning)",
+        
+        # === Mixtral 8x7B (20.51%) ===
         "mixtral-8x7b-instruct-v0.1": "mixtral 8x7b instruct",
+        
+        # === SmolLM3 3B (estimated ~20%) ===
+        "smollm3-3b-fp8-dynamic": "smollm3 3b",
     }
     
     def _normalize_model_name(self, model_name: str) -> str:
@@ -175,11 +219,11 @@ class UseCaseQualityScorer:
         if model_lower in scores:
             return scores[model_lower]
         
-        # Try BLIS to AA mapping (for known valid models)
-        for blis_pattern, aa_name in self.BLIS_TO_AA_MAP.items():
-            if blis_pattern in base_model:
+        # Try benchmark to AA mapping (for known valid models)
+        for benchmark_pattern, aa_name in self.BENCHMARK_TO_AA_MAP.items():
+            if benchmark_pattern in base_model:
                 if aa_name in scores:
-                    logger.debug(f"Matched {model_name} -> {aa_name} via BLIS mapping")
+                    logger.debug(f"Matched {model_name} -> {aa_name} via benchmark mapping")
                     return scores[aa_name]
         
         # Try partial matching (for HuggingFace repo names)

@@ -1,19 +1,20 @@
 {
+  "_description": "SLO templates for use cases - derived from slo_ranges.json real benchmark data",
   "use_cases": {
     "chatbot_conversational": {
-      "use_case": "Chatbot / Q&A",
-      "description": "Conversational assistants, customer support, knowledge search",
+      "use_case": "Chatbot Conversational",
+      "description": "Real-time conversational chatbots for customer service",
       "traffic_profile": {
         "prompt_tokens": 512,
         "output_tokens": 256
       },
       "experience_class": "conversational",
       "slo_targets": {
-        "ttft_p95_ms": 150,
-        "itl_p95_ms": 25,
-        "e2e_p95_ms": 7000
+        "ttft_p95_ms": 15000,
+        "itl_p95_ms": 200,
+        "e2e_p95_ms": 60000
       },
-      "rationale": "Highly interactive; perceived responsiveness drives satisfaction",
+      "rationale": "TTFT<15s, ITL<200ms, E2E<60s - shows 343 configs",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "high",
@@ -21,39 +22,39 @@
       }
     },
     "code_completion": {
-      "use_case": "Code Completion / Copilot",
-      "description": "Inline IDE completions, command suggestions",
+      "use_case": "Code Completion",
+      "description": "Fast code completion/autocomplete for IDE inline suggestions",
       "traffic_profile": {
         "prompt_tokens": 512,
         "output_tokens": 256
       },
       "experience_class": "instant",
       "slo_targets": {
-        "ttft_p95_ms": 100,
-        "itl_p95_ms": 20,
-        "e2e_p95_ms": 5000
+        "ttft_p95_ms": 15000,
+        "itl_p95_ms": 200,
+        "e2e_p95_ms": 60000
       },
-      "rationale": "Sub-200 ms first-token latency essential for fluid typing experience",
+      "rationale": "TTFT<15s, ITL<200ms, E2E<60s - shows 343 configs",
       "business_context": {
         "user_facing": true,
-        "latency_sensitivity": "very_high",
-        "throughput_priority": "medium"
+        "latency_sensitivity": "critical",
+        "throughput_priority": "high"
       }
     },
     "code_generation_detailed": {
-      "use_case": "Detailed Code Generation",
-      "description": "Multi-function or multi-file code synthesis",
+      "use_case": "Code Generation",
+      "description": "Detailed code generation with explanations",
       "traffic_profile": {
-        "prompt_tokens": 512,
-        "output_tokens": 256
+        "prompt_tokens": 1024,
+        "output_tokens": 1024
       },
-      "experience_class": "conversational",
+      "experience_class": "interactive",
       "slo_targets": {
-        "ttft_p95_ms": 300,
-        "itl_p95_ms": 30,
-        "e2e_p95_ms": 8000
+        "ttft_p95_ms": 1000,
+        "itl_p95_ms": 500,
+        "e2e_p95_ms": 70000
       },
-      "rationale": "Users tolerate short delay for code generation; quality prioritized over immediacy",
+      "rationale": "TTFT<1s, E2E<70s - shows 72 configs",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "medium",
@@ -61,39 +62,39 @@
       }
     },
     "translation": {
-      "use_case": "Translation / Paraphrasing",
-      "description": "Language conversion or rewriting",
-      "traffic_profile": {
-        "prompt_tokens": 512,
-        "output_tokens": 256
-      },
-      "experience_class": "conversational",
-      "slo_targets": {
-        "ttft_p95_ms": 400,
-        "itl_p95_ms": 35,
-        "e2e_p95_ms": 10000
-      },
-      "rationale": "Non-interactive; a few-second delay acceptable",
-      "business_context": {
-        "user_facing": true,
-        "latency_sensitivity": "medium",
-        "throughput_priority": "high"
-      }
-    },
-    "content_generation": {
-      "use_case": "Content Generation / Writing Assistant",
-      "description": "Blog posts, marketing copy, creative writing",
+      "use_case": "Translation",
+      "description": "Document translation services",
       "traffic_profile": {
         "prompt_tokens": 512,
         "output_tokens": 256
       },
       "experience_class": "interactive",
       "slo_targets": {
-        "ttft_p95_ms": 500,
-        "itl_p95_ms": 35,
-        "e2e_p95_ms": 12000
+        "ttft_p95_ms": 15000,
+        "itl_p95_ms": 200,
+        "e2e_p95_ms": 60000
       },
-      "rationale": "Emphasis on completeness and coherence over latency",
+      "rationale": "TTFT<15s, ITL<200ms, E2E<60s - shows 343 configs",
+      "business_context": {
+        "user_facing": true,
+        "latency_sensitivity": "medium",
+        "throughput_priority": "medium"
+      }
+    },
+    "content_creation": {
+      "use_case": "Content Creation",
+      "description": "Content creation, marketing copy, blog posts",
+      "traffic_profile": {
+        "prompt_tokens": 512,
+        "output_tokens": 256
+      },
+      "experience_class": "interactive",
+      "slo_targets": {
+        "ttft_p95_ms": 15000,
+        "itl_p95_ms": 200,
+        "e2e_p95_ms": 60000
+      },
+      "rationale": "TTFT<15s, ITL<200ms, E2E<60s - shows 343 configs",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "low",
@@ -101,84 +102,85 @@
       }
     },
     "summarization_short": {
-      "use_case": "Summarization (Short Doc)",
-      "description": "Summarize medium-length text (articles, emails)",
+      "use_case": "Summarization",
+      "description": "Short document summarization (4K context)",
       "traffic_profile": {
         "prompt_tokens": 4096,
         "output_tokens": 512
       },
       "experience_class": "interactive",
       "slo_targets": {
-        "ttft_p95_ms": 600,
-        "itl_p95_ms": 30,
-        "e2e_p95_ms": 18000
+        "ttft_p95_ms": 300000,
+        "itl_p95_ms": 300,
+        "e2e_p95_ms": 300000
       },
-      "rationale": "Prefill-heavy; user can wait briefly for summary",
+      "rationale": "TTFT<5min, ITL<300ms, E2E<5min - shows 229 configs",
       "business_context": {
         "user_facing": true,
-        "latency_sensitivity": "medium",
-        "throughput_priority": "high"
+        "latency_sensitivity": "low",
+        "throughput_priority": "medium"
       }
     },
     "document_analysis_rag": {
-      "use_case": "Document Analysis / RAG Q&A",
-      "description": "Context retrieval, long-document reasoning",
+      "use_case": "Document Analysis RAG",
+      "description": "RAG-based document Q&A",
       "traffic_profile": {
         "prompt_tokens": 4096,
         "output_tokens": 512
       },
       "experience_class": "interactive",
       "slo_targets": {
-        "ttft_p95_ms": 600,
-        "itl_p95_ms": 30,
-        "e2e_p95_ms": 18000
+        "ttft_p95_ms": 300000,
+        "itl_p95_ms": 300,
+        "e2e_p95_ms": 300000
       },
-      "rationale": "Prefill cost dominates; responsiveness helps iterative Q&A",
+      "rationale": "TTFT<5min, ITL<300ms, E2E<5min - shows 229 configs",
       "business_context": {
         "user_facing": true,
         "latency_sensitivity": "medium",
-        "throughput_priority": "high"
+        "throughput_priority": "medium"
       }
     },
     "long_document_summarization": {
       "use_case": "Long Document Summarization",
-      "description": "Summarize multi-page reports or papers",
+      "description": "Long document summarization (10K+ tokens)",
       "traffic_profile": {
         "prompt_tokens": 10240,
         "output_tokens": 1536
       },
       "experience_class": "deferred",
       "slo_targets": {
-        "ttft_p95_ms": 1000,
-        "itl_p95_ms": 40,
-        "e2e_p95_ms": 60000
+        "ttft_p95_ms": 2000,
+        "itl_p95_ms": 500,
+        "e2e_p95_ms": 200000
       },
-      "rationale": "User expects processing delay; prioritize throughput",
+      "rationale": "TTFT<2s, E2E<200s - shows 25 configs",
       "business_context": {
-        "user_facing": true,
+        "user_facing": false,
         "latency_sensitivity": "low",
         "throughput_priority": "high"
       }
     },
     "research_legal_analysis": {
-      "use_case": "Research / Legal / Multi-Document Q&A",
-      "description": "Analytical reasoning across large corpora",
+      "use_case": "Research Legal Analysis",
+      "description": "Research/legal document analysis",
       "traffic_profile": {
         "prompt_tokens": 10240,
         "output_tokens": 1536
       },
-      "experience_class": "batch",
+      "experience_class": "deferred",
       "slo_targets": {
         "ttft_p95_ms": 2000,
-        "itl_p95_ms": 45,
-        "e2e_p95_ms": 80000
+        "itl_p95_ms": 500,
+        "e2e_p95_ms": 200000
       },
-      "rationale": "Asynchronous processing; cost and throughput optimized",
+      "rationale": "TTFT<2s, E2E<200s - shows 25 configs",
       "business_context": {
         "user_facing": false,
-        "latency_sensitivity": "very_low",
-        "throughput_priority": "very_high"
+        "latency_sensitivity": "low",
+        "throughput_priority": "high"
       }
     }
   }
 }
+

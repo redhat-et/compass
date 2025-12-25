@@ -1,0 +1,92 @@
+{
+  "chatbot_conversational": {
+    "description": "Real-time conversational chatbots",
+    "weights": {
+      "tau2": 0.45,
+      "mmlu_pro": 0.35,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench (Agentic) + MMLU-Pro",
+    "justification": "Conversational AI = agentic workflow. \u03c4\u00b2-Bench (91%) + MMLU-Pro (83%) + GPQA (82%)"
+  },
+  "code_completion": {
+    "description": "Fast code completion/autocomplete",
+    "weights": {
+      "livecodebench": 0.45,
+      "tau2": 0.35,
+      "mmlu_pro": 0.2
+    },
+    "display_benchmark": "LiveCodeBench + \u03c4\u00b2-Bench",
+    "justification": "Code completion = code + agentic. LiveCodeBench (84%) + \u03c4\u00b2-Bench (91%)"
+  },
+  "code_generation_detailed": {
+    "description": "Detailed code generation with explanations",
+    "weights": {
+      "livecodebench": 0.4,
+      "tau2": 0.4,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "LiveCodeBench + \u03c4\u00b2-Bench",
+    "justification": "Code generation with reasoning. LiveCodeBench (84%) + \u03c4\u00b2-Bench (91%)"
+  },
+  "translation": {
+    "description": "Document translation",
+    "weights": {
+      "tau2": 0.45,
+      "mmlu_pro": 0.35,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench + MMLU-Pro",
+    "justification": "Language tasks benefit from agentic capabilities"
+  },
+  "content_creation": {
+    "description": "Content creation, marketing copy",
+    "weights": {
+      "tau2": 0.45,
+      "mmlu_pro": 0.35,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench + MMLU-Pro",
+    "justification": "Creative content requires knowledge + agentic"
+  },
+  "summarization_short": {
+    "description": "Short document summarization",
+    "weights": {
+      "tau2": 0.45,
+      "mmlu_pro": 0.35,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench + MMLU-Pro",
+    "justification": "Summarization = comprehension + reasoning"
+  },
+  "document_analysis_rag": {
+    "description": "RAG-based document Q&A",
+    "weights": {
+      "tau2": 0.5,
+      "gpqa": 0.3,
+      "mmlu_pro": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench (Agentic RAG)",
+    "justification": "RAG is agentic workflow. \u03c4\u00b2-Bench (91%) dominant"
+  },
+  "long_document_summarization": {
+    "description": "Long document summarization",
+    "weights": {
+      "tau2": 0.5,
+      "mmlu_pro": 0.3,
+      "gpqa": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench + MMLU-Pro",
+    "justification": "Long doc handling is agentic. \u03c4\u00b2-Bench (91%)"
+  },
+  "research_legal_analysis": {
+    "description": "Research/legal document analysis",
+    "weights": {
+      "tau2": 0.55,
+      "gpqa": 0.25,
+      "mmlu_pro": 0.2
+    },
+    "display_benchmark": "\u03c4\u00b2-Bench (Research Agentic)",
+    "justification": "Research analysis = agentic reasoning. \u03c4\u00b2-Bench (91%)"
+  }
+}

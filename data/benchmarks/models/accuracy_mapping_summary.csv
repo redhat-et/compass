@@ -1,0 +1,46 @@
+Category,Our Model,Source Model,Penalty,Reason,Notes
+HIGH IMPACT,RedHatAI/Kimi-K2-Instruct-quantized.w4a16,Kimi K2,0.96,W4A16 quantization,Top 3 accuracy model - 79.10% MMLU-Pro
+HIGH IMPACT,RedHatAI/DeepSeek-R1-0528-quantized.w4a16,DeepSeek R1 (Jan '25),1.00,Already had data,Top 1 accuracy model - 96.60% MMLU-Pro
+HIGH IMPACT,RedHatAI/Qwen3-Coder-480B-A35B-Instruct-FP8,Qwen3 Coder 480B A35B Instruct,1.00,Already had data,Top 2 accuracy model - 94.20% MMLU-Pro
+VERSION,Qwen/Qwen2.5-7B-Instruct,Qwen3 8B (Non-reasoning),0.85,Qwen v2.5 < v3,15% penalty for older version
+VERSION,RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic,Qwen3 8B (Non-reasoning),0.84,v2.5 + FP8,0.85 × 0.99
+VERSION,RedHatAI/Qwen2.5-7B-Instruct-quantized.w4a16,Qwen3 8B (Non-reasoning),0.82,v2.5 + W4A16,0.85 × 0.96
+VERSION,RedHatAI/Qwen2.5-7B-Instruct-quantized.w8a8,Qwen3 8B (Non-reasoning),0.83,v2.5 + W8A8,0.85 × 0.98
+VERSION,qwen/qwen2.5-7b-instruct,Qwen3 8B (Non-reasoning),0.85,Lowercase alias + v2.5,Same as uppercase
+VERSION,ibm-granite/granite-3.1-8b-instruct,Granite 3.3 8B (Non-reasoning),1.00,v3.1 ~ v3.3,Similar generation
+VERSION,RedHatAI/granite-3.1-8b-instruct-fp8-dynamic,Granite 3.3 8B (Non-reasoning),0.99,v3.1 + FP8,1.00 × 0.99
+VERSION,RedHatAI/granite-3.1-8b-instruct-quantized.w4a16,Granite 3.3 8B (Non-reasoning),0.96,v3.1 + W4A16,1.00 × 0.96
+ALIAS,meta-llama/llama-3.1-8b-instruct,Llama 3.1 Instruct 8B,1.00,Lowercase alias,Same model different case
+ALIAS,meta-llama/llama-3.3-70b-instruct,Llama 3.3 Instruct 70B,1.00,Lowercase alias,Same model different case
+ALIAS,mistralai/mistral-small-24b-instruct-2501,Mistral Small 3.2,1.00,Lowercase alias,Same model different case
+ALIAS,mistralai/mistral-small-3.1-24b-instruct-2503,Mistral Small 3.2,1.00,Lowercase alias,Same model different case
+DIRECT,meta-llama/Llama-4-Maverick-17B-128E-Instruct,Llama 4 Maverick,1.00,Full precision,Direct mapping
+DIRECT,meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8,Llama 4 Maverick,0.99,FP8,1% loss
+DIRECT,meta-llama/Llama-4-Scout-17B-16E-Instruct,Llama 4 Scout,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/Llama-4-Scout-17B-16E-Instruct-FP8-dynamic,Llama 4 Scout,0.99,FP8,1% loss
+DIRECT,RedHatAI/Llama-4-Scout-17B-16E-Instruct-quantized.w4a16,Llama 4 Scout,0.96,W4A16,4% loss
+DIRECT,meta-llama/Llama-3.3-70B-Instruct,Llama 3.3 Instruct 70B,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic,Llama 3.3 Instruct 70B,0.99,FP8,1% loss
+DIRECT,RedHatAI/Llama-3.3-70B-Instruct-quantized.w4a16,Llama 3.3 Instruct 70B,0.96,W4A16,4% loss
+DIRECT,RedHatAI/Llama-3.3-70B-Instruct-quantized.w8a8,Llama 3.3 Instruct 70B,0.98,W8A8,2% loss
+DIRECT,meta-llama/Llama-3.1-8B-Instruct,Llama 3.1 Instruct 8B,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8-dynamic,Llama 3.1 Instruct 8B,0.99,FP8,1% loss
+DIRECT,nvidia/Llama-3.1-Nemotron-70B-Instruct-HF,Llama 3.1 Nemotron Instruct 70B,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic,Llama 3.1 Nemotron Instruct 70B,0.99,FP8,1% loss
+DIRECT,RedHatAI/NVIDIA-Nemotron-Nano-9B-v2-FP8-dynamic,NVIDIA Nemotron Nano 9B V2 (Non-reasoning),0.99,FP8,1% loss
+DIRECT,microsoft/phi-4,Phi-4,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/phi-4-FP8-dynamic,Phi-4,0.99,FP8,1% loss
+DIRECT,RedHatAI/phi-4-quantized.w4a16,Phi-4,0.96,W4A16,4% loss
+DIRECT,RedHatAI/phi-4-quantized.w8a8,Phi-4,0.98,W8A8,2% loss
+DIRECT,mistralai/Mistral-Small-3.1-24B-Instruct-2503,Mistral Small 3.2,1.00,Full precision,Direct mapping
+DIRECT,RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-FP8-dynamic,Mistral Small 3.2,0.99,FP8,1% loss
+DIRECT,RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w4a16,Mistral Small 3.2,0.96,W4A16,4% loss
+DIRECT,RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w8a8,Mistral Small 3.2,0.98,W8A8,2% loss
+DIRECT,Qwen/Qwen3-8B-FP8,Qwen3 8B (Non-reasoning),1.00,Already had data,Direct mapping
+DIRECT,RedHatAI/Qwen3-8B-FP8-dynamic,Qwen3 8B (Non-reasoning),0.99,FP8,1% loss
+DIRECT,RedHatAI/gemma-3n-E4B-it-FP8-dynamic,Gemma 3n E4B Instruct,0.99,FP8,1% loss
+UNFIXABLE,openai/gpt-oss-120b,gpt-oss-120B (high),1.00,AA source missing aime/math_500,2 N/A remain
+UNFIXABLE,openai/gpt-oss-20b,gpt-oss-20B (high),1.00,AA source missing aime/math_500,2 N/A remain
+UNFIXABLE,mistralai/Mixtral-8x7B-Instruct-v0.1,Mixtral 8x7B Instruct,1.00,Old model - AA has 7 N/A,7 N/A remain
+UNFIXABLE,RedHatAI/SmolLM3-3B-FP8-dynamic,NO BASE MODEL,N/A,No base model exists in AA,15 N/A remain
+

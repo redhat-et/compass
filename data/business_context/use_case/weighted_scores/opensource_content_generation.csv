@@ -203,3 +203,4 @@ Arctic Instruct,Snowflake,Snowflake training dataset,7.60%
 Gemma 3 270M,Google,Google training dataset,6.84%
 DeepSeek LLM 67B Chat (V1),DeepSeek,DeepSeek training dataset,5.60%
 DeepSeek-OCR,DeepSeek,DeepSeek training dataset,N/A
+SmolLM3 3B,HuggingFace,HuggingFace training dataset,18.50%

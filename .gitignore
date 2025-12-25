@@ -68,3 +68,4 @@ logs/
 # Data
 *.sql
 !scripts/schema.sql
+data/benchmarks_redhat_performance.json

@@ -1,195 +1,197 @@
 {
-  "_description": "Research-backed SLO ranges for all use cases - Updated with BLIS benchmark data",
+  "_description": "SLO ranges from integ-oct-29.sql REAL benchmark data - realistic defaults to show ALL configs",
   "_sources": [
-    "BLIS Simulator Benchmarks (benchmarks_BLIS.json) - 591 samples",
-    "SCORPIO Paper (arXiv:2505.23022)",
-    "vLLM Paper (Kwon et al., 2023)",
-    "SARATHI: Efficient LLM Inference",
-    "Splitwise: Efficient Generative LLM Serving",
-    "Azure OpenAI Benchmarks",
-    "Nielsen (1993) Response Time Research",
-    "GitHub Copilot Research (Microsoft)",
-    "Artificial Analysis Benchmarks"
+    "Red Hat Performance DB (integ-oct-29.sql) - 47 models, 670 configs",
+    "Analyzed actual TTFT, ITL, E2E distributions by token config"
   ],
-  "_blis_stats": {
-    "total_samples": 591,
-    "models": ["granite-3.1-8b", "llama-3.1-8b", "llama-3.3-70b", "phi-4", "mistral-small-24b", "mixtral-8x7b", "gpt-oss-120b", "gpt-oss-20b", "qwen2.5-7b"],
-    "hardware": ["H100", "A100-80"],
-    "tensor_parallel": [1, 2, 4, 8]
+  "_token_config_summary": {
+    "512/256": {"use_cases": ["chatbot_conversational", "code_completion", "translation", "content_creation"], "total_configs": 344},
+    "1024/1024": {"use_cases": ["code_generation_detailed"], "total_configs": 72},
+    "4096/512": {"use_cases": ["summarization_short", "document_analysis_rag"], "total_configs": 229},
+    "10240/1536": {"use_cases": ["long_document_summarization", "research_legal_analysis"], "total_configs": 25}
+  },
+  
+  "_scoring_explanation": {
+    "best_accuracy": "Highest RAW accuracy score from Artificial Analysis benchmarks (no weighting)",
+    "lowest_cost": "Lowest price/GPU cost (raw score, cheaper = better)",
+    "lowest_latency": "Fastest TTFT/ITL/E2E latency (raw score)",
+    "simplest": "Best model with FEWEST GPUs (1 GPU = 100 score, 8 GPU = 60 score)",
+    "balanced": "Weighted combination: accuracy(40%) + price(40%) + latency(10%) + complexity(10%)"
   },
   
   "slo_ranges": {
     "code_completion": {
       "description": "Fast code completion/autocomplete (IDE inline suggestions)",
       "token_config": {"prompt": 512, "output": 256},
-      "ttft_ms": {"min": 15, "max": 100, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
-      "itl_ms": {"min": 5, "max": 30, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
-      "e2e_ms": {"min": 300, "max": 2000, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
-      "tokens_per_sec": {"target": 250, "blis_range": [238, 27878]},
-      "research_note": "GitHub Copilot targets 200ms TTFT. BLIS shows H100 can achieve <15ms TTFT with tensor parallelism."
+      "ttft_ms": {"min": 25, "max": 15000, "default": 15000, "real_data": {"p50": 127, "p90": 384, "max": 11720}},
+      "itl_ms": {"min": 5, "max": 200, "default": 200, "real_data": {"p50": 21, "p90": 122, "max": 171}},
+      "e2e_ms": {"min": 1709, "max": 60000, "default": 60000, "real_data": {"p50": 6338, "p90": 39886, "max": 54632}},
+      "tokens_per_sec": {"target": 250},
+      "total_configs": 343,
+      "research_note": "TTFT<15s, ITL<200ms, E2E<60s. Shows 343 configs (excludes 1 outlier with 100s+ TTFT)."
     },
     
     "chatbot_conversational": {
       "description": "Real-time conversational chatbots",
       "token_config": {"prompt": 512, "output": 256},
-      "ttft_ms": {"min": 50, "max": 500, "default": 150, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
-      "itl_ms": {"min": 10, "max": 80, "default": 30, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
-      "e2e_ms": {"min": 500, "max": 5000, "default": 1500, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
-      "tokens_per_sec": {"target": 200, "blis_range": [238, 27878]},
-      "research_note": "Nielsen's 1s guideline for conversational flow. Research-based ranges for user experience."
-    },
-    
-    "code_generation_detailed": {
-      "description": "Detailed code generation with explanations",
-      "token_config": {"prompt": 1024, "output": 1024},
-      "ttft_ms": {"min": 50, "max": 300, "blis_observed": {"min": 21.7, "max": 125.3, "mean": 67.9}},
-      "itl_ms": {"min": 5, "max": 30, "blis_observed": {"min": 3.2, "max": 27.0, "mean": 6.4}},
-      "e2e_ms": {"min": 2000, "max": 15000, "blis_observed": {"min": 3340, "max": 27811, "mean": 6675}},
-      "tokens_per_sec": {"target": 150, "blis_range": [238, 27878]},
-      "research_note": "Cursor/Aider patterns - users tolerate 0.5-1s TTFT for quality code. BLIS: 34 samples."
+      "ttft_ms": {"min": 25, "max": 15000, "default": 15000, "real_data": {"p50": 127, "p90": 384, "max": 11720}},
+      "itl_ms": {"min": 5, "max": 200, "default": 200, "real_data": {"p50": 21, "p90": 122, "max": 171}},
+      "e2e_ms": {"min": 1709, "max": 60000, "default": 60000, "real_data": {"p50": 6338, "p90": 39886, "max": 54632}},
+      "tokens_per_sec": {"target": 200},
+      "total_configs": 343,
+      "research_note": "TTFT<15s, ITL<200ms, E2E<60s. Same token config as code_completion."
     },
     
     "translation": {
       "description": "Document translation",
       "token_config": {"prompt": 512, "output": 256},
-      "ttft_ms": {"min": 100, "max": 400, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
-      "itl_ms": {"min": 15, "max": 50, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
-      "e2e_ms": {"min": 2000, "max": 10000, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
-      "tokens_per_sec": {"target": 150, "blis_range": [238, 27878]},
-      "research_note": "DeepL/Google Translate benchmarks. BLIS data suggests sub-5s E2E is achievable."
+      "ttft_ms": {"min": 25, "max": 15000, "default": 15000, "real_data": {"p50": 127, "p90": 384, "max": 11720}},
+      "itl_ms": {"min": 5, "max": 200, "default": 200, "real_data": {"p50": 21, "p90": 122, "max": 171}},
+      "e2e_ms": {"min": 1709, "max": 60000, "default": 60000, "real_data": {"p50": 6338, "p90": 39886, "max": 54632}},
+      "tokens_per_sec": {"target": 150},
+      "total_configs": 343,
+      "research_note": "TTFT<15s, ITL<200ms, E2E<60s. Same token config as chatbot."
     },
     
-    "content_generation": {
+    "content_creation": {
       "description": "Content creation, marketing copy",
       "token_config": {"prompt": 512, "output": 256},
-      "ttft_ms": {"min": 150, "max": 600, "blis_observed": {"min": 13.3, "max": 141.5, "mean": 44.3}},
-      "itl_ms": {"min": 15, "max": 50, "blis_observed": {"min": 2.8, "max": 65.6, "mean": 13.0}},
-      "e2e_ms": {"min": 3000, "max": 15000, "blis_observed": {"min": 769, "max": 16545, "mean": 3312}},
-      "tokens_per_sec": {"target": 100, "blis_range": [238, 27878]},
-      "research_note": "Jasper/Copy.ai benchmarks - quality over speed"
+      "ttft_ms": {"min": 25, "max": 15000, "default": 15000, "real_data": {"p50": 127, "p90": 384, "max": 11720}},
+      "itl_ms": {"min": 5, "max": 200, "default": 200, "real_data": {"p50": 21, "p90": 122, "max": 171}},
+      "e2e_ms": {"min": 1709, "max": 60000, "default": 60000, "real_data": {"p50": 6338, "p90": 39886, "max": 54632}},
+      "tokens_per_sec": {"target": 100},
+      "total_configs": 343,
+      "research_note": "TTFT<15s, ITL<200ms, E2E<60s. Quality over speed."
+    },
+    
+    "code_generation_detailed": {
+      "description": "Detailed code generation with explanations",
+      "token_config": {"prompt": 1024, "output": 1024},
+      "ttft_ms": {"min": 29, "max": 1000, "default": 1000, "real_data": {"p50": 150, "p90": 500, "max": 742}},
+      "itl_ms": {"min": 5, "max": 500, "default": 500, "real_data": {"p50": 10, "p90": 40, "max": 63}},
+      "e2e_ms": {"min": 6668, "max": 70000, "default": 70000, "real_data": {"p50": 12000, "p90": 45000, "max": 67323}},
+      "tokens_per_sec": {"target": 150},
+      "total_configs": 72,
+      "research_note": "Default shows ALL 72 configs. TTFT<1s, E2E<70s covers all real data."
     },
     
     "summarization_short": {
-      "description": "Short document summarization",
+      "description": "Short document summarization (4K context)",
       "token_config": {"prompt": 4096, "output": 512},
-      "ttft_ms": {"min": 100, "max": 500, "blis_observed": {"min": 63.0, "max": 348.8, "mean": 128.2}},
-      "itl_ms": {"min": 10, "max": 45, "blis_observed": {"min": 3.1, "max": 44.1, "mean": 9.6}},
-      "e2e_ms": {"min": 2000, "max": 12000, "blis_observed": {"min": 1637, "max": 22644, "mean": 4996}},
-      "tokens_per_sec": {"target": 100, "blis_range": [238, 27878]},
-      "research_note": "Claude/GPT-4 document processing. BLIS: 210 samples with 4K context."
+      "ttft_ms": {"min": 60, "max": 300000, "default": 300000, "real_data": {"p50": 200, "p90": 1000, "max": 200000}},
+      "itl_ms": {"min": 5, "max": 300, "default": 300, "real_data": {"p50": 30, "p90": 100, "max": 200}},
+      "e2e_ms": {"min": 3367, "max": 300000, "default": 300000, "real_data": {"p50": 15000, "p90": 100000, "max": 281786}},
+      "tokens_per_sec": {"target": 100},
+      "total_configs": 229,
+      "research_note": "Default shows ALL 229 configs. TTFT<5min, ITL<300ms, E2E<5min."
     },
     
     "document_analysis_rag": {
       "description": "RAG-based document Q&A",
       "token_config": {"prompt": 4096, "output": 512},
-      "ttft_ms": {"min": 200, "max": 800, "blis_observed": {"min": 63.0, "max": 348.8, "mean": 128.2}},
-      "itl_ms": {"min": 15, "max": 50, "blis_observed": {"min": 3.1, "max": 44.1, "mean": 9.6}},
-      "e2e_ms": {"min": 5000, "max": 25000, "blis_observed": {"min": 1637, "max": 22644, "mean": 4996}},
-      "tokens_per_sec": {"target": 80, "blis_range": [238, 27878]},
-      "research_note": "LangChain/LlamaIndex production deployments. BLIS shows 4K context achievable."
+      "ttft_ms": {"min": 60, "max": 300000, "default": 300000, "real_data": {"p50": 200, "p90": 1000, "max": 200000}},
+      "itl_ms": {"min": 5, "max": 300, "default": 300, "real_data": {"p50": 30, "p90": 100, "max": 200}},
+      "e2e_ms": {"min": 3367, "max": 300000, "default": 300000, "real_data": {"p50": 15000, "p90": 100000, "max": 281786}},
+      "tokens_per_sec": {"target": 80},
+      "total_configs": 229,
+      "research_note": "Default shows ALL 229 configs. TTFT<5min, ITL<300ms, E2E<5min."
     },
     
     "long_document_summarization": {
       "description": "Long document summarization (10K+ tokens)",
       "token_config": {"prompt": 10240, "output": 1536},
-      "ttft_ms": {"min": 500, "max": 2000, "blis_observed": {"min": 133.6, "max": 212.5, "mean": 173.0}},
-      "itl_ms": {"min": 20, "max": 60, "blis_observed": {"min": 5.3, "max": 8.5, "mean": 6.9}},
-      "e2e_ms": {"min": 10000, "max": 60000, "blis_observed": {"min": 8257, "max": 13213, "mean": 10735}},
-      "tokens_per_sec": {"target": 50, "blis_range": [238, 27878]},
-      "research_note": "Anthropic long-context research. BLIS: 10K context with ~10s E2E on H100."
+      "ttft_ms": {"min": 192, "max": 2000, "default": 2000, "real_data": {"p50": 400, "p90": 800, "max": 1305}},
+      "itl_ms": {"min": 5, "max": 500, "default": 500, "real_data": {"p50": 15, "p90": 35, "max": 50}},
+      "e2e_ms": {"min": 13298, "max": 200000, "default": 200000, "real_data": {"p50": 25000, "p90": 100000, "max": 185299}},
+      "tokens_per_sec": {"target": 50},
+      "total_configs": 25,
+      "research_note": "Default shows ALL 25 configs. TTFT<2s, E2E<200s (3.3 min) covers all real data."
     },
     
     "research_legal_analysis": {
       "description": "Research/legal document analysis",
       "token_config": {"prompt": 10240, "output": 1536},
-      "ttft_ms": {"min": 1000, "max": 4000, "blis_observed": {"min": 133.6, "max": 212.5, "mean": 173.0}},
-      "itl_ms": {"min": 25, "max": 70, "blis_observed": {"min": 5.3, "max": 8.5, "mean": 6.9}},
-      "e2e_ms": {"min": 30000, "max": 180000, "blis_observed": {"min": 8257, "max": 13213, "mean": 10735}},
-      "tokens_per_sec": {"target": 30, "blis_range": [238, 27878]},
-      "research_note": "Harvey AI/CaseText benchmarks - batch processing acceptable. Quality critical."
+      "ttft_ms": {"min": 192, "max": 2000, "default": 2000, "real_data": {"p50": 400, "p90": 800, "max": 1305}},
+      "itl_ms": {"min": 5, "max": 500, "default": 500, "real_data": {"p50": 15, "p90": 35, "max": 50}},
+      "e2e_ms": {"min": 13298, "max": 200000, "default": 200000, "real_data": {"p50": 25000, "p90": 100000, "max": 185299}},
+      "tokens_per_sec": {"target": 30},
+      "total_configs": 25,
+      "research_note": "Default shows ALL 25 configs. Same token config as long_document."
     }
   },
   
   "hardware_benchmarks": {
-    "H100_x1": {
-      "samples": 105,
-      "ttft_mean_ms": 87.6,
-      "tokens_per_sec_mean": 808,
-      "best_for": ["chatbot", "code_completion", "translation"]
-    },
-    "H100_x2": {
-      "samples": 165,
-      "ttft_mean_ms": 74.9,
-      "tokens_per_sec_mean": 964,
-      "best_for": ["code_generation", "summarization"]
-    },
-    "H100_x4": {
-      "samples": 153,
-      "ttft_mean_ms": 62.0,
-      "tokens_per_sec_mean": 2020,
-      "best_for": ["document_analysis", "high_throughput"]
-    },
-    "H100_x8": {
-      "samples": 74,
-      "ttft_mean_ms": 49.1,
-      "tokens_per_sec_mean": 870,
-      "best_for": ["long_document", "research_legal", "lowest_latency"]
-    },
-    "A100_x1": {
-      "samples": 22,
-      "ttft_mean_ms": 88.8,
-      "tokens_per_sec_mean": 412,
-      "best_for": ["cost_sensitive", "moderate_workload"]
-    },
-    "A100_x2": {
-      "samples": 60,
-      "ttft_mean_ms": 122.9,
-      "tokens_per_sec_mean": 964,
-      "best_for": ["balanced_cost_performance"]
-    },
-    "A100_x4": {
-      "samples": 12,
-      "ttft_mean_ms": 71.9,
-      "tokens_per_sec_mean": 492,
-      "best_for": ["large_models", "throughput"]
-    }
+    "_note": "Hardware from integ-oct-29.sql real benchmark data",
+    "H200": {"gpu_counts": [1, 2, 3, 5, 24], "performance_tier": "highest"},
+    "H100": {"gpu_counts": [3, 4, 6, 12], "performance_tier": "high"},
+    "B200": {"gpu_counts": [4, 10, 16, 20, 32, 40], "performance_tier": "high"},
+    "A100-80": {"gpu_counts": [3, 4, 6], "performance_tier": "medium"},
+    "A100-40": {"gpu_counts": [3, 4, 6, 8, 12, 24, 32], "performance_tier": "medium"},
+    "L4": {"gpu_counts": [5, 6, 10, 16, 24], "performance_tier": "entry"}
+  },
+  
+  "complexity_scoring": {
+    "_note": "Simplicity score - fewer GPUs = higher score",
+    "1_gpu": 100, "2_gpu": 90, "3_gpu": 82, "4_gpu": 75,
+    "5_gpu": 70, "6_gpu": 65, "7_gpu": 62, "8_gpu": 60
   },
   
   "priority_adjustments": {
-    "low_latency": {
-      "ttft_factor": 0.5,
-      "itl_factor": 0.6,
-      "e2e_factor": 0.5,
-      "description": "Tighten ranges by 40-50% for real-time applications",
-      "recommended_hardware": "H100_x4 or H100_x8"
-    },
+    "_note": "SLO factors multiply the max values. Weights affect BALANCED score only.",
     "balanced": {
       "ttft_factor": 1.0,
       "itl_factor": 1.0,
       "e2e_factor": 1.0,
-      "description": "Use full research-backed ranges",
-      "recommended_hardware": "H100_x2"
+      "accuracy": 0.40,
+      "price": 0.40,
+      "latency": 0.10,
+      "complexity": 0.10,
+      "description": "Default - show ALL configs",
+      "expected_configs": "ALL configs pass"
+    },
+    "high_accuracy": {
+      "ttft_factor": 1.0,
+      "itl_factor": 1.0,
+      "e2e_factor": 1.0,
+      "accuracy": 0.60,
+      "price": 0.20,
+      "latency": 0.10,
+      "complexity": 0.10,
+      "description": "Same SLOs - prioritize accuracy in scoring",
+      "expected_configs": "ALL configs pass"
+    },
+    "low_latency": {
+      "ttft_factor": 0.03,
+      "itl_factor": 0.25,
+      "e2e_factor": 0.083,
+      "accuracy": 0.15,
+      "price": 0.15,
+      "latency": 0.60,
+      "complexity": 0.10,
+      "description": "TIGHTEN SLOs: TTFT<450ms, ITL<50ms, E2E<5000ms for 512/256 → ~63% pass",
+      "expected_configs": "~217 of 344 configs for chatbot"
     },
     "cost_saving": {
-      "ttft_factor": 1.5,
-      "itl_factor": 1.3,
-      "e2e_factor": 1.5,
-      "description": "Relax ranges by 30-50% for cost efficiency",
-      "recommended_hardware": "A100_x1 or A100_x2"
+      "ttft_factor": 1.0,
+      "itl_factor": 1.0,
+      "e2e_factor": 1.0,
+      "accuracy": 0.20,
+      "price": 0.60,
+      "latency": 0.10,
+      "complexity": 0.10,
+      "description": "Same SLOs - prioritize cost in scoring",
+      "expected_configs": "ALL configs pass"
     },
     "high_throughput": {
-      "ttft_factor": 1.3,
-      "itl_factor": 1.2,
-      "e2e_factor": 1.4,
-      "description": "Slightly relax for batching efficiency",
-      "recommended_hardware": "H100_x4"
-    },
-    "high_quality": {
-      "ttft_factor": 2.0,
-      "itl_factor": 1.5,
-      "e2e_factor": 2.0,
-      "description": "Relax latency for maximum quality (larger models)",
-      "recommended_hardware": "H100_x8"
+      "ttft_factor": 1.0,
+      "itl_factor": 1.0,
+      "e2e_factor": 1.0,
+      "accuracy": 0.15,
+      "price": 0.25,
+      "latency": 0.20,
+      "complexity": 0.10,
+      "description": "Same SLOs - prioritize throughput in scoring",
+      "expected_configs": "ALL configs pass"
     }
   }
 }
