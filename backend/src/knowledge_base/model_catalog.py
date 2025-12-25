@@ -1,8 +1,11 @@
 """Data access layer for model catalog."""
 
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +50,7 @@ class ModelInfo:
 
 
 class GPUType:
-    """GPU type metadata."""
+    """GPU type metadata with multi-provider pricing."""
 
     def __init__(self, data: dict):
         self.gpu_type = data["gpu_type"]
@@ -55,8 +58,31 @@ class GPUType:
         self.memory_gb = data["memory_gb"]
         self.compute_capability = data["compute_capability"]
         self.typical_use_cases = data["typical_use_cases"]
-        self.cost_per_hour_usd = data["cost_per_hour_usd"]
+        self.cost_per_hour_usd = data["cost_per_hour_usd"]  # Base/minimum price
+        # Cloud provider-specific pricing (optional)
+        self.cost_per_hour_aws = data.get("cost_per_hour_aws")
+        self.cost_per_hour_gcp = data.get("cost_per_hour_gcp")
+        self.cost_per_hour_azure = data.get("cost_per_hour_azure")
         self.availability = data["availability"]
+        self.notes = data.get("notes", "")
+
+    def get_cost_for_provider(self, provider: str | None = None) -> float:
+        """
+        Get cost per hour for a specific cloud provider.
+        
+        Args:
+            provider: Cloud provider ("aws", "gcp", "azure") or None for base price
+            
+        Returns:
+            Cost per hour in USD
+        """
+        if provider == "aws" and self.cost_per_hour_aws:
+            return self.cost_per_hour_aws
+        elif provider == "gcp" and self.cost_per_hour_gcp:
+            return self.cost_per_hour_gcp
+        elif provider == "azure" and self.cost_per_hour_azure:
+            return self.cost_per_hour_azure
+        return self.cost_per_hour_usd
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
@@ -67,7 +93,11 @@ class GPUType:
             "compute_capability": self.compute_capability,
             "typical_use_cases": self.typical_use_cases,
             "cost_per_hour_usd": self.cost_per_hour_usd,
+            "cost_per_hour_aws": self.cost_per_hour_aws,
+            "cost_per_hour_gcp": self.cost_per_hour_gcp,
+            "cost_per_hour_azure": self.cost_per_hour_azure,
             "availability": self.availability,
+            "notes": self.notes,
         }
 
 
@@ -198,20 +228,88 @@ class ModelCatalog:
         gpu_type: str,
         gpu_count: int,
         hours_per_month: float = 730,  # ~30 days
+        provider: str | None = None,
     ) -> float | None:
         """
-        Calculate monthly GPU cost.
+        Calculate monthly GPU cost with proper scaling for multi-GPU setups.
+
+        Cost Calculation Formula:
+            Monthly_Cost = GPU_hourly_rate × GPU_count × hours_per_month
+            
+        For multi-GPU deployments:
+            - TP=2 (2 GPUs): 2 × base_cost
+            - TP=4 (4 GPUs): 4 × base_cost  
+            - TP=8 (8 GPUs): 8 × base_cost
+            
+        Example costs (730 hours/month):
+            - 1x A100-40: $1.50 × 1 × 730 = $1,095/mo
+            - 2x A100-80: $2.00 × 2 × 730 = $2,920/mo
+            - 4x H100:    $2.70 × 4 × 730 = $7,884/mo
+            - 8x H100:    $2.70 × 8 × 730 = $15,768/mo
+            - 4x H200:    $3.50 × 4 × 730 = $10,220/mo
+            - 8x B200:    $5.50 × 8 × 730 = $32,120/mo
 
         Args:
             gpu_type: GPU type identifier
-            gpu_count: Number of GPUs
-            hours_per_month: Hours per month (default: 730)
+            gpu_count: Total number of GPUs (tensor_parallel × replicas)
+            hours_per_month: Hours per month (default: 730 for 24/7 operation)
+            provider: Optional cloud provider ("aws", "gcp", "azure") for 
+                     provider-specific pricing, None for base/minimum price
 
         Returns:
-            Cost in USD, or None if GPU type not found
+            Monthly cost in USD, or None if GPU type not found
+        """
+        gpu = self.get_gpu_type(gpu_type)
+        if not gpu:
+            logger.warning(f"GPU type not found: {gpu_type}")
+            return None
+
+        hourly_rate = gpu.get_cost_for_provider(provider)
+        monthly_cost = hourly_rate * gpu_count * hours_per_month
+        
+        logger.debug(
+            f"Cost calculation: {gpu_count}x {gpu_type} @ ${hourly_rate:.2f}/hr "
+            f"× {hours_per_month:.0f}hrs = ${monthly_cost:,.0f}/mo"
+        )
+        
+        return monthly_cost
+    
+    def get_cost_breakdown(
+        self,
+        gpu_type: str,
+        tensor_parallel: int,
+        replicas: int,
+    ) -> dict | None:
+        """
+        Get detailed cost breakdown for a deployment configuration.
+        
+        Args:
+            gpu_type: GPU type identifier
+            tensor_parallel: Number of GPUs per replica (TP degree)
+            replicas: Number of independent replicas
+            
+        Returns:
+            Dictionary with cost breakdown, or None if GPU not found
         """
         gpu = self.get_gpu_type(gpu_type)
         if not gpu:
             return None
-
-        return gpu.cost_per_hour_usd * gpu_count * hours_per_month
+            
+        total_gpus = tensor_parallel * replicas
+        hours_per_month = 730
+        
+        return {
+            "gpu_type": gpu.gpu_type,
+            "tensor_parallel": tensor_parallel,
+            "replicas": replicas,
+            "total_gpus": total_gpus,
+            "hourly_rate_base": gpu.cost_per_hour_usd,
+            "hourly_rate_aws": gpu.cost_per_hour_aws,
+            "hourly_rate_gcp": gpu.cost_per_hour_gcp,
+            "hourly_rate_azure": gpu.cost_per_hour_azure,
+            "cost_per_hour_total": gpu.cost_per_hour_usd * total_gpus,
+            "cost_per_month_base": gpu.cost_per_hour_usd * total_gpus * hours_per_month,
+            "cost_per_month_aws": (gpu.cost_per_hour_aws or gpu.cost_per_hour_usd) * total_gpus * hours_per_month,
+            "cost_per_month_gcp": (gpu.cost_per_hour_gcp or gpu.cost_per_hour_usd) * total_gpus * hours_per_month,
+            "cost_per_month_azure": (gpu.cost_per_hour_azure or gpu.cost_per_hour_usd) * total_gpus * hours_per_month,
+        }

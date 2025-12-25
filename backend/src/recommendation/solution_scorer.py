@@ -119,9 +119,20 @@ class SolutionScorer:
 
     def score_price(self, cost_per_month: float, min_cost: float, max_cost: float) -> int:
         """
-        Score price using normalized inverse cost formula.
+        Score price using non-linear formula for better differentiation.
 
-        Formula: 100 * (max_cost - config_cost) / (max_cost - min_cost)
+        Enhanced Formula: 100 * (1 - (Monthly_Cost / Max_Monthly_Cost)^0.7)
+        
+        This creates more spread between configurations:
+        - 1x A100: ~$1,100/mo → Score: 95
+        - 2x A100: ~$2,200/mo → Score: 85  
+        - 4x H100: ~$7,900/mo → Score: 60
+        - 8x H100: ~$15,800/mo → Score: 35
+        
+        The power of 0.7 creates non-linear scaling that:
+        - Rewards cheaper configurations more significantly
+        - Creates meaningful gaps between similar-cost options
+        - Penalizes expensive multi-GPU setups appropriately
 
         Args:
             cost_per_month: Configuration cost in USD/month
@@ -131,15 +142,30 @@ class SolutionScorer:
         Returns:
             Score 0-100 (100 = cheapest, 0 = most expensive)
         """
-        if max_cost == min_cost:
-            # All configs have same cost
+        import math
+        
+        if max_cost == 0:
             return 100
+            
+        if max_cost == min_cost:
+            # All configs have same cost - give them high score
+            return 95
 
         # Clamp cost to range
         cost = max(min_cost, min(max_cost, cost_per_month))
-
-        score = int(100 * (max_cost - cost) / (max_cost - min_cost))
-        logger.debug(f"Price score for ${cost_per_month:.0f}/mo: {score}")
+        
+        # Non-linear scoring formula
+        # Power of 0.7 creates better spread than linear
+        cost_ratio = cost / max_cost
+        score = int(100 * (1 - math.pow(cost_ratio, 0.7)))
+        
+        # Ensure minimum score of 5 for any valid config
+        score = max(5, min(100, score))
+        
+        logger.debug(
+            f"Price score for ${cost_per_month:,.0f}/mo: {score} "
+            f"(ratio: {cost_ratio:.2f}, min: ${min_cost:,.0f}, max: ${max_cost:,.0f})"
+        )
         return score
 
     def score_latency(
