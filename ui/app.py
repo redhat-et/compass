@@ -4581,66 +4581,53 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     with col3:
         # Task Datasets - show which benchmarks are used for this use case
         # Each entry: (name, weight, color, tooltip_description) - all black background
+        # Updated based on USE_CASE_METHODOLOGY.md (December 2024)
+        # Focus on TOP 3 benchmarks: τ²-Bench (91%), LiveCodeBench (84%), MMLU-Pro (83%), GPQA (82%)
         TASK_DATASETS = {
             "chatbot_conversational": [
-                ("MMLU-Pro", 30, "#000000", "General knowledge critical for conversations (12,032 questions)"),
-                ("IFBench", 30, "#000000", "Instruction following CRITICAL for chat behavior (294 questions)"),
-                ("HLE", 20, "#000000", "Reasoning capabilities (Humanity's Last Exam - 2,684 questions)"),
-                ("Intelligence Index", 15, "#000000", "Overall intelligence composite score"),
-                ("GPQA", 5, "#000000", "Scientific reasoning - less needed for general chat (198 questions)"),
+                ("τ²-Bench", 45, "Conversational AI is agentic workflow (114 tasks, 91% score)"),
+                ("MMLU-Pro", 35, "General knowledge for factual responses (12,032 questions)"),
+                ("GPQA", 20, "Scientific reasoning (198 questions)"),
             ],
             "code_completion": [
-                ("LiveCodeBench", 35, "#000000", "Primary code generation benchmark (315 questions)"),
-                ("SciCode", 30, "#000000", "Scientific code understanding (338 subproblems)"),
-                ("Coding Index", 20, "#000000", "Overall coding ability composite score"),
-                ("Terminal-Bench", 10, "#000000", "Agentic workflows for terminal commands (47 tasks)"),
-                ("IFBench", 5, "#000000", "Follow code patterns and conventions"),
+                ("LiveCodeBench", 45, "Primary code benchmark (315 questions, 84% score)"),
+                ("τ²-Bench", 35, "Agentic code assistance (114 tasks)"),
+                ("MMLU-Pro", 20, "Knowledge for context"),
             ],
             "code_generation_detailed": [
-                ("LiveCodeBench", 30, "#000000", "Code generation benchmark (315 questions)"),
-                ("SciCode", 25, "#000000", "Scientific code generation (338 subproblems)"),
-                ("IFBench", 20, "#000000", "Instruction following for generating explanations"),
-                ("Coding Index", 15, "#000000", "Overall coding ability composite"),
-                ("HLE", 10, "#000000", "Reasoning for code explanations"),
+                ("LiveCodeBench", 40, "Code generation (315 questions)"),
+                ("τ²-Bench", 40, "Agentic reasoning (114 tasks)"),
+                ("GPQA", 20, "Scientific reasoning for explanations"),
             ],
             "translation": [
-                ("IFBench", 35, "#000000", "Instruction following CRITICAL for accurate translation"),
-                ("MMLU-Pro", 30, "#000000", "Language understanding and knowledge"),
-                ("HLE", 20, "#000000", "Reasoning capabilities"),
-                ("Intelligence Index", 15, "#000000", "Overall intelligence"),
+                ("τ²-Bench", 45, "Language tasks benefit from agentic (114 tasks)"),
+                ("MMLU-Pro", 35, "Language understanding (12,032 questions)"),
+                ("GPQA", 20, "Reasoning"),
             ],
             "content_generation": [
-                ("MMLU-Pro", 30, "#000000", "General knowledge - facts to include in content"),
-                ("HLE", 25, "#000000", "Reasoning for coherent content"),
-                ("IFBench", 25, "#000000", "Instruction following for creative tasks"),
-                ("Intelligence Index", 20, "#000000", "Overall intelligence"),
+                ("τ²-Bench", 45, "Creative agentic workflow (114 tasks)"),
+                ("MMLU-Pro", 35, "General knowledge for facts"),
+                ("GPQA", 20, "Reasoning"),
             ],
             "summarization_short": [
-                ("HLE", 30, "#000000", "Reasoning CRITICAL for identifying key points"),
-                ("MMLU-Pro", 25, "#000000", "Understanding content to summarize"),
-                ("IFBench", 25, "#000000", "Instruction following for summary format"),
-                ("Intelligence Index", 20, "#000000", "Overall intelligence"),
+                ("τ²-Bench", 45, "Summarization is agentic (114 tasks)"),
+                ("MMLU-Pro", 35, "Comprehension (12,032 questions)"),
+                ("GPQA", 20, "Reasoning"),
             ],
             "document_analysis_rag": [
-                ("AA-LCR", 40, "#000000", "Long Context Reasoning - CRITICAL for RAG (100 questions)"),
-                ("MMLU-Pro", 20, "#000000", "Knowledge retrieval from context"),
-                ("HLE", 20, "#000000", "Reasoning over retrieved content"),
-                ("IFBench", 10, "#000000", "Instruction following for queries"),
-                ("τ²-Bench", 10, "#000000", "Agentic workflows for complex queries (114 tasks)"),
+                ("τ²-Bench", 50, "RAG is agentic workflow - DOMINANT (114 tasks)"),
+                ("GPQA", 30, "Scientific reasoning for factual answers"),
+                ("MMLU-Pro", 20, "Knowledge retrieval"),
             ],
             "long_document_summarization": [
-                ("AA-LCR", 45, "#000000", "Long Context Reasoning - CRITICAL for 50+ page docs"),
-                ("MMLU-Pro", 20, "#000000", "Understanding document content"),
-                ("HLE", 20, "#000000", "Reasoning for key point extraction"),
-                ("IFBench", 15, "#000000", "Instruction following for summary format"),
+                ("τ²-Bench", 50, "Long doc handling is agentic (114 tasks)"),
+                ("MMLU-Pro", 30, "Knowledge for understanding"),
+                ("GPQA", 20, "Reasoning"),
             ],
             "research_legal_analysis": [
-                ("AA-LCR", 40, "#000000", "Long Context Reasoning - CRITICAL for 16K-128K token docs"),
-                ("MMLU-Pro", 25, "#000000", "Knowledge - CRITICAL for domain expertise"),
-                ("HLE", 15, "#000000", "Reasoning for analysis"),
-                ("GPQA", 10, "#000000", "Scientific reasoning for research papers"),
-                ("IFBench", 5, "#000000", "Instruction following"),
-                ("τ²-Bench", 5, "#000000", "Agentic workflows for complex analysis"),
+                ("τ²-Bench", 55, "Research analysis is agentic reasoning - CRITICAL"),
+                ("GPQA", 25, "Scientific reasoning (198 questions)"),
+                ("MMLU-Pro", 20, "Knowledge (12,032 questions)"),
             ],
         }
         
@@ -4654,16 +4641,17 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
-        # Display datasets with weights - show description inline
+        # Display datasets with weights - black background, white text for visibility
         datasets_html = '<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">'
         for item in datasets:
-            name, weight, color = item[0], item[1], item[2]
-            tooltip = item[3] if len(item) > 3 else ""
+            name = item[0]
+            weight = item[1]
+            tooltip = item[2] if len(item) > 2 else ""
             datasets_html += f'''<div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">{name}</span>
-                    <span style="color: {color}; font-weight: 700; font-size: 0.95rem; background: {color}22; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
-            </div>
+                    <span style="color: white; font-weight: 700; font-size: 0.95rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
+                </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
             </div>'''
         datasets_html += '</div>'
