@@ -1433,6 +1433,8 @@ if "show_category_dialog" not in st.session_state:
     st.session_state.show_category_dialog = False
 if "explore_category" not in st.session_state:
     st.session_state.explore_category = "balanced"
+if "show_full_table_dialog" not in st.session_state:
+    st.session_state.show_full_table_dialog = False
 if "top5_balanced" not in st.session_state:
     st.session_state.top5_balanced = []
 if "top5_accuracy" not in st.session_state:
@@ -4877,6 +4879,86 @@ def show_category_dialog():
         st.rerun()
 
 
+@st.dialog("All Recommendation Options", width="large")
+def show_full_table_dialog():
+    """Show the full recommendations table with all categories."""
+    ranked_response = st.session_state.get('ranked_response')
+    
+    if not ranked_response:
+        st.warning("No recommendations available. Please run the recommendation process first.")
+        if st.button("Close", key="close_full_table_empty"):
+            st.session_state.show_full_table_dialog = False
+            st.rerun()
+        return
+    
+    # Dark theme styling for dialog
+    st.markdown("""<style>[data-testid="stDialog"],[data-testid="stDialog"] > div,[data-testid="stDialog"] > div > div {background: #0d1117 !important;}[data-testid="stDialog"] .stMarkdown,[data-testid="stDialog"] p,[data-testid="stDialog"] span,[data-testid="stDialog"] th,[data-testid="stDialog"] td {color: #f0f6fc !important;}</style>""", unsafe_allow_html=True)
+    
+    # Header
+    st.markdown('<div style="background: linear-gradient(135deg, #EE0000, #cc0000); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;"><h2 style="color: white; margin: 0; font-size: 1.5rem;">Configuration Options</h2><p style="color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;">All viable deployment configurations ranked by category</p></div>', unsafe_allow_html=True)
+    
+    total_configs = ranked_response.get("total_configs_evaluated", 0)
+    configs_after_filters = ranked_response.get("configs_after_filters", 0)
+    
+    st.markdown(f'<div style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
+    
+    # Define categories
+    categories = [
+        ("balanced", "Balanced", "#EE0000"),
+        ("best_accuracy", "Best Accuracy", "#ffffff"),
+        ("lowest_cost", "Lowest Cost", "#f59e0b"),
+        ("lowest_latency", "Lowest Latency", "#ffffff"),
+    ]
+    
+    # Helper function to format GPU config
+    def format_gpu_config(gpu_config: dict) -> str:
+        if not isinstance(gpu_config, dict):
+            return "Unknown"
+        gpu_type = gpu_config.get("gpu_type", "Unknown")
+        gpu_count = gpu_config.get("gpu_count", 1)
+        tp = gpu_config.get("tensor_parallel", 1)
+        replicas = gpu_config.get("replicas", 1)
+        return f"{gpu_count}x {gpu_type} (TP={tp}, R={replicas})"
+    
+    # Build table rows
+    all_rows = []
+    for cat_key, cat_name, cat_color in categories:
+        recs = ranked_response.get(cat_key, [])
+        if not recs:
+            all_rows.append(f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td></tr>')
+        else:
+            for i, rec in enumerate(recs[:5]):  # Show top 5 per category
+                model_name = rec.get("model_name", "Unknown")
+                gpu_config = rec.get("gpu_config", {})
+                gpu_str = format_gpu_config(gpu_config)
+                ttft = rec.get("predicted_ttft_p95_ms", 0)
+                cost = rec.get("cost_per_month_usd", 0)
+                scores = rec.get("scores", {}) or {}
+                accuracy = scores.get("accuracy_score", 0)
+                balanced = scores.get("balanced_score", 0)
+                meets_slo = rec.get("meets_slo", False)
+                slo_icon = "✅" if meets_slo else "⚠️"
+                
+                cat_display = f'<span style="color: {cat_color}; font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
+                
+                row = f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
+                all_rows.append(row)
+    
+    # Table header
+    header = '<thead><tr style="border-bottom: 2px solid rgba(255,255,255,0.2);"><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th></tr></thead>'
+    
+    # Render table
+    table_html = f'<table style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">{header}<tbody>{"".join(all_rows)}</tbody></table>'
+    
+    st.markdown(table_html, unsafe_allow_html=True)
+    
+    # Close button
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+    if st.button("Close", key="close_full_table_dialog", use_container_width=True):
+        st.session_state.show_full_table_dialog = False
+        st.rerun()
+
+
 # =============================================================================
 # MAIN APP
 # =============================================================================
@@ -4888,6 +4970,9 @@ def main():
     
     if st.session_state.get('show_category_dialog') is True:
         show_category_dialog()
+    
+    if st.session_state.get('show_full_table_dialog') is True:
+        show_full_table_dialog()
     
     # Load models
     if st.session_state.models_df is None:
@@ -5473,9 +5558,10 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     # NOTE: Removed VALID_MODEL_KEYWORDS filter - now using ALL 28 PostgreSQL models
     # Models without AA scores will show 0% accuracy but still have performance data
     if ranked_response:
-        render_ranked_recommendations(ranked_response)
+        # NOTE: Table removed from main view - now only shown in "Explore More Options" dialog
+        # render_ranked_recommendations(ranked_response)
         
-        # Store ranked response for winner details
+        # Store ranked response for winner details and for the Explore More Options dialog
         st.session_state.ranked_response = ranked_response
         
         # Get the Balanced winner for the Explore button
@@ -5530,6 +5616,14 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     
     if unique_recs:
         render_top5_table(unique_recs, priority)
+    
+    # === EXPLORE MORE OPTIONS BUTTON (centered) ===
+    st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    with col_center:
+        if st.button("Explore More Options", key="explore_more_options_btn", use_container_width=True):
+            st.session_state.show_full_table_dialog = True
+            st.rerun()
     
     # === MODIFY SLOs & RE-RUN SECTION ===
     st.markdown("---")
