@@ -2123,7 +2123,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         render_weight_controls()
 
     st.markdown(
-        f'<div style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>',
+        f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>',
         unsafe_allow_html=True
     )
 
@@ -4249,11 +4249,10 @@ def render_top5_table(recommendations: list, priority: str):
                         </div>
                         </div>
             <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">🎯 {scores["accuracy"]:.0f}</span>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">⚡ {scores["latency"]:.0f}</span>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">💰 {scores["cost"]:.0f}</span>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">🔧 {scores["complexity"]:.0f}</span>
-                <span style="color: #38ef7d; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
+                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
+                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
+                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
+                <span style="color: #ffffff; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
                         </div>
                         </div>
         '''
@@ -4267,48 +4266,56 @@ def render_top5_table(recommendations: list, priority: str):
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
-        hw_display = f"{hw_count}x {hw_type}"
+        replicas = gpu_cfg.get('replicas', 1)
+        # Hardware display - simple format for cards (TP/R shown in table only)
+        hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
         final_score = scores.get("final", 0)
         
         with col:
-            st.markdown(f'''
-            <div style="background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(40,40,55,0.9)); 
-                        border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; 
-                        box-shadow: 0 8px 32px {color}20;">
-                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-                    <span style="font-size: 1.5rem;">{icon}</span>
-                    <span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
-        </div>
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div style="flex: 1;">
-                        <div style="color: white; font-weight: 700; font-size: 1.15rem;">{model_name}</div>
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">{hw_display}</div>
-        </div>
-                    <div style="text-align: right;">
-                        <div style="color: {color}; font-size: 2rem; font-weight: 800;">{highlight_value:.0f}</div>
-                        <div style="color: rgba(255,255,255,0.4); font-size: 0.7rem;">SCORE</div>
-        </div>
-        </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">🎯 {scores["accuracy"]:.0f}</span>
-                    <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">⚡ {scores["latency"]:.0f}</span>
-                    <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">💰 {scores["cost"]:.0f}</span>
-                    <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">🔧 {scores["complexity"]:.0f}</span>
-                    <span style="color: #38ef7d; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
-    </div>
-        </div>
-            ''', unsafe_allow_html=True)
+            card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(40,40,55,0.9)); border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; box-shadow: 0 8px 32px {color}20;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+<span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
+</div>
+<div style="color: white; font-weight: 700; font-size: 1.3rem; margin-bottom: 1rem;">{model_name}</div>
+<div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 0.8rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Hardware</div>
+<div style="color: white; font-weight: 700; font-size: 1rem;">{hw_display}</div>
+</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 0.8rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Replicas</div>
+<div style="color: white; font-weight: 700; font-size: 1rem;">{replicas}</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.75rem;">
+<div style="text-align: right;">
+<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
+<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
+<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
+<span style="color: #ffffff; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
+</div>
+</div>'''
+            st.markdown(card_html, unsafe_allow_html=True)
             
             # Explore button for this category
             if st.button(f"Explore Top 5", key=f"explore_{category_key}_btn", use_container_width=True):
+                # Reset other dialogs first
+                st.session_state.show_full_table_dialog = False
+                st.session_state.show_winner_dialog = False
+                # Then open this dialog
                 st.session_state.explore_category = category_key
                 st.session_state.show_category_dialog = True
                 st.rerun()
     
     # Render 5 "Best" cards: 2 on top row, 3 on bottom row
     col1, col2 = st.columns(2)
-    render_card_with_explore("Balanced", "", "#ffffff", best_overall, "final", "balanced", col1)
+    render_card_with_explore("Balanced", "", "#EE0000", best_overall, "final", "balanced", col1)
     render_card_with_explore("Best Accuracy", "", "#EE0000", best_accuracy, "accuracy", "accuracy", col2)
     
     col3, col4, col5 = st.columns(3)
@@ -4740,43 +4747,59 @@ def show_category_dialog():
     # Get use case for context
     use_case = st.session_state.get("detected_use_case", "chatbot_conversational")
     
-    # Category config
+    # Token config per use case (for throughput calculation)
+    USE_CASE_OUTPUT_TOKENS = {
+        "chatbot_conversational": 256,
+        "code_completion": 256,
+        "translation": 256,
+        "content_creation": 256,
+        "code_generation_detailed": 1024,
+        "summarization_short": 512,
+        "document_analysis_rag": 512,
+        "long_document_summarization": 1536,
+        "research_legal_analysis": 1536,
+    }
+    output_tokens = USE_CASE_OUTPUT_TOKENS.get(use_case, 256)
+    
+    # Category config - Red Hat theme colors (no emojis)
     category_config = {
-        "balanced": {"title": "⚖️ Balanced - Top 5", "color": "#38ef7d", "field": "final", "top5_key": "top5_balanced"},
-        "accuracy": {"title": "🎯 Best Accuracy - Top 5", "color": "#f472b6", "field": "accuracy", "top5_key": "top5_accuracy"},
-        "latency": {"title": "⚡ Best Latency - Top 5", "color": "#667eea", "field": "latency", "top5_key": "top5_latency"},
-        "cost": {"title": "💰 Best Cost - Top 5", "color": "#f97316", "field": "cost", "top5_key": "top5_cost"},
-        "simplest": {"title": "🔧 Simplest - Top 5", "color": "#06b6d4", "field": "complexity", "top5_key": "top5_simplest"},
+        "balanced": {"title": "Balanced - Top 5", "color": "#EE0000", "field": "final", "top5_key": "top5_balanced"},
+        "accuracy": {"title": "Best Accuracy - Top 5", "color": "#EE0000", "field": "accuracy", "top5_key": "top5_accuracy"},
+        "latency": {"title": "Best Latency - Top 5", "color": "#EE0000", "field": "latency", "top5_key": "top5_latency"},
+        "cost": {"title": "Best Cost - Top 5", "color": "#EE0000", "field": "cost", "top5_key": "top5_cost"},
+        "simplest": {"title": "Simplest - Top 5", "color": "#EE0000", "field": "complexity", "top5_key": "top5_simplest"},
     }
     
     config = category_config.get(category, category_config["balanced"])
     top5_list = st.session_state.get(config["top5_key"], [])
     
-    # Dark theme CSS
+    # Red Hat theme CSS
     st.markdown("""
     <style>
         [data-testid="stDialog"] > div {
-            background: #0d1117 !important;
+            background: #000000 !important;
         }
         [data-testid="stDialog"] [data-testid="stMarkdownContainer"] p,
         [data-testid="stDialog"] [data-testid="stMarkdownContainer"] span,
         [data-testid="stDialog"] [data-testid="stMarkdownContainer"] div {
-            color: #f0f6fc !important;
+            color: #ffffff !important;
         }
         [data-testid="stDialog"] [data-testid="stButton"] button {
-            background: rgba(102, 126, 234, 0.2) !important;
-            border: 1px solid rgba(102, 126, 234, 0.4) !important;
+            background: #000000 !important;
+            border: 1px solid #EE0000 !important;
             color: white !important;
+        }
+        [data-testid="stDialog"] [data-testid="stButton"] button:hover {
+            background: #EE0000 !important;
         }
     </style>
     """, unsafe_allow_html=True)
     
-    # Header - dark background for readability
+    # Header - Red Hat theme
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(30,30,45,0.95), rgba(20,20,35,0.95)); 
-                padding: 1rem; border-radius: 12px; border: 1px solid {config['color']}50; margin-bottom: 1.5rem;">
-        <h3 style="color: {config['color']}; margin: 0; font-size: 1.3rem;">{config['title']}</h3>
-        <p style="color: rgba(255,255,255,0.7); margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+    <div style="background: #EE0000; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;">
+        <h3 style="color: #ffffff; margin: 0; font-size: 1.3rem;">{config['title']}</h3>
+        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.9rem;">
             Use case: <strong style="color: white;">{format_use_case_name(use_case)}</strong>
         </p>
     </div>
@@ -4805,6 +4828,12 @@ def show_category_dialog():
             "final": backend_scores.get("balanced_score", rec.get("final_score", 0)),
         }
     
+    # Helper to calculate throughput: output_tokens / (E2E_ms / 1000) = output_tokens * 1000 / E2E_ms
+    def calc_throughput(e2e_ms, output_toks):
+        if isinstance(e2e_ms, str) or e2e_ms is None or e2e_ms <= 0:
+            return None
+        return output_toks * 1000 / e2e_ms  # tok/s
+    
     # Render each model in the top 5
     for i, rec in enumerate(top5_list):
         scores = get_model_scores(rec)
@@ -4820,18 +4849,23 @@ def show_category_dialog():
         ttft = benchmark_slo.get('ttft_p95_ms', rec.get('predicted_ttft_p95_ms', 'N/A'))
         itl = benchmark_slo.get('itl_p95_ms', rec.get('predicted_itl_p95_ms', 'N/A'))
         e2e = benchmark_slo.get('e2e_p95_ms', rec.get('predicted_e2e_p95_ms', 'N/A'))
-        tps = rec.get('tokens_per_second', rec.get('output_tps', 'N/A'))
+        
+        # Calculate throughput from E2E and output tokens
+        throughput = calc_throughput(e2e, output_tokens)
+        throughput_display = f"{throughput:.0f} tok/s" if throughput else "N/A"
         
         highlight_score = scores.get(config["field"], 0)
-        rank_color = ["#ffd700", "#c0c0c0", "#cd7f32", "#667eea", "#667eea"][i] if i < 5 else "#667eea"
+        # Red Hat theme rank colors: red for #1, gray shades for others
+        rank_colors = ["#EE0000", "#666666", "#555555", "#444444", "#333333"]
+        rank_color = rank_colors[i] if i < 5 else "#333333"
+        rank_text_color = "#ffffff"  # Always white text
         
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); 
-                    border: 1px solid {config['color']}30; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;
-                    {'border-left: 4px solid ' + rank_color if i == 0 else ''}">
+        <div style="background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.95)); 
+                    border: 1px solid #333333; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <span style="background: {rank_color}; color: #000; font-weight: 800; padding: 0.25rem 0.6rem; 
+                    <span style="background: {rank_color}; color: {rank_text_color}; font-weight: 800; padding: 0.25rem 0.6rem; 
                                 border-radius: 6px; font-size: 0.85rem;">#{i+1}</span>
                     <div>
                         <div style="color: white; font-weight: 700; font-size: 1.05rem;">{model_name}</div>
@@ -4839,40 +4873,39 @@ def show_category_dialog():
                     </div>
                 </div>
                 <div style="text-align: right;">
-                    <div style="color: {config['color']}; font-size: 1.75rem; font-weight: 800;">{highlight_score:.0f}</div>
-                    <div style="color: rgba(255,255,255,0.4); font-size: 0.65rem; text-transform: uppercase;">{config['field']}</div>
+                    <div style="color: #ffffff; font-size: 1.75rem; font-weight: 800;">{highlight_score:.0f}</div>
+                    <div style="color: rgba(255,255,255,0.4); font-size: 0.65rem; text-transform: uppercase;">FINAL</div>
                 </div>
             </div>
             <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem; padding: 0.5rem; 
-                        background: rgba(0,0,0,0.2); border-radius: 8px;">
-                <span style="color: #f472b6; font-size: 0.8rem;">🎯 Acc: {scores['accuracy']:.0f}</span>
-                <span style="color: #667eea; font-size: 0.8rem;">⚡ Lat: {scores['latency']:.0f}</span>
-                <span style="color: #f97316; font-size: 0.8rem;">💰 Cost: {scores['cost']:.0f}</span>
-                <span style="color: #06b6d4; font-size: 0.8rem;">🔧 Simp: {scores['complexity']:.0f}</span>
-                <span style="color: #38ef7d; font-size: 0.8rem; font-weight: 600;">Final: {scores['final']:.1f}</span>
+                        background: rgba(0,0,0,0.4); border-radius: 8px;">
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Acc: {scores['accuracy']:.0f}</span>
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Lat: {scores['latency']:.0f}</span>
+                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Cost: {scores['cost']:.0f}</span>
+                <span style="color: #ffffff; font-size: 0.8rem; font-weight: 600;">Final: {scores['final']:.1f}</span>
             </div>
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
-                <div style="background: rgba(102, 126, 234, 0.15); padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.65rem;">TTFT (p95)</div>
-                    <div style="color: #667eea; font-weight: 700; font-size: 0.9rem;">{ttft if isinstance(ttft, str) else f'{ttft:.0f}ms'}</div>
+                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">TTFT (p95)</div>
+                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{ttft if isinstance(ttft, str) else f'{ttft:.0f}ms'}</div>
                 </div>
-                <div style="background: rgba(102, 126, 234, 0.15); padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.65rem;">ITL (p95)</div>
-                    <div style="color: #667eea; font-weight: 700; font-size: 0.9rem;">{itl if isinstance(itl, str) else f'{itl:.0f}ms'}</div>
+                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">ITL (p95)</div>
+                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{itl if isinstance(itl, str) else f'{itl:.0f}ms'}</div>
                 </div>
-                <div style="background: rgba(102, 126, 234, 0.15); padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.65rem;">E2E (p95)</div>
-                    <div style="color: #667eea; font-weight: 700; font-size: 0.9rem;">{e2e if isinstance(e2e, str) else f'{e2e:.0f}ms'}</div>
+                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">E2E (p95)</div>
+                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{e2e if isinstance(e2e, str) else f'{e2e:.0f}ms'}</div>
                 </div>
-                <div style="background: rgba(56, 239, 125, 0.15); padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.65rem;">Throughput</div>
-                    <div style="color: #38ef7d; font-weight: 700; font-size: 0.9rem;">{tps if isinstance(tps, str) else f'{tps:.0f} tok/s'}</div>
+                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">Throughput</div>
+                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{throughput_display}</div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Close button
+    # Close button - Red Hat theme
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     if st.button("Close", key="close_cat_dialog", use_container_width=True):
         st.session_state.show_category_dialog = False
@@ -4900,7 +4933,7 @@ def show_full_table_dialog():
     total_configs = ranked_response.get("total_configs_evaluated", 0)
     configs_after_filters = ranked_response.get("configs_after_filters", 0)
     
-    st.markdown(f'<div style="color: rgba(255,255,255,0.6); margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
     
     # Define categories
     categories = [
@@ -4965,13 +4998,21 @@ def show_full_table_dialog():
 
 def main():
     # Show dialogs if triggered
+    # Only show ONE dialog at a time (Streamlit limitation)
     if st.session_state.show_winner_dialog is True and st.session_state.balanced_winner is not None:
+        # Reset other dialogs
+        st.session_state.show_category_dialog = False
+        st.session_state.show_full_table_dialog = False
         show_winner_details_dialog()
-    
-    if st.session_state.get('show_category_dialog') is True:
+    elif st.session_state.get('show_category_dialog') is True:
+        # Reset other dialogs
+        st.session_state.show_winner_dialog = False
+        st.session_state.show_full_table_dialog = False
         show_category_dialog()
-    
-    if st.session_state.get('show_full_table_dialog') is True:
+    elif st.session_state.get('show_full_table_dialog') is True:
+        # Reset other dialogs
+        st.session_state.show_winner_dialog = False
+        st.session_state.show_category_dialog = False
         show_full_table_dialog()
     
     # Load models
@@ -5011,42 +5052,42 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     
     with col1:
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
-            st.session_state.user_input = "Customer service chatbot for 5000 users. Latency is critical. Using H100 GPUs."
+            st.session_state.user_input = "Customer service chatbot for 30 users. Latency is critical. Using H100 GPUs."
     
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
-            st.session_state.user_input = "IDE code completion tool for 200 developers. Need fast autocomplete suggestions, low latency is key."
+            st.session_state.user_input = "IDE code completion tool for 30 developers. Need fast autocomplete suggestions, low latency is key."
     
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
-            st.session_state.user_input = "RAG system for enterprise document Q&A, 1000 users, cost-efficient preferred, A100 GPUs available."
+            st.session_state.user_input = "RAG system for enterprise document Q&A, 30 users, cost-efficient preferred, A100 GPUs available."
     
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
-            st.session_state.user_input = "News article summarization for 2000 daily users. Quick summaries, cost-effective solution needed."
+            st.session_state.user_input = "News article summarization for 30 daily users. Quick summaries, cost-effective solution needed."
     
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
-            st.session_state.user_input = "Legal document analysis for 50 lawyers. Accuracy is critical, budget is flexible."
+            st.session_state.user_input = "Legal document analysis for 30 lawyers. Accuracy is critical, budget is flexible."
     
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
     
     with col6:
         if st.button("Translation", use_container_width=True, key="task_trans"):
-            st.session_state.user_input = "Multi-language translation service for 3000 users. Need to translate between 10 language pairs accurately."
+            st.session_state.user_input = "Multi-language translation service for 30 users. Need to translate between 10 language pairs accurately."
     
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
-            st.session_state.user_input = "Content generation tool for marketing team, 100 users. Need creative blog posts and social media content."
+            st.session_state.user_input = "Content generation tool for marketing team, 30 users. Need creative blog posts and social media content."
     
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
-            st.session_state.user_input = "Long document summarization for research papers (50+ pages). 200 researchers, quality is most important."
+            st.session_state.user_input = "Long document summarization for research papers (50+ pages). 30 researchers, accuracy is most important."
     
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
-            st.session_state.user_input = "Full code generation tool for implementing features from specs. 50 developers, high quality code needed."
+            st.session_state.user_input = "Full code generation tool for implementing features from specs. 30 developers, high accuracy needed."
     
     # Input area with validation
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
@@ -5055,7 +5096,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         value=st.session_state.user_input,
         height=120,
         max_chars=2000,  # Corporate standard: limit input length
-        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 10,000 users. Low latency is important, and we have H100 GPUs available.",
+        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 30 users. Low latency is important, and we have H100 GPUs available.",
         label_visibility="collapsed"
     )
     st.markdown('</div>', unsafe_allow_html=True)
@@ -5143,12 +5184,23 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     # If approved, show message to proceed to Technical Specifications tab
     if st.session_state.extraction_approved == True:
         render_extraction_result(st.session_state.extraction_result, used_priority)
-        st.markdown("""
-        <div style="background: #EE0000; color: white; padding: 1rem 1.5rem; border-radius: 8px; margin-top: 1.5rem; text-align: center;">
-            <strong style="font-size: 1.1rem;">Step 1 Complete</strong><br>
-            <span style="font-size: 0.95rem;">Proceed to the <strong>Technical Specifications</strong> tab to set your SLO targets and workload parameters.</span>
-        </div>
-        """, unsafe_allow_html=True)
+        
+        # Small left-aligned buttons stacked vertically
+        col_btns, col_space = st.columns([1, 3])
+        with col_btns:
+            st.markdown("""
+            <div style="background: #EE0000; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+                <strong>Step 1 Complete</strong> · Go to Technical Specifications
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Next Tab →", key="next_tab_1", type="primary"):
+                import streamlit.components.v1 as components
+                components.html("""
+                <script>
+                    const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                    if (tabs.length > 1) tabs[1].click();
+                </script>
+                """, height=0)
 
 
 def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
@@ -5172,12 +5224,22 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     
     # If SLO approved, show navigation message
     if st.session_state.slo_approved == True:
-        st.markdown("""
-        <div style="background: #EE0000; color: white; padding: 1rem 1.5rem; border-radius: 8px; margin-top: 1.5rem; text-align: center;">
-            <strong style="font-size: 1.1rem;">Step 2 Complete</strong><br>
-            <span style="font-size: 0.95rem;">Proceed to the <strong>Recommendations</strong> tab to see your best model recommendations.</span>
-        </div>
-        """, unsafe_allow_html=True)
+        # Small left-aligned buttons stacked vertically
+        col_btns2, col_space2 = st.columns([1, 3])
+        with col_btns2:
+            st.markdown("""
+            <div style="background: #EE0000; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+                <strong>Step 2 Complete</strong> · Go to Recommendations
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Next Tab →", key="next_tab_2", type="primary"):
+                import streamlit.components.v1 as components
+                components.html("""
+                <script>
+                    const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                    if (tabs.length > 2) tabs[2].click();
+                </script>
+                """, height=0)
 
 
 def render_results_tab(priority: str, models_df: pd.DataFrame):
@@ -5500,7 +5562,9 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     """Render beautiful recommendation results with Top 5 table."""
     
     # === Ranked Hardware Recommendations (Backend API) ===
-    # Gather data from extraction
+    # Gather data from extraction (handle None case)
+    if extraction is None:
+        extraction = {}
     use_case = extraction.get("use_case", "chatbot_conversational")
     user_count = extraction.get("user_count", 1000)
 
@@ -5622,6 +5686,10 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     col_left, col_center, col_right = st.columns([1, 2, 1])
     with col_center:
         if st.button("Explore More Options", key="explore_more_options_btn", use_container_width=True):
+            # Reset other dialogs first
+            st.session_state.show_category_dialog = False
+            st.session_state.show_winner_dialog = False
+            # Then open this dialog
             st.session_state.show_full_table_dialog = True
             st.rerun()
     
@@ -5640,13 +5708,32 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
         </div>
         """, unsafe_allow_html=True)
         
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        if st.button("Modify SLOs & Re-run Recommendations", use_container_width=True, key="rerun_recs"):
+    # Show message to go back to Technical Specifications tab
+    col_msg, col_spacer = st.columns([1, 2])
+    with col_msg:
+        st.markdown("""
+        <div style="background: #1a1a1a; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid #333;">
+            <strong>Want different results?</strong> · Go to <strong>Technical Specifications</strong> tab to modify SLOs
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("← Back to Technical Specs", key="back_to_slo", type="primary"):
+            # Reset dialog states first
+            st.session_state.show_category_dialog = False
+            st.session_state.show_full_table_dialog = False
+            st.session_state.show_winner_dialog = False
             # Reset slo_approved to go back to SLO editing
             st.session_state.slo_approved = None
             st.session_state.recommendation_result = None
-            st.rerun()
+            # IMPORTANT: Clear cached ranked_response so recommendations are re-fetched with new SLOs
+            st.session_state.ranked_response = None
+            # Use JavaScript to switch to Technical Specifications tab
+            import streamlit.components.v1 as components
+            components.html("""
+            <script>
+                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 1) tabs[1].click();
+            </script>
+            """, height=0)
 
 
 def _render_winner_details(winner: dict, priority: str, extraction: dict):
