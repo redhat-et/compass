@@ -14,11 +14,12 @@ class TrafficProfile(BaseModel):
 
 
 class SLOTargets(BaseModel):
-    """Service Level Objective targets for the deployment (p95 percentiles)."""
+    """Service Level Objective targets for the deployment."""
 
-    ttft_p95_target_ms: int = Field(..., description="Time to First Token p95 target (ms)")
-    itl_p95_target_ms: int = Field(..., description="Inter-Token Latency p95 target (ms/token)")
-    e2e_p95_target_ms: int = Field(..., description="End-to-end latency p95 target (ms)")
+    ttft_p95_target_ms: int = Field(..., description="Time to First Token target (ms)")
+    itl_p95_target_ms: int = Field(..., description="Inter-Token Latency target (ms/token)")
+    e2e_p95_target_ms: int = Field(..., description="End-to-end latency target (ms)")
+    percentile: str = Field(default="p95", description="Percentile for SLO comparison (mean, p90, p95, p99)")
 
 
 class GPUConfig(BaseModel):

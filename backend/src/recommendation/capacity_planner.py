@@ -163,6 +163,9 @@ class CapacityPlanner:
             query_itl = slo_targets.itl_p95_target_ms
             query_e2e = slo_targets.e2e_p95_target_ms
 
+        # Get percentile from SLO targets (default to p95 for backwards compatibility)
+        percentile = getattr(slo_targets, 'percentile', 'p95')
+        
         # Query PostgreSQL for configurations meeting relaxed SLO targets
         matching_configs = self.benchmark_repo.find_configurations_meeting_slo(
             prompt_tokens=traffic_profile.prompt_tokens,
@@ -171,6 +174,7 @@ class CapacityPlanner:
             itl_p95_max_ms=query_itl,
             e2e_p95_max_ms=query_e2e,
             min_qps=0,
+            percentile=percentile,
         )
 
         if not matching_configs:

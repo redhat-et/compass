@@ -285,7 +285,8 @@ class BenchmarkRepository:
         ttft_p95_max_ms: int,
         itl_p95_max_ms: int,
         e2e_p95_max_ms: int,
-        min_qps: float = 0
+        min_qps: float = 0,
+        percentile: str = "p95"
     ) -> list[BenchmarkData]:
         """
         Find all configurations that meet SLO requirements for a traffic profile.
@@ -299,30 +300,45 @@ class BenchmarkRepository:
         Args:
             prompt_tokens: Target prompt length
             output_tokens: Target output length
-            ttft_p95_max_ms: Maximum acceptable TTFT p95 (ms)
-            itl_p95_max_ms: Maximum acceptable ITL p95 (ms/token)
-            e2e_p95_max_ms: Maximum acceptable E2E p95 (ms)
+            ttft_p95_max_ms: Maximum acceptable TTFT (ms) - parameter name kept for backwards compat
+            itl_p95_max_ms: Maximum acceptable ITL (ms/token) - parameter name kept for backwards compat
+            e2e_p95_max_ms: Maximum acceptable E2E (ms) - parameter name kept for backwards compat
             min_qps: Minimum required QPS
+            percentile: Which percentile column to use (mean, p90, p95, p99)
 
         Returns:
             List of benchmarks meeting all criteria (one per system configuration)
         """
+        # Map percentile to column suffix
+        valid_percentiles = {"mean", "p90", "p95", "p99"}
+        if percentile not in valid_percentiles:
+            logger.warning(f"Invalid percentile '{percentile}', defaulting to p95")
+            percentile = "p95"
+        
+        # Build column names based on percentile
+        ttft_col = f"ttft_{percentile}"
+        itl_col = f"itl_{percentile}"
+        e2e_col = f"e2e_{percentile}"
+        
+        logger.info(f"Querying benchmarks with percentile={percentile} (columns: {ttft_col}, {itl_col}, {e2e_col})")
+        
         # Use window function to rank benchmarks by requests_per_second within each
         # system configuration, then select only the highest QPS that meets SLO.
         # When multiple benchmarks exist at the same QPS, prefer the one with lowest E2E latency.
-        query = """
+        # NOTE: Using string formatting for column names is safe here since we validate percentile above
+        query = f"""
             WITH ranked_configs AS (
                 SELECT *,
                        ROW_NUMBER() OVER (
                            PARTITION BY model_hf_repo, hardware, hardware_count
-                           ORDER BY requests_per_second DESC, e2e_p95 ASC
+                           ORDER BY requests_per_second DESC, {e2e_col} ASC
                        ) as rn
                 FROM exported_summaries
                 WHERE prompt_tokens = %s
                   AND output_tokens = %s
-                  AND ttft_p95 <= %s
-                  AND itl_p95 <= %s
-                  AND e2e_p95 <= %s
+                  AND {ttft_col} <= %s
+                  AND {itl_col} <= %s
+                  AND {e2e_col} <= %s
                   AND requests_per_second >= %s
             )
             SELECT

@@ -1397,6 +1397,9 @@ if "custom_e2e" not in st.session_state:
     st.session_state.custom_e2e = None
 if "custom_qps" not in st.session_state:
     st.session_state.custom_qps = None
+# SLO percentile selection (Mean, P90, P95, P99)
+if "slo_percentile" not in st.session_state:
+    st.session_state.slo_percentile = "p95"  # Default to P95
 
 # Ranking weights (for balanced score calculation)
 if "weight_accuracy" not in st.session_state:
@@ -1857,11 +1860,12 @@ def fetch_ranked_recommendations(
     prompt_tokens: int,
     output_tokens: int,
     expected_qps: float,
-    ttft_p95_target_ms: int,
-    itl_p95_target_ms: int,
-    e2e_p95_target_ms: int,
+    ttft_target_ms: int,
+    itl_target_ms: int,
+    e2e_target_ms: int,
     weights: dict = None,
     include_near_miss: bool = False,
+    percentile: str = "p95",
 ) -> dict | None:
     """Fetch ranked recommendations from the backend API.
 
@@ -1872,11 +1876,12 @@ def fetch_ranked_recommendations(
         prompt_tokens: Input prompt token count
         output_tokens: Output generation token count
         expected_qps: Queries per second
-        ttft_p95_target_ms: TTFT SLO target (p95)
-        itl_p95_target_ms: ITL SLO target (p95)
-        e2e_p95_target_ms: E2E SLO target (p95)
+        ttft_target_ms: TTFT SLO target
+        itl_target_ms: ITL SLO target
+        e2e_target_ms: E2E SLO target
         weights: Optional dict with accuracy, price, latency, complexity weights (0-10)
         include_near_miss: Whether to include near-SLO configurations
+        percentile: Which percentile to use for SLO comparison (mean, p90, p95, p99)
 
     Returns:
         RankedRecommendationsResponse as dict, or None on error
@@ -1904,9 +1909,10 @@ def fetch_ranked_recommendations(
         "prompt_tokens": prompt_tokens,
         "output_tokens": output_tokens,
         "expected_qps": expected_qps,
-        "ttft_p95_target_ms": ttft_p95_target_ms,
-        "itl_p95_target_ms": itl_p95_target_ms,
-        "e2e_p95_target_ms": e2e_p95_target_ms,
+        "ttft_target_ms": ttft_target_ms,
+        "itl_target_ms": itl_target_ms,
+        "e2e_target_ms": e2e_target_ms,
+        "percentile": percentile,  # mean, p90, p95, p99
         "include_near_miss": include_near_miss,
         "min_accuracy": 35,  # Filter out models without AA accuracy data (30% fallback)
     }
@@ -4441,6 +4447,21 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
+        # Percentile selector dropdown
+        percentile_options = ["Mean", "P90", "P95", "P99"]
+        percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
+        reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
+        current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
+        
+        selected_percentile = st.selectbox(
+            "Latency Percentile",
+            percentile_options,
+            index=percentile_options.index(current_percentile_display),
+            key="percentile_selector",
+            help="Which percentile to use for SLO comparison. P95 = 95% of requests meet this target."
+        )
+        st.session_state.slo_percentile = percentile_map[selected_percentile]
+        
         # Load SLO ranges from config (backend-driven, not hardcoded)
         research_data = load_research_slo_ranges()
         slo_config = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
@@ -5603,6 +5624,9 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     }
     include_near_miss = st.session_state.include_near_miss
 
+    # Get selected percentile from session state
+    selected_percentile = st.session_state.get('slo_percentile', 'p95')
+    
     # Fetch ranked recommendations from backend (using ALL 28 PostgreSQL models)
     with st.spinner("Fetching ranked recommendations from backend..."):
         ranked_response = fetch_ranked_recommendations(
@@ -5612,11 +5636,12 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
             prompt_tokens=prompt_tokens,
             output_tokens=output_tokens,
             expected_qps=expected_qps,
-            ttft_p95_target_ms=ttft_target,
-            itl_p95_target_ms=itl_target,
-            e2e_p95_target_ms=e2e_target,
+            ttft_target_ms=ttft_target,
+            itl_target_ms=itl_target,
+            e2e_target_ms=e2e_target,
             weights=weights,
             include_near_miss=include_near_miss,
+            percentile=selected_percentile,
         )
 
     # NOTE: Removed VALID_MODEL_KEYWORDS filter - now using ALL 28 PostgreSQL models
