@@ -258,6 +258,26 @@ class CapacityPlanner:
             model_id = model.model_id if model else bench.model_hf_repo
             model_name = model.name if model else bench.model_hf_repo
 
+            # Build benchmark_metrics with all percentile values for UI display
+            benchmark_metrics = {
+                "ttft_mean": int(bench.ttft_mean) if bench.ttft_mean else 0,
+                "ttft_p90": int(bench.ttft_p90) if bench.ttft_p90 else 0,
+                "ttft_p95": int(bench.ttft_p95) if bench.ttft_p95 else 0,
+                "ttft_p99": int(bench.ttft_p99) if bench.ttft_p99 else 0,
+                "itl_mean": int(bench.itl_mean) if bench.itl_mean else 0,
+                "itl_p90": int(bench.itl_p90) if bench.itl_p90 else 0,
+                "itl_p95": int(bench.itl_p95) if bench.itl_p95 else 0,
+                "itl_p99": int(bench.itl_p99) if bench.itl_p99 else 0,
+                "e2e_mean": int(bench.e2e_mean) if bench.e2e_mean else 0,
+                "e2e_p90": int(bench.e2e_p90) if bench.e2e_p90 else 0,
+                "e2e_p95": int(bench.e2e_p95) if bench.e2e_p95 else 0,
+                "e2e_p99": int(bench.e2e_p99) if bench.e2e_p99 else 0,
+                "tps_mean": float(bench.tps_mean) if bench.tps_mean else 0,
+                "tps_p90": float(bench.tps_p90) if bench.tps_p90 else 0,
+                "tps_p95": float(bench.tps_p95) if bench.tps_p95 else 0,
+                "tps_p99": float(bench.tps_p99) if bench.tps_p99 else 0,
+            }
+            
             # Build recommendation (price score calculated later after we know min/max)
             recommendation = DeploymentRecommendation(
                 intent=intent,
@@ -274,6 +294,7 @@ class CapacityPlanner:
                 cost_per_month_usd=cost_per_month,
                 meets_slo=(slo_status == "compliant"),
                 reasoning=self._generate_reasoning_from_bench(bench, gpu_config, intent, model),
+                benchmark_metrics=benchmark_metrics,  # All percentile data for UI
                 # Temporary scores without price (will be updated below)
                 scores=ConfigurationScores(
                     accuracy_score=accuracy_score,

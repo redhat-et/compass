@@ -2152,12 +2152,18 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         replicas = gpu_config.get("replicas", 1)
         return f"{gpu_count}x {gpu_type} (TP={tp}, R={replicas})"
 
+    # Get selected percentile for table display
+    selected_percentile = st.session_state.get('slo_percentile', 'p95')
+    percentile_label = selected_percentile.upper() if selected_percentile != 'mean' else 'Mean'
+    
     # Helper function to build a table row from a recommendation
     def build_row(rec: dict, cat_color: str, cat_name: str = "", cat_emoji: str = "", is_top: bool = False, more_count: int = 0) -> str:
         model_name = rec.get("model_name", "Unknown")
         gpu_config = rec.get("gpu_config", {})
         gpu_str = format_gpu_config(gpu_config)
-        ttft = rec.get("predicted_ttft_p95_ms", 0)
+        # Get TTFT from benchmark_metrics using selected percentile, fallback to p95
+        benchmark_metrics = rec.get("benchmark_metrics", {}) or {}
+        ttft = benchmark_metrics.get(f'ttft_{selected_percentile}', rec.get("predicted_ttft_p95_ms", 0))
         cost = rec.get("cost_per_month_usd", 0)
         meets_slo = rec.get("meets_slo", False)
         scores = rec.get("scores", {})
@@ -2203,7 +2209,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         f'<th {th_style}>Category</th>'
         f'<th {th_style}>Model</th>'
         f'<th {th_style}>GPU Config</th>'
-        f'<th {th_style_right}>TTFT (p95)</th>'
+        f'<th {th_style_right}>TTFT ({percentile_label})</th>'
         f'<th {th_style_right}>Cost/mo</th>'
         f'<th {th_style_center}>🎯</th>'
         f'<th {th_style_center}>💰</th>'
@@ -4905,15 +4911,26 @@ def show_category_dialog():
         hw_display = f"{hw_count}x {hw_type}"
         tp = gpu_cfg.get('tensor_parallel', 1)
         
-        # Get benchmark SLO data
-        benchmark_slo = rec.get('benchmark_slo', {}) or rec.get('predicted_slo', {}) or {}
-        ttft = benchmark_slo.get('ttft_p95_ms', rec.get('predicted_ttft_p95_ms', 'N/A'))
-        itl = benchmark_slo.get('itl_p95_ms', rec.get('predicted_itl_p95_ms', 'N/A'))
-        e2e = benchmark_slo.get('e2e_p95_ms', rec.get('predicted_e2e_p95_ms', 'N/A'))
+        # Get selected percentile from session state
+        selected_percentile = st.session_state.get('slo_percentile', 'p95')
+        percentile_suffix = selected_percentile  # mean, p90, p95, p99
+        percentile_label = selected_percentile.upper() if selected_percentile != 'mean' else 'Mean'
         
-        # Calculate throughput from E2E and output tokens
-        throughput = calc_throughput(e2e, output_tokens)
-        throughput_display = f"{throughput:.0f} tok/s" if throughput else "N/A"
+        # Get benchmark metrics with all percentiles (from backend)
+        benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
+        
+        # Get values for selected percentile
+        ttft = benchmark_metrics.get(f'ttft_{percentile_suffix}', rec.get('predicted_ttft_p95_ms', 'N/A'))
+        itl = benchmark_metrics.get(f'itl_{percentile_suffix}', rec.get('predicted_itl_p95_ms', 'N/A'))
+        e2e = benchmark_metrics.get(f'e2e_{percentile_suffix}', rec.get('predicted_e2e_p95_ms', 'N/A'))
+        tps = benchmark_metrics.get(f'tps_{percentile_suffix}', 0)
+        
+        # Use TPS from benchmark if available, else calculate from E2E
+        if tps and tps > 0:
+            throughput_display = f"{tps:.0f} tok/s"
+        else:
+            throughput = calc_throughput(e2e, output_tokens)
+            throughput_display = f"{throughput:.0f} tok/s" if throughput else "N/A"
         
         highlight_score = scores.get(config["field"], 0)
         # Red Hat theme rank colors: red for #1, gray shades for others
@@ -4947,15 +4964,15 @@ def show_category_dialog():
             </div>
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
                 <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">TTFT (p95)</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">TTFT ({percentile_label})</div>
                     <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{ttft if isinstance(ttft, str) else f'{ttft:.0f}ms'}</div>
                 </div>
                 <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">ITL (p95)</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">ITL ({percentile_label})</div>
                     <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{itl if isinstance(itl, str) else f'{itl:.0f}ms'}</div>
                 </div>
                 <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">E2E (p95)</div>
+                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">E2E ({percentile_label})</div>
                     <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{e2e if isinstance(e2e, str) else f'{e2e:.0f}ms'}</div>
                 </div>
                 <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">

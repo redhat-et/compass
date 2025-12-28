@@ -110,6 +110,9 @@ class DeploymentRecommendation(BaseModel):
     predicted_itl_p95_ms: int | None = None
     predicted_e2e_p95_ms: int | None = None
     predicted_throughput_qps: float | None = None
+    
+    # All percentile metrics from benchmark (for UI to display based on user selection)
+    benchmark_metrics: Optional[dict] = Field(default=None, description="All percentile metrics from benchmark")
 
     # Cost estimation (None when no viable config found)
     cost_per_hour_usd: float | None = None
@@ -149,6 +152,7 @@ class DeploymentRecommendation(BaseModel):
             "cost_per_month_usd": self.cost_per_month_usd,
             "reasoning": self.reasoning,
             "scores": self.scores.model_dump() if self.scores else None,
+            "benchmark_metrics": self.benchmark_metrics,
         }
 
 
