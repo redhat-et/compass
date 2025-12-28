@@ -66,7 +66,13 @@ class BenchmarkData:
         self.e2e_p95 = data["e2e_p95"]
         self.e2e_p99 = data["e2e_p99"]
 
-        # Throughput
+        # TPS (tokens per second) metrics - all percentiles
+        self.tps_mean = data.get("tps_mean")
+        self.tps_p90 = data.get("tps_p90")
+        self.tps_p95 = data.get("tps_p95")
+        self.tps_p99 = data.get("tps_p99")
+
+        # Throughput (legacy fields kept for backwards compatibility)
         self.tokens_per_second = data["tokens_per_second"]
         self.requests_per_second = data["requests_per_second"]
 
@@ -94,6 +100,10 @@ class BenchmarkData:
             "e2e_p90": self.e2e_p90,
             "e2e_p95": self.e2e_p95,
             "e2e_p99": self.e2e_p99,
+            "tps_mean": self.tps_mean,
+            "tps_p90": self.tps_p90,
+            "tps_p95": self.tps_p95,
+            "tps_p99": self.tps_p99,
             "tokens_per_second": self.tokens_per_second,
             "requests_per_second": self.requests_per_second,
         }
