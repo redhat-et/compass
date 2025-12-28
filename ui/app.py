@@ -4425,13 +4425,13 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     </div>
     """, unsafe_allow_html=True)
     
-    # Show research range info
+    # Show research range info - these are P95 default values
     if 'ttft_range' in research_defaults:
         st.markdown(f"""
         <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-            <span>TTFT Range: {research_defaults['ttft_range']['min']}-{research_defaults['ttft_range']['max']}ms</span>
-            <span>ITL Range: {research_defaults['itl_range']['min']}-{research_defaults['itl_range']['max']}ms</span>
-            <span>E2E Range: {research_defaults['e2e_range']['min']}-{research_defaults['e2e_range']['max']}ms</span>
+            <span>P95 (default) TTFT: {research_defaults['ttft_range']['min']}-{research_defaults['ttft_range']['max']}ms</span>
+            <span>P95 (default) ITL: {research_defaults['itl_range']['min']}-{research_defaults['itl_range']['max']}ms</span>
+            <span>P95 (default) E2E: {research_defaults['e2e_range']['min']}-{research_defaults['e2e_range']['max']}ms</span>
         </div>
         """, unsafe_allow_html=True)
     
@@ -4445,6 +4445,37 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 <span class="slo-title">SLO Targets</span>
             </div>
         </div>
+        """, unsafe_allow_html=True)
+        
+        # CSS for percentile selector - white text, visible border
+        st.markdown("""
+        <style>
+            /* Percentile selector styling - white text, visible border */
+            [data-testid="stSelectbox"][data-baseweb="select"] label {
+                color: white !important;
+            }
+            div[data-baseweb="select"] > div {
+                background: rgba(0,0,0,0.5) !important;
+                border: 1px solid rgba(255,255,255,0.4) !important;
+                color: white !important;
+            }
+            div[data-baseweb="select"] > div:hover {
+                border-color: #EE0000 !important;
+            }
+            div[data-baseweb="select"] span {
+                color: white !important;
+            }
+            /* Dropdown menu styling */
+            [data-baseweb="menu"] {
+                background: #1a1a1a !important;
+            }
+            [data-baseweb="menu"] li {
+                color: white !important;
+            }
+            [data-baseweb="menu"] li:hover {
+                background: rgba(238, 0, 0, 0.3) !important;
+            }
+        </style>
         """, unsafe_allow_html=True)
         
         # Percentile selector dropdown
