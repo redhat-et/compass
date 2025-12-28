@@ -4450,19 +4450,28 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # CSS for percentile selector - white text, visible border
         st.markdown("""
         <style>
-            /* Percentile selector styling - white text, visible border */
-            [data-testid="stSelectbox"][data-baseweb="select"] label {
+            /* Percentile selector label - WHITE */
+            .stSelectbox label {
+                color: white !important;
+                font-weight: 600 !important;
+            }
+            .stSelectbox p {
                 color: white !important;
             }
-            div[data-baseweb="select"] > div {
+            /* Percentile selector box - visible border */
+            .stSelectbox > div > div {
+                background: rgba(0,0,0,0.5) !important;
+                border: 1px solid rgba(255,255,255,0.4) !important;
+            }
+            .stSelectbox > div > div:hover {
+                border-color: #EE0000 !important;
+            }
+            .stSelectbox [data-baseweb="select"] > div {
                 background: rgba(0,0,0,0.5) !important;
                 border: 1px solid rgba(255,255,255,0.4) !important;
                 color: white !important;
             }
-            div[data-baseweb="select"] > div:hover {
-                border-color: #EE0000 !important;
-            }
-            div[data-baseweb="select"] span {
+            .stSelectbox [data-baseweb="select"] span {
                 color: white !important;
             }
             /* Dropdown menu styling */
