@@ -4496,7 +4496,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
-        # CSS for SLO inputs - white borders, white text
+        # CSS for SLO inputs - white borders, white text, red arrows
         st.markdown("""
         <style>
             /* Percentile selector label - WHITE */
@@ -4524,6 +4524,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             .stSelectbox [data-baseweb="select"] span {
                 color: white !important;
             }
+            /* Dropdown arrow - RED */
+            .stSelectbox svg {
+                fill: #EE0000 !important;
+                color: #EE0000 !important;
+            }
+            .stSelectbox [data-baseweb="select"] svg {
+                fill: #EE0000 !important;
+            }
             /* Number inputs - WHITE border */
             .stNumberInput > div > div > input {
                 background: rgba(0,0,0,0.5) !important;
@@ -4533,6 +4541,13 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             }
             .stNumberInput > div > div > input:focus {
                 border-color: #EE0000 !important;
+            }
+            /* Number input +/- buttons - RED */
+            .stNumberInput button {
+                color: #EE0000 !important;
+            }
+            .stNumberInput button svg {
+                fill: #EE0000 !important;
             }
             /* Dropdown menu styling */
             [data-baseweb="menu"] {
@@ -4576,10 +4591,10 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
         e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
         
-        # Dynamic step sizes based on max values
-        ttft_step = max(100, ttft_max // 100)
-        itl_step = max(5, itl_max // 50)
-        e2e_step = max(500, e2e_max // 100)
+        # Use step=1 to allow any integer value in the range
+        ttft_step = 1
+        itl_step = 1
+        e2e_step = 1
         
         # Get percentile label for display
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
