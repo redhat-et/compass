@@ -4475,20 +4475,46 @@ def render_score_bar(label: str, icon: str, score: float, bar_class: str, contri
 def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced", hardware: str = None):
     """Render SLO and workload impact cards with editable fields.
     
-    SLO defaults are calculated as the MIDDLE of the priority-adjusted research range.
-    Only models meeting these SLO targets (from benchmark data) will be recommended.
+    SLO defaults are set to MAX (showing all configs by default).
+    User drags slider LEFT to tighten SLOs and filter down configs.
+    Priority affects the MAX - low_latency has tighter max values.
     """
-    # Calculate SLO defaults from MIDDLE of research range (adjusted for priority)
-    research_defaults = calculate_slo_defaults_from_research(use_case, priority)
+    # Get research data for token config and priority factors
+    research_data = load_research_slo_ranges()
+    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
+    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
+    
+    # Get actual benchmark ranges for this use case's token config
+    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
+    
+    # Get priority adjustment factors
+    priority_adjustments = research_data.get('priority_adjustments', {}) if research_data else {}
+    priority_factor = priority_adjustments.get(priority, {})
+    ttft_factor = priority_factor.get('ttft_factor', 1.0)
+    itl_factor = priority_factor.get('itl_factor', 1.0)
+    e2e_factor = priority_factor.get('e2e_factor', 1.0)
+    
+    # Get selected percentile (default P95)
+    percentile_key = st.session_state.get('slo_percentile', 'p95')
+    
+    # Calculate MAX values (adjusted by priority) - these are the DEFAULTS
+    ttft_max_raw = benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000)
+    itl_max_raw = benchmark_ranges.get(f'itl_{percentile_key}_max', 430)
+    e2e_max_raw = benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000)
+    
+    ttft_default = int(ttft_max_raw * ttft_factor)
+    itl_default = int(itl_max_raw * itl_factor)
+    e2e_default = int(e2e_max_raw * e2e_factor)
     
     # Calculate QPS based on user count
     estimated_qps = max(1, user_count // 50)
     
-    # Use custom values if set, otherwise use research-based defaults
-    ttft = st.session_state.custom_ttft if st.session_state.custom_ttft else research_defaults['ttft']
-    itl = st.session_state.custom_itl if st.session_state.custom_itl else research_defaults['itl']
-    e2e = st.session_state.custom_e2e if st.session_state.custom_e2e else research_defaults['e2e']
-    qps = st.session_state.custom_qps if st.session_state.custom_qps else estimated_qps
+    # Use custom values if set, otherwise use MAX as default (shows all configs)
+    # Ensure all values are integers for slider compatibility
+    ttft = int(st.session_state.custom_ttft) if st.session_state.custom_ttft else ttft_default
+    itl = int(st.session_state.custom_itl) if st.session_state.custom_itl else itl_default
+    e2e = int(st.session_state.custom_e2e) if st.session_state.custom_e2e else e2e_default
+    qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
     
     # Section header - Technical Specifications
     st.markdown("""
@@ -4497,9 +4523,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     </div>
     """, unsafe_allow_html=True)
     
-    # Get actual benchmark ranges for this use case from real data
-    token_config = research_defaults.get('token_config', {'prompt': 512, 'output': 256})
-    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
+    # benchmark_ranges already fetched above for defaults
     
     # Display ranges table with headline showing use case
     use_case_display = use_case.replace('_', ' ').title()
@@ -4643,19 +4667,45 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         )
         st.session_state.slo_percentile = percentile_map[selected_percentile]
         
-        # Load SLO ranges from config (backend-driven, not hardcoded)
+        # Load research data and get use-case specific ranges
         research_data = load_research_slo_ranges()
         
-        # Use GLOBAL ranges for slider bounds (same for all percentiles)
-        # The percentile selector only changes which COLUMN we filter on, not the slider range
-        # This way: same value (e.g., TTFT < 500ms) filters stricter with P99 than P95
-        global_ranges = research_data.get('global_benchmark_ranges', {}) if research_data else {}
-        ttft_max = global_ranges.get('ttft_ms', {}).get('max', 270000)
-        itl_max = global_ranges.get('itl_ms', {}).get('max', 430)
-        e2e_max = global_ranges.get('e2e_ms', {}).get('max', 300000)
-        ttft_min = global_ranges.get('ttft_ms', {}).get('min', 15)
-        itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
-        e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
+        # Get token config for current use case
+        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
+        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
+        prompt_tokens = token_config.get('prompt', 512)
+        output_tokens = token_config.get('output', 256)
+        
+        # Get ACTUAL benchmark ranges for this use case's token config
+        benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
+        
+        # Get selected percentile key (e.g., 'p95')
+        percentile_key = st.session_state.slo_percentile  # 'mean', 'p90', 'p95', 'p99'
+        
+        # Get ranges for this specific percentile from actual benchmark data (ensure int type)
+        ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
+        ttft_max_raw = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
+        itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
+        itl_max_raw = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
+        e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
+        e2e_max_raw = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
+        
+        # Apply priority factor to adjust MAX (low_latency = tighter max)
+        priority_adjustments = research_data.get('priority_adjustments', {}) if research_data else {}
+        priority_factor = priority_adjustments.get(priority, {})
+        ttft_factor = priority_factor.get('ttft_factor', 1.0)
+        itl_factor = priority_factor.get('itl_factor', 1.0)
+        e2e_factor = priority_factor.get('e2e_factor', 1.0)
+        
+        # Adjusted max values based on priority
+        ttft_max = int(ttft_max_raw * ttft_factor)
+        itl_max = int(itl_max_raw * itl_factor)
+        e2e_max = int(e2e_max_raw * e2e_factor)
+        
+        # Ensure min <= max after priority adjustment
+        ttft_max = max(ttft_max, ttft_min + 1)
+        itl_max = max(itl_max, itl_min + 1)
+        e2e_max = max(e2e_max, e2e_min + 1)
         
         # Get percentile label for display
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
@@ -4741,7 +4791,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             <span style="font-size: 1.1rem; color: white; font-weight: 600;">{ttft_val:,} ms</span>
         </div>
         ''', unsafe_allow_html=True)
-        new_ttft = st.slider("TTFT", min_value=ttft_min, max_value=ttft_max, value=min(ttft, ttft_max), key="edit_ttft", label_visibility="collapsed", format=" ")
+        new_ttft = st.slider("TTFT", min_value=ttft_min, max_value=ttft_max, value=int(min(ttft, ttft_max)), key="edit_ttft", label_visibility="collapsed", format=" ")
         st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{ttft_min} ms</span><span>{ttft_max:,} ms</span></div>', unsafe_allow_html=True)
         
         # ITL - Label and value above slider
@@ -4752,7 +4802,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             <span style="font-size: 1.1rem; color: white; font-weight: 600;">{itl_val:,} ms</span>
         </div>
         ''', unsafe_allow_html=True)
-        new_itl = st.slider("ITL", min_value=itl_min, max_value=itl_max, value=min(itl, itl_max), key="edit_itl", label_visibility="collapsed", format=" ")
+        new_itl = st.slider("ITL", min_value=itl_min, max_value=itl_max, value=int(min(itl, itl_max)), key="edit_itl", label_visibility="collapsed", format=" ")
         st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{itl_min} ms</span><span>{itl_max} ms</span></div>', unsafe_allow_html=True)
         
         # E2E - Label and value above slider
@@ -4763,7 +4813,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             <span style="font-size: 1.1rem; color: white; font-weight: 600;">{e2e_val:,} ms</span>
         </div>
         ''', unsafe_allow_html=True)
-        new_e2e = st.slider("E2E", min_value=e2e_min, max_value=e2e_max, value=min(e2e, e2e_max), key="edit_e2e", label_visibility="collapsed", format=" ")
+        new_e2e = st.slider("E2E", min_value=e2e_min, max_value=e2e_max, value=int(min(e2e, e2e_max)), key="edit_e2e", label_visibility="collapsed", format=" ")
         st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{e2e_min} ms</span><span>{e2e_max:,} ms</span></div>', unsafe_allow_html=True)
         
         # Store custom values
@@ -5840,33 +5890,40 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     render_slo_cards(use_case, user_count, priority, hardware)
     
     # ==========================================================================
-    # VALIDATE SLO VALUES BEFORE ALLOWING GENERATION
+    # VALIDATE SLO VALUES - Use case-specific ranges (same as sliders)
     # ==========================================================================
     research_data = load_research_slo_ranges()
-    global_ranges = research_data.get('global_benchmark_ranges', {}) if research_data else {}
     
-    # Get valid ranges
-    ttft_min = global_ranges.get('ttft_ms', {}).get('min', 15)
-    ttft_max = global_ranges.get('ttft_ms', {}).get('max', 270000)
-    itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
-    itl_max = global_ranges.get('itl_ms', {}).get('max', 430)
-    e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
-    e2e_max = global_ranges.get('e2e_ms', {}).get('max', 300000)
+    # Get use-case specific token config and benchmark ranges
+    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
+    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
+    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
     
-    # Get current SLO values from session state
-    research_defaults = calculate_slo_defaults_from_research(use_case, priority)
-    current_ttft = st.session_state.custom_ttft if st.session_state.get('custom_ttft') else research_defaults.get('ttft', ttft_min)
-    current_itl = st.session_state.custom_itl if st.session_state.get('custom_itl') else research_defaults.get('itl', itl_min)
-    current_e2e = st.session_state.custom_e2e if st.session_state.get('custom_e2e') else research_defaults.get('e2e', e2e_min)
+    # Get selected percentile (same as sliders)
+    percentile_key = st.session_state.get('slo_percentile', 'p95')
     
-    # Validate
+    # Get ranges for this specific percentile and use case
+    ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
+    ttft_max = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
+    itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
+    itl_max = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
+    e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
+    e2e_max = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
+    
+    # Get current SLO values from session state (these are from the sliders)
+    current_ttft = int(st.session_state.get('edit_ttft', ttft_max))
+    current_itl = int(st.session_state.get('edit_itl', itl_max))
+    current_e2e = int(st.session_state.get('edit_e2e', e2e_max))
+    
+    # Validate - values from sliders should always be valid since sliders enforce bounds
+    # But check anyway in case of edge cases
     validation_errors = []
     if current_ttft < ttft_min or current_ttft > ttft_max:
-        validation_errors.append(f"TTFT must be between {ttft_min}-{ttft_max}ms")
+        validation_errors.append(f"TTFT must be between {ttft_min:,}-{ttft_max:,}ms")
     if current_itl < itl_min or current_itl > itl_max:
         validation_errors.append(f"ITL must be between {itl_min}-{itl_max}ms")
     if current_e2e < e2e_min or current_e2e > e2e_max:
-        validation_errors.append(f"E2E must be between {e2e_min}-{e2e_max}ms")
+        validation_errors.append(f"E2E must be between {e2e_min:,}-{e2e_max:,}ms")
     
     is_valid = len(validation_errors) == 0
     

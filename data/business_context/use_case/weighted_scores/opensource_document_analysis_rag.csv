@@ -16,13 +16,13 @@ mistralai/Mistral-Small-3.1-24B-Instruct-2503,mistralai,Mistral Training,43.52%
 RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-FP8-dynamic,RedHatAI,Mistral Training,43.52%
 RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w4a16,RedHatAI,Mistral Training,43.52%
 RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w8a8,RedHatAI,Mistral Training,43.52%
-mistralai/mistral-small-3.1-24b-instruct-2503,mistralai,N/A,43.52%
+mistralai/mistral-small-3.1-24b-instruct-2503,mistralai,,43.52%
 RedHatAI/NVIDIA-Nemotron-Nano-9B-v2-FP8-dynamic,RedHatAI,NVIDIA training dataset,42.89%
 meta-llama/Llama-3.3-70B-Instruct,meta-llama,Meta training dataset,42.50%
 RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic,RedHatAI,Meta training dataset,42.50%
 RedHatAI/Llama-3.3-70B-Instruct-quantized.w4a16,RedHatAI,Meta training dataset,42.50%
 RedHatAI/Llama-3.3-70B-Instruct-quantized.w8a8,RedHatAI,Meta training dataset,42.50%
-meta-llama/llama-3.3-70b-instruct,meta-llama,N/A,42.50%
+meta-llama/llama-3.3-70b-instruct,meta-llama,,42.50%
 mistralai/Mistral-Small-24B-Instruct-2501,mistralai,Mistral Training,41.60%
 mistralai/mistral-small-24b-instruct-2501,mistralai,Mistral Training,41.60%
 meta-llama/Llama-4-Scout-17B-16E-Instruct,meta-llama,Meta training dataset,40.40%
@@ -33,7 +33,7 @@ RedHatAI/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic,RedHatAI,NVIDIA training
 Qwen/Qwen3-8B-FP8,Qwen,Alibaba training dataset,38.87%
 RedHatAI/Qwen3-8B-FP8-dynamic,RedHatAI,Alibaba training dataset,38.87%
 mistralai/Mixtral-8x7B-Instruct-v0.1,mistralai,Mistral training dataset,33.00%
-mistralai/mixtral-8x7b-instruct-v0.1,mistralai,N/A,33.00%
+mistralai/mixtral-8x7b-instruct-v0.1,mistralai,,33.00%
 RedHatAI/Qwen2.5-7B-Instruct-quantized.w8a8,RedHatAI,Qwen Training,32.55%
 microsoft/phi-4,microsoft,Microsoft Azure training dataset,31.53%
 RedHatAI/phi-4-FP8-dynamic,RedHatAI,Microsoft Azure training dataset,31.53%
@@ -42,10 +42,30 @@ RedHatAI/phi-4-quantized.w8a8,RedHatAI,Microsoft Azure training dataset,31.53%
 microsoft/phi-4,microsoft,Microsoft Azure training dataset,31.53%
 meta-llama/Llama-3.1-8B-Instruct,meta-llama,Meta training dataset,25.49%
 RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8-dynamic,RedHatAI,Meta training dataset,25.49%
-meta-llama/llama-3.1-8b-instruct,meta-llama,N/A,25.49%
+meta-llama/llama-3.1-8b-instruct,meta-llama,,25.49%
 RedHatAI/gemma-3n-E4B-it-FP8-dynamic,RedHatAI,Google training dataset,21.14%
 ibm-granite/granite-3.1-8b-instruct,ibm-granite,Granite Training,13.37%
 ibm-granite/granite-3.1-8b-instruct,ibm-granite,Granite Training,13.37%
 RedHatAI/granite-3.1-8b-instruct-fp8-dynamic,RedHatAI,Granite Training,13.32%
 RedHatAI/granite-3.1-8b-instruct-quantized.w4a16,RedHatAI,Granite Training,13.16%
-RedHatAI/SmolLM3-3B-FP8-dynamic,RedHatAI,N/A,0.00%
+RedHatAI/SmolLM3-3B-FP8-dynamic,RedHatAI,,0.00%
+deepseek r1 0528 qwen3 8b,DeepSeek,DeepSeek training dataset,38.59%
+deepseek r1 distill llama 70b,DeepSeek,DeepSeek training dataset,40.59%
+deepseek v3.1 terminus (reasoning),DeepSeek,DeepSeek training dataset,57.64%
+deepseek v3.2 exp (non-reasoning),DeepSeek,DeepSeek training dataset,53.73%
+deepseek v3.2 exp (reasoning),DeepSeek,DeepSeek training dataset,56.66%
+gemma 3 12b instruct,Google,Google training dataset,30.23%
+gemma 3 27b instruct,Google,Google training dataset,34.33%
+llama 3.1 instruct 405b,Meta,Meta training dataset,40.43%
+llama 3.3 nemotron super 49b v1 (reasoning),NVIDIA,NVIDIA training dataset,40.92%
+llama nemotron super 49b v1.5 (reasoning),NVIDIA,NVIDIA training dataset,51.51%
+magistral medium 1.2,Mistral,Mistral training dataset,57.84%
+magistral small 1.2,Mistral,Mistral training dataset,47.78%
+minimax-m2,MiniMax,MiniMax training dataset,68.22%
+mistral medium 3.1,Mistral,Mistral training dataset,46.22%
+mistral small 3.2,Mistral,Mistral training dataset,41.29%
+nvidia nemotron nano 9b v2 (reasoning),NVIDIA,NVIDIA training dataset,42.91%
+phi-4 mini instruct,Microsoft Azure,Microsoft Azure training dataset,25.12%
+qwen3 235b a22b 2507 (reasoning),Alibaba,Alibaba training dataset,61.34%
+solar pro 2 (non-reasoning),Upstage,Upstage training dataset,45.26%
+solar pro 2 (reasoning),Upstage,Upstage training dataset,49.75%
