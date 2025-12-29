@@ -1481,6 +1481,7 @@ def format_use_case_name(use_case: str) -> str:
         'Cpu': 'CPU',
         'Slo': 'SLO',
         'Qps': 'QPS',
+        'Rps': 'RPS',
     }
     for wrong, right in acronyms.items():
         formatted = formatted.replace(wrong, right)
@@ -2662,7 +2663,7 @@ def validate_hardware_efficiency(use_case: str, hardware: str, ttft: int, qps: i
             h100_tokens = hardware_specs['H100']['tokens_per_sec']
             messages.append((
                 "", "#3b82f6",
-                f"High QPS ({qps})! H100 offers {h100_tokens:.0f} tokens/sec vs A100's {benchmark_tokens_sec:.0f}.",
+                f"High RPS ({qps})! H100 offers {h100_tokens:.0f} tokens/sec vs A100's {benchmark_tokens_sec:.0f}.",
                 "info"
             ))
         else:
@@ -4144,7 +4145,11 @@ def render_pipeline():
 
 
 def render_top5_table(recommendations: list, priority: str):
-    """Render beautiful Top 5 recommendation leaderboard table with filtering."""
+    """Render beautiful Top 5 recommendation leaderboard table with filtering.
+    
+    NOTE: The backend now implements the ACCURACY-FIRST strategy in ranking_service.py.
+    The UI uses the backend's pre-ranked lists directly from st.session_state.ranked_response.
+    """
     
     # Filter controls
     st.markdown("""
@@ -4174,6 +4179,48 @@ def render_top5_table(recommendations: list, priority: str):
         }
         .stSlider [data-testid="stTickBarMin"], .stSlider [data-testid="stTickBarMax"] {
             color: rgba(255,255,255,0.6) !important;
+        }
+        /* Red-themed SLO Sliders - Clean minimal design */
+        .stSlider > div > div > div {
+            background: rgba(238, 0, 0, 0.25) !important;
+            height: 6px !important;
+            border-radius: 3px !important;
+        }
+        .stSlider > div > div > div > div {
+            background: #EE0000 !important;
+            height: 6px !important;
+            border-radius: 3px !important;
+        }
+        /* Small fully red circle thumb */
+        .stSlider > div > div > div > div > div {
+            background: #EE0000 !important;
+            border: none !important;
+            width: 16px !important;
+            height: 16px !important;
+            top: -5px !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+        }
+        /* HIDE the default tooltip with value - multiple selectors for compatibility */
+        .stSlider [data-testid="stThumbValue"],
+        .stSlider div[data-testid="stThumbValue"],
+        [data-testid="stThumbValue"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+        }
+        /* HIDE the default min/max tick labels */
+        .stSlider [data-testid="stTickBarMin"],
+        .stSlider [data-testid="stTickBarMax"],
+        [data-testid="stTickBarMin"],
+        [data-testid="stTickBarMax"],
+        .stSlider > div > div:first-child,
+        .stSlider > div > div:last-child {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        /* Hide ALL slider text except our custom ones */
+        .stSlider [data-baseweb="slider"] + div {
+            display: none !important;
         }
     </style>
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 1rem; 
@@ -4214,56 +4261,33 @@ def render_top5_table(recommendations: list, priority: str):
             "final": backend_scores.get("balanced_score", rec.get("final_score", 0)),
         }
     
-    # Find TOP 5 models for each category
-    top5_balanced = sorted(recommendations, key=lambda x: get_scores(x)["final"], reverse=True)[:5]
-    
     # ==========================================================================
-    # STEP 1: Get top 5 UNIQUE MODELS by raw accuracy (our quality baseline)
+    # USE BACKEND'S PRE-RANKED LISTS (ACCURACY-FIRST strategy applied in backend)
+    # The backend's ranking_service.py implements:
+    # 1. Get top 5 unique models by raw accuracy (quality baseline)
+    # 2. Filter all configs to only those high-quality models
+    # 3. Best Latency/Cost/etc. are ranked WITHIN that quality tier
     # ==========================================================================
-    seen_models = set()
-    unique_accuracy_recs = []
-    for rec in sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True):
-        model_name = rec.get('model_name', rec.get('model_id', 'Unknown'))
-        if model_name not in seen_models:
-            seen_models.add(model_name)
-            unique_accuracy_recs.append(rec)
-            if len(unique_accuracy_recs) >= 5:
-                break
-    top5_accuracy = unique_accuracy_recs
+    ranked_response = st.session_state.get("ranked_response", {})
     
-    # Get the model names of our top 5 accuracy models
-    top_accuracy_model_names = {rec.get('model_name', rec.get('model_id', '')) for rec in top5_accuracy}
+    # Get pre-ranked lists from backend (already filtered to high-quality models)
+    top5_balanced = ranked_response.get("balanced", [])[:5]
+    top5_accuracy = ranked_response.get("best_accuracy", [])[:5]
+    top5_latency = ranked_response.get("lowest_latency", [])[:5]
+    top5_cost = ranked_response.get("lowest_cost", [])[:5]
+    top5_simplest = ranked_response.get("simplest", [])[:5]
     
-    # ==========================================================================
-    # STEP 2: Filter ALL recommendations to only include top accuracy models
-    # This ensures Best Latency and Best Cost show HIGH QUALITY models
-    # ==========================================================================
-    high_quality_recs = [rec for rec in recommendations 
-                         if rec.get('model_name', rec.get('model_id', '')) in top_accuracy_model_names]
-    
-    # ==========================================================================
-    # STEP 3: Best Latency = fastest (lowest TTFT) among high-quality models
-    # ==========================================================================
-    def get_ttft(rec):
-        # Get TTFT from benchmark_metrics (real data from integ-oct-29.sql)
-        metrics = rec.get('benchmark_metrics', {}) or {}
-        percentile = st.session_state.get('slo_percentile', 'p95')
-        ttft = metrics.get(f'ttft_{percentile}', rec.get('predicted_ttft_p95_ms', 999999))
-        return ttft if ttft and ttft > 0 else 999999
-    
-    top5_latency = sorted(high_quality_recs, key=get_ttft)[:5]  # Lowest TTFT first
-    
-    # ==========================================================================
-    # STEP 4: Best Cost = cheapest hardware among high-quality models
-    # ==========================================================================
-    def get_cost(rec):
-        # Get actual monthly cost (lower = better)
-        return rec.get('cost_per_month_usd', 999999) or 999999
-    
-    top5_cost = sorted(high_quality_recs, key=get_cost)[:5]  # Lowest cost first
-    
-    # Simplest still uses all recommendations (fewer GPUs is simpler regardless of model)
-    top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
+    # Fallback to local sorting if backend response is empty (shouldn't happen)
+    if not top5_balanced and recommendations:
+        top5_balanced = sorted(recommendations, key=lambda x: get_scores(x)["final"], reverse=True)[:5]
+    if not top5_accuracy and recommendations:
+        top5_accuracy = sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True)[:5]
+    if not top5_latency and recommendations:
+        top5_latency = sorted(recommendations, key=lambda x: get_scores(x)["latency"], reverse=True)[:5]
+    if not top5_cost and recommendations:
+        top5_cost = sorted(recommendations, key=lambda x: get_scores(x)["cost"], reverse=True)[:5]
+    if not top5_simplest and recommendations:
+        top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
     
     # Best = first in each list
     best_overall = top5_balanced[0] if top5_balanced else None
@@ -4328,6 +4352,9 @@ def render_top5_table(recommendations: list, priority: str):
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
         replicas = gpu_cfg.get('replicas', 1)
+        # Get RPS per replica from benchmark_metrics
+        benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
+        rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
         # Hardware display - simple format for cards (TP/R shown in table only)
         hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
@@ -4339,14 +4366,18 @@ def render_top5_table(recommendations: list, priority: str):
 <span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
 </div>
 <div style="color: white; font-weight: 700; font-size: 1.3rem; margin-bottom: 1rem;">{model_name}</div>
-<div style="display: flex; gap: 0.75rem; margin-bottom: 1rem;">
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 0.8rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Hardware</div>
-<div style="color: white; font-weight: 700; font-size: 1rem;">{hw_display}</div>
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Hardware</div>
+<div style="color: white; font-weight: 700; font-size: 0.9rem;">{hw_display}</div>
 </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.6rem 0.8rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.25rem;">Replicas</div>
-<div style="color: white; font-weight: 700; font-size: 1rem;">{replicas}</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Replicas</div>
+<div style="color: white; font-weight: 700; font-size: 0.9rem;">{replicas}</div>
+</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.2rem;">RPS/Replica</div>
+<div style="color: white; font-weight: 700; font-size: 0.9rem;">{rps_per_replica:.1f}</div>
 </div>
 </div>
 <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.75rem;">
@@ -4626,25 +4657,114 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
         e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
         
-        # Use step=1 to allow any integer value in the range
-        ttft_step = 1
-        itl_step = 1
-        e2e_step = 1
-        
         # Get percentile label for display
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
         
-        # TTFT - Label ABOVE input, white bold
-        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem;">TTFT ({percentile_display}) &lt; {ttft}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {ttft_min}-{ttft_max}ms)</span></div>', unsafe_allow_html=True)
-        new_ttft = st.number_input("TTFT (ms)", value=min(ttft, ttft_max), min_value=ttft_min, max_value=ttft_max, step=ttft_step, key="edit_ttft", label_visibility="collapsed")
+        # Inject CSS for clean slider - small white circle ON the red track
+        st.markdown("""
+        <style>
+            /* COMPLETELY HIDE the tooltip line above circle */
+            [data-testid="stThumbValue"],
+            div[data-testid="stThumbValue"],
+            .stSlider [data-testid="stThumbValue"],
+            .stSlider div[data-testid="stThumbValue"] {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+                width: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+                top: -9999px !important;
+                pointer-events: none !important;
+            }
+            
+            /* Hide default min/max labels */
+            [data-testid="stTickBarMin"],
+            [data-testid="stTickBarMax"] {
+                display: none !important;
+            }
+            
+            /* Slider track - unfilled part */
+            .stSlider [data-baseweb="slider"] > div:first-child {
+                background: rgba(238, 0, 0, 0.3) !important;
+                height: 6px !important;
+                border-radius: 3px !important;
+            }
+            
+            /* Slider track - filled/active part (bright red) */
+            .stSlider [data-baseweb="slider"] > div:first-child > div {
+                background: #EE0000 !important;
+                height: 6px !important;
+                border-radius: 3px !important;
+            }
+            
+            /* Small WHITE circle thumb centered ON the track */
+            .stSlider [role="slider"] {
+                background: white !important;
+                width: 14px !important;
+                height: 14px !important;
+                border-radius: 50% !important;
+                border: 2px solid #EE0000 !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
+                margin-top: -4px !important;
+            }
+        </style>
+        """, unsafe_allow_html=True)
         
-        # ITL - Label ABOVE input, white bold
-        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem; margin-top: 0.5rem;">ITL ({percentile_display}) &lt; {itl}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {itl_min}-{itl_max}ms)</span></div>', unsafe_allow_html=True)
-        new_itl = st.number_input("ITL (ms)", value=min(itl, itl_max), min_value=itl_min, max_value=itl_max, step=itl_step, key="edit_itl", label_visibility="collapsed")
+        # JavaScript to REMOVE tooltip line - aggressive removal
+        import streamlit.components.v1 as components
+        components.html("""
+        <script>
+            function removeTooltipLine() {
+                const parent = window.parent.document;
+                
+                // AGGRESSIVELY REMOVE all tooltip elements (the line above circle)
+                parent.querySelectorAll('[data-testid="stThumbValue"]').forEach(el => el.remove());
+                
+                // Also remove tick bar labels
+                parent.querySelectorAll('[data-testid="stTickBarMin"]').forEach(el => el.remove());
+                parent.querySelectorAll('[data-testid="stTickBarMax"]').forEach(el => el.remove());
+            }
+            // Run immediately and keep running
+            removeTooltipLine();
+            setInterval(removeTooltipLine, 50);
+        </script>
+        """, height=0)
         
-        # E2E - Label ABOVE input, white bold
-        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem; margin-top: 0.5rem;">E2E ({percentile_display}) &lt; {e2e}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {e2e_min}-{e2e_max}ms)</span></div>', unsafe_allow_html=True)
-        new_e2e = st.number_input("E2E (ms)", value=min(e2e, e2e_max), min_value=e2e_min, max_value=e2e_max, step=e2e_step, key="edit_e2e", label_visibility="collapsed")
+        # TTFT - Label and value above slider
+        ttft_val = st.session_state.get('edit_ttft', min(ttft, ttft_max))
+        st.markdown(f'''
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
+            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">TTFT ({percentile_display})</span>
+            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{ttft_val:,} ms</span>
+        </div>
+        ''', unsafe_allow_html=True)
+        new_ttft = st.slider("TTFT", min_value=ttft_min, max_value=ttft_max, value=min(ttft, ttft_max), key="edit_ttft", label_visibility="collapsed", format=" ")
+        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{ttft_min} ms</span><span>{ttft_max:,} ms</span></div>', unsafe_allow_html=True)
+        
+        # ITL - Label and value above slider
+        itl_val = st.session_state.get('edit_itl', min(itl, itl_max))
+        st.markdown(f'''
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; margin-top: 1.5rem;">
+            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">ITL ({percentile_display})</span>
+            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{itl_val:,} ms</span>
+        </div>
+        ''', unsafe_allow_html=True)
+        new_itl = st.slider("ITL", min_value=itl_min, max_value=itl_max, value=min(itl, itl_max), key="edit_itl", label_visibility="collapsed", format=" ")
+        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{itl_min} ms</span><span>{itl_max} ms</span></div>', unsafe_allow_html=True)
+        
+        # E2E - Label and value above slider
+        e2e_val = st.session_state.get('edit_e2e', min(e2e, e2e_max))
+        st.markdown(f'''
+        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; margin-top: 1.5rem;">
+            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">E2E ({percentile_display})</span>
+            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{e2e_val:,} ms</span>
+        </div>
+        ''', unsafe_allow_html=True)
+        new_e2e = st.slider("E2E", min_value=e2e_min, max_value=e2e_max, value=min(e2e, e2e_max), key="edit_e2e", label_visibility="collapsed", format=" ")
+        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{e2e_min} ms</span><span>{e2e_max:,} ms</span></div>', unsafe_allow_html=True)
         
         # Store custom values
         if new_ttft != ttft:
@@ -4679,18 +4799,18 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # 1. Editable QPS - support up to 10M QPS for enterprise scale
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
-        new_qps = st.number_input("Expected QPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected QPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
+        new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
+        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
         
         if new_qps != qps:
             st.session_state.custom_qps = new_qps
         
-        # QPS change warning - show implications of changing from research-based default
+        # RPS change warning - show implications of changing from research-based default
         if new_qps > default_qps * 2:
             qps_ratio = new_qps / max(default_qps, 1)
             st.markdown(f'''
             <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
-                <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High QPS Warning ({qps_ratio:.1f}x default)</div>
+                <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High RPS Warning ({qps_ratio:.1f}x default)</div>
                 <div style="color: rgba(255,255,255,0.7); font-size: 0.75rem; margin-top: 0.3rem;">
                     • Requires <strong style="color: #f59e0b;">{int(qps_ratio)}x more GPU replicas</strong><br/>
                     • Estimated cost increase: <strong style="color: #ef4444;">~{int((qps_ratio-1)*100)}%</strong><br/>
@@ -4702,7 +4822,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             qps_ratio = new_qps / max(default_qps, 1)
             st.markdown(f'''
             <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="color: #f59e0b; font-weight: 600; font-size: 0.8rem;">Elevated QPS ({qps_ratio:.1f}x default)</div>
+                <div style="color: #f59e0b; font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
                 <div style="color: rgba(255,255,255,0.6); font-size: 0.7rem; margin-top: 0.2rem;">
                     May need additional replicas. Cost ~{int((qps_ratio-1)*100)}% higher.
                 </div>
@@ -4711,7 +4831,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         elif new_qps < default_qps * 0.5 and default_qps > 1:
             st.markdown(f'''
             <div style="background: rgba(56, 239, 125, 0.1); border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="color: #38ef7d; font-weight: 600; font-size: 0.8rem;">Low QPS - Cost Savings Possible</div>
+                <div style="color: #38ef7d; font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
                 <div style="color: rgba(255,255,255,0.6); font-size: 0.7rem; margin-top: 0.2rem;">
                     Single replica may suffice. Consider smaller GPU or spot instances.
                 </div>
@@ -5355,15 +5475,15 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     if st.session_state.extraction_approved == True:
         render_extraction_result(st.session_state.extraction_result, used_priority)
         
-        # Small left-aligned buttons stacked vertically
-        col_btns, col_space = st.columns([1, 3])
+        # Left-aligned completion banner and button
+        col_btns, col_space = st.columns([2, 2])
         with col_btns:
             st.markdown("""
-            <div style="background: #EE0000; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+            <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem;">
                 <strong>Step 1 Complete</strong> · Go to Technical Specifications
             </div>
             """, unsafe_allow_html=True)
-            if st.button("Next Tab →", key="next_tab_1", type="primary"):
+            if st.button("Next Tab →", key="next_tab_1", type="primary", use_container_width=True):
                 import streamlit.components.v1 as components
                 components.html("""
                 <script>
@@ -5394,15 +5514,15 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     
     # If SLO approved, show navigation message
     if st.session_state.slo_approved == True:
-        # Small left-aligned buttons stacked vertically
-        col_btns2, col_space2 = st.columns([1, 3])
+        # Left-aligned completion banner and button
+        col_btns2, col_space2 = st.columns([2, 2])
         with col_btns2:
             st.markdown("""
-            <div style="background: #EE0000; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; margin-bottom: 0.5rem;">
+            <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem;">
                 <strong>Step 2 Complete</strong> · Go to Recommendations
             </div>
             """, unsafe_allow_html=True)
-            if st.button("Next Tab →", key="next_tab_2", type="primary"):
+            if st.button("Next Tab →", key="next_tab_2", type="primary", use_container_width=True):
                 import streamlit.components.v1 as components
                 components.html("""
                 <script>
@@ -5719,11 +5839,55 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     # SLO and Impact Cards - all 4 cards in one row
     render_slo_cards(use_case, user_count, priority, hardware)
     
+    # ==========================================================================
+    # VALIDATE SLO VALUES BEFORE ALLOWING GENERATION
+    # ==========================================================================
+    research_data = load_research_slo_ranges()
+    global_ranges = research_data.get('global_benchmark_ranges', {}) if research_data else {}
+    
+    # Get valid ranges
+    ttft_min = global_ranges.get('ttft_ms', {}).get('min', 15)
+    ttft_max = global_ranges.get('ttft_ms', {}).get('max', 270000)
+    itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
+    itl_max = global_ranges.get('itl_ms', {}).get('max', 430)
+    e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
+    e2e_max = global_ranges.get('e2e_ms', {}).get('max', 300000)
+    
+    # Get current SLO values from session state
+    research_defaults = calculate_slo_defaults_from_research(use_case, priority)
+    current_ttft = st.session_state.custom_ttft if st.session_state.get('custom_ttft') else research_defaults.get('ttft', ttft_min)
+    current_itl = st.session_state.custom_itl if st.session_state.get('custom_itl') else research_defaults.get('itl', itl_min)
+    current_e2e = st.session_state.custom_e2e if st.session_state.get('custom_e2e') else research_defaults.get('e2e', e2e_min)
+    
+    # Validate
+    validation_errors = []
+    if current_ttft < ttft_min or current_ttft > ttft_max:
+        validation_errors.append(f"TTFT must be between {ttft_min}-{ttft_max}ms")
+    if current_itl < itl_min or current_itl > itl_max:
+        validation_errors.append(f"ITL must be between {itl_min}-{itl_max}ms")
+    if current_e2e < e2e_min or current_e2e > e2e_max:
+        validation_errors.append(f"E2E must be between {e2e_min}-{e2e_max}ms")
+    
+    is_valid = len(validation_errors) == 0
+    
     # Proceed button
     st.markdown("<br>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("Generate Recommendations", type="primary", use_container_width=True, key="generate_recs"):
+        if not is_valid:
+            # Show validation errors
+            st.markdown(f"""
+            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); 
+                        border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; text-align: center;">
+                <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem;">⚠️ Invalid SLO Values</div>
+                <div style="color: rgba(255,255,255,0.8); font-size: 0.8rem; margin-top: 0.25rem;">
+                    {' • '.join(validation_errors)}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        # Button disabled if invalid
+        if st.button("Generate Recommendations", type="primary", use_container_width=True, key="generate_recs", disabled=not is_valid):
             st.session_state.slo_approved = True
             st.rerun()
 
@@ -5882,24 +6046,26 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
         </div>
         """, unsafe_allow_html=True)
         
-    # Show message to go back to Technical Specifications tab
-    col_msg, col_spacer = st.columns([1, 2])
-    with col_msg:
-        st.markdown("""
-        <div style="background: #1a1a1a; color: white; padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.8rem; border: 1px solid #333;">
-            <strong>Want different results?</strong> · Go to <strong>Technical Specifications</strong> tab to modify SLOs
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("← Back to Technical Specs", key="back_to_slo", type="primary"):
-            # Reset dialog states first
+    # Show buttons to go back or start new case
+    col_back, col_new, col_spacer = st.columns([1, 1, 2])
+    with col_back:
+        if st.button("← Back to Technical Specs", key="back_to_slo", type="primary", use_container_width=True):
+            # Reset ALL dialog states first to prevent popups
             st.session_state.show_category_dialog = False
             st.session_state.show_full_table_dialog = False
             st.session_state.show_winner_dialog = False
+            st.session_state.explore_category = None
             # Reset slo_approved to go back to SLO editing
             st.session_state.slo_approved = None
             st.session_state.recommendation_result = None
             # IMPORTANT: Clear cached ranked_response so recommendations are re-fetched with new SLOs
             st.session_state.ranked_response = None
+            # Clear top5 caches to prevent stale data
+            st.session_state.top5_balanced = None
+            st.session_state.top5_accuracy = None
+            st.session_state.top5_latency = None
+            st.session_state.top5_cost = None
+            st.session_state.top5_simplest = None
             # Use JavaScript to switch to Technical Specifications tab
             import streamlit.components.v1 as components
             components.html("""
@@ -5908,6 +6074,31 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
                 if (tabs.length > 1) tabs[1].click();
             </script>
             """, height=0)
+            st.rerun()
+    
+    with col_new:
+        if st.button("New Case", key="new_case_btn", type="secondary", use_container_width=True):
+            # Complete session state reset - start fresh from Tab 1
+            keys_to_clear = [
+                'user_input', 'extraction_result', 'recommendation_result',
+                'extraction_approved', 'slo_approved', 'edited_extraction',
+                'custom_ttft', 'custom_itl', 'custom_e2e', 'custom_qps', 'used_priority',
+                'ranked_response', 'show_category_dialog', 'show_full_table_dialog',
+                'show_winner_dialog', 'explore_category', 'detected_use_case',
+                'top5_balanced', 'top5_accuracy', 'top5_latency', 'top5_cost', 'top5_simplest'
+            ]
+            for key in keys_to_clear:
+                if key in st.session_state:
+                    del st.session_state[key]
+            # Switch to Tab 1 (Define Use Case)
+            import streamlit.components.v1 as components
+            components.html("""
+            <script>
+                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 0) tabs[0].click();
+            </script>
+            """, height=0)
+            st.rerun()
 
 
 def _render_winner_details(winner: dict, priority: str, extraction: dict):

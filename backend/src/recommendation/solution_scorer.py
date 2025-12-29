@@ -204,29 +204,48 @@ class SolutionScorer:
             ratios.append(predicted_e2e_ms / target_e2e_ms)
 
         if not ratios:
-            return 90, "compliant"
+            return 75, "compliant"
 
         # Use worst (highest) ratio to determine compliance
         worst_ratio = max(ratios)
+        
+        # Also calculate average ratio for better differentiation
+        avg_ratio = sum(ratios) / len(ratios)
 
         if worst_ratio <= 1.0:
-            # SLO compliant - score 90-100 based on headroom
-            # ratio of 1.0 = score 90 (just meeting SLO)
-            # ratio of 0.5 = score 100 (50% headroom)
-            headroom_bonus = int(10 * (1.0 - worst_ratio))
-            score = 90 + headroom_bonus
+            # SLO compliant - DIFFERENTIATED SCORING (50-100 range)
+            # Uses BOTH worst and average ratio for nuanced scoring
+            #
+            # Enterprise scoring approach:
+            # - ratio = 1.0 (barely meeting SLO) → score 50 (just passing)
+            # - ratio = 0.5 (50% headroom) → score 75 (good)
+            # - ratio = 0.2 (80% headroom) → score 90 (excellent)
+            # - ratio = 0.1 (90% headroom) → score 95 (outstanding)
+            #
+            # Formula: score = 100 - (worst_ratio * 50)
+            # This creates meaningful spread among compliant models
+            
+            # Primary score from worst ratio (60% weight)
+            worst_score = 100 - (worst_ratio * 50)
+            
+            # Bonus from average ratio (40% weight) - rewards consistently fast models
+            avg_score = 100 - (avg_ratio * 50)
+            
+            # Weighted combination
+            score = int(worst_score * 0.6 + avg_score * 0.4)
+            score = max(50, min(100, score))  # Clamp to 50-100 range
             slo_status = "compliant"
         elif worst_ratio <= 1.2:
-            # Near miss (within 20%) - score 70-89
-            # ratio of 1.0 = 89, ratio of 1.2 = 70
-            score = int(89 - (worst_ratio - 1.0) * 95)
-            score = max(70, min(89, score))
+            # Near miss (within 20%) - score 30-49
+            # ratio of 1.0 = 49, ratio of 1.2 = 30
+            score = int(49 - (worst_ratio - 1.0) * 95)
+            score = max(30, min(49, score))
             slo_status = "near_miss"
         else:
-            # Exceeds SLO by more than 20% - score 0-69
-            # ratio of 1.2 = 69, ratio of 2.0 = 0
-            score = int(69 - (worst_ratio - 1.2) * 86)
-            score = max(0, min(69, score))
+            # Exceeds SLO by more than 20% - score 0-29
+            # ratio of 1.2 = 29, ratio of 2.0 = 0
+            score = int(29 - (worst_ratio - 1.2) * 36)
+            score = max(0, min(29, score))
             slo_status = "exceeds"
 
         logger.debug(

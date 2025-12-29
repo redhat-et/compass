@@ -1,11 +1,14 @@
 """Ranking service for multi-criteria recommendation sorting.
 
-Generates 5 ranked lists from deployment configurations:
-- Best Accuracy: Sorted by model capability score
-- Lowest Cost: Sorted by price efficiency score
-- Lowest Latency: Sorted by SLO headroom score
-- Simplest: Sorted by deployment complexity score
-- Balanced: Sorted by weighted composite score
+ACCURACY-FIRST STRATEGY:
+1. Get top N unique models by raw accuracy (quality baseline)
+2. Filter all hardware configs to only these high-quality models
+3. Best Latency/Cost/etc. are ranked WITHIN this quality tier
+
+This ensures:
+- All recommendations show HIGH QUALITY models
+- No "fast but useless" or "cheap but terrible" recommendations
+- Cards show different trade-offs within the same quality tier
 """
 
 import logging
@@ -27,7 +30,14 @@ class RankingService:
         weights: dict[str, int] | None = None,
     ) -> dict[str, list[DeploymentRecommendation]]:
         """
-        Generate 5 ranked lists from configurations.
+        Generate 5 ranked lists using ACCURACY-FIRST strategy.
+
+        Strategy:
+        1. Get top N unique models by raw accuracy (quality baseline)
+        2. Filter ALL hardware configs to only these high-quality models
+        3. Best Latency = fastest hardware among high-quality models
+        4. Best Cost = cheapest hardware among high-quality models
+        5. Balanced = best weighted score among high-quality models
 
         Args:
             configurations: List of scored DeploymentRecommendations
@@ -58,39 +68,86 @@ class RankingService:
                 "balanced": [],
             }
 
-        # Generate sorted lists
-        # Higher score is better for all criteria
+        # =====================================================================
+        # STEP 1: Get top N UNIQUE MODELS by raw accuracy (quality baseline)
+        # =====================================================================
+        seen_models = set()
+        unique_accuracy_configs = []
+        sorted_by_accuracy = sorted(
+            filtered,
+            key=lambda x: (x.scores.accuracy_score if x.scores else 0),
+            reverse=True,
+        )
+        
+        for config in sorted_by_accuracy:
+            model_name = config.model_name or config.model_id or "Unknown"
+            if model_name not in seen_models:
+                seen_models.add(model_name)
+                unique_accuracy_configs.append(config)
+                if len(unique_accuracy_configs) >= top_n:
+                    break
+        
+        # Get the model names of top accuracy models
+        top_accuracy_model_names = {c.model_name or c.model_id for c in unique_accuracy_configs}
+        
+        logger.info(
+            f"ACCURACY-FIRST: Top {len(top_accuracy_model_names)} models by accuracy: "
+            f"{list(top_accuracy_model_names)[:5]}"
+        )
+
+        # =====================================================================
+        # STEP 2: Filter ALL configs to only high-quality models
+        # This ensures Best Latency and Best Cost show HIGH QUALITY models
+        # =====================================================================
+        high_quality_configs = [
+            c for c in filtered 
+            if (c.model_name or c.model_id) in top_accuracy_model_names
+        ]
+        
+        logger.info(
+            f"ACCURACY-FIRST: {len(high_quality_configs)} configs from top {len(top_accuracy_model_names)} models"
+        )
+
+        # =====================================================================
+        # STEP 3: Generate ranked lists from HIGH-QUALITY configs only
+        # =====================================================================
         ranked_lists = {
-            "best_accuracy": sorted(
-                filtered,
-                key=lambda x: (x.scores.accuracy_score if x.scores else 0),
-                reverse=True,
-            )[:top_n],
+            # Best Accuracy: Top N unique models (one config per model)
+            "best_accuracy": unique_accuracy_configs[:top_n],
+            
+            # Best Cost: Cheapest hardware among high-quality models
+            # Sort by actual cost (lower is better), not price_score
             "lowest_cost": sorted(
-                filtered,
-                key=lambda x: (x.scores.price_score if x.scores else 0),
-                reverse=True,
+                high_quality_configs,
+                key=lambda x: x.cost_per_month_usd or float('inf'),
             )[:top_n],
+            
+            # Best Latency: Fastest hardware among high-quality models
+            # Sort by latency score (higher is better = lower latency)
             "lowest_latency": sorted(
-                filtered,
+                high_quality_configs,
                 key=lambda x: (x.scores.latency_score if x.scores else 0),
                 reverse=True,
             )[:top_n],
+            
+            # Simplest: Fewest GPUs among high-quality models
             "simplest": sorted(
-                filtered,
+                high_quality_configs,
                 key=lambda x: (x.scores.complexity_score if x.scores else 0),
                 reverse=True,
             )[:top_n],
+            
+            # Balanced: Best weighted score among high-quality models
             "balanced": sorted(
-                filtered,
+                high_quality_configs,
                 key=lambda x: (x.scores.balanced_score if x.scores else 0.0),
                 reverse=True,
             )[:top_n],
         }
 
         logger.info(
-            f"Generated ranked lists: {len(filtered)} configs after filters, "
-            f"top {top_n} per criterion"
+            f"Generated ranked lists (ACCURACY-FIRST): {len(filtered)} total configs, "
+            f"{len(high_quality_configs)} high-quality, top {top_n} per criterion"
         )
 
         return ranked_lists

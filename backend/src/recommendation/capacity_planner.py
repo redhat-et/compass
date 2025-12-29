@@ -276,6 +276,8 @@ class CapacityPlanner:
                 "tps_p90": float(bench.tps_p90) if bench.tps_p90 else 0,
                 "tps_p95": float(bench.tps_p95) if bench.tps_p95 else 0,
                 "tps_p99": float(bench.tps_p99) if bench.tps_p99 else 0,
+                # RPS per replica from benchmark (for card display)
+                "requests_per_second": float(bench.requests_per_second) if bench.requests_per_second else 0,
             }
             
             # Build recommendation (price score calculated later after we know min/max)
