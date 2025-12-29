@@ -4554,17 +4554,16 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Load SLO ranges from config (backend-driven, not hardcoded)
         research_data = load_research_slo_ranges()
         
-        # Use PER-PERCENTILE ranges for slider bounds based on user selection
-        # This gives tighter ranges for P90 and looser for P99
-        percentile_key = percentile_map[selected_percentile]  # mean, p90, p95, p99
-        per_percentile = research_data.get('per_percentile_ranges', {}) if research_data else {}
-        percentile_ranges = per_percentile.get(percentile_key, {})
-        
-        # Get max values for selected percentile (with fallback to global)
+        # Use GLOBAL ranges for slider bounds (same for all percentiles)
+        # The percentile selector only changes which COLUMN we filter on, not the slider range
+        # This way: same value (e.g., TTFT < 500ms) filters stricter with P99 than P95
         global_ranges = research_data.get('global_benchmark_ranges', {}) if research_data else {}
-        ttft_max = percentile_ranges.get('ttft', {}).get('max', global_ranges.get('ttft_ms', {}).get('max', 270000))
-        itl_max = percentile_ranges.get('itl', {}).get('max', global_ranges.get('itl_ms', {}).get('max', 430))
-        e2e_max = percentile_ranges.get('e2e', {}).get('max', global_ranges.get('e2e_ms', {}).get('max', 300000))
+        ttft_max = global_ranges.get('ttft_ms', {}).get('max', 270000)
+        itl_max = global_ranges.get('itl_ms', {}).get('max', 430)
+        e2e_max = global_ranges.get('e2e_ms', {}).get('max', 300000)
+        ttft_min = global_ranges.get('ttft_ms', {}).get('min', 15)
+        itl_min = global_ranges.get('itl_ms', {}).get('min', 3)
+        e2e_min = global_ranges.get('e2e_ms', {}).get('min', 800)
         
         # Dynamic step sizes based on max values
         ttft_step = max(100, ttft_max // 100)
@@ -4574,17 +4573,17 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Get percentile label for display
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
         
-        # Editable TTFT - global benchmark max
-        new_ttft = st.number_input("TTFT (ms)", value=min(ttft, ttft_max), min_value=1, max_value=ttft_max, step=ttft_step, key="edit_ttft", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">TTFT ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_ttft}ms</span></div>', unsafe_allow_html=True)
+        # Editable TTFT - global benchmark range (min to max across all percentiles)
+        new_ttft = st.number_input("TTFT (ms)", value=min(ttft, ttft_max), min_value=ttft_min, max_value=ttft_max, step=ttft_step, key="edit_ttft", label_visibility="collapsed")
+        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">TTFT ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_ttft}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {ttft_min}-{ttft_max}ms)</span></div>', unsafe_allow_html=True)
         
-        # Editable ITL - global benchmark max
-        new_itl = st.number_input("ITL (ms)", value=min(itl, itl_max), min_value=1, max_value=itl_max, step=itl_step, key="edit_itl", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">ITL ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_itl}ms</span></div>', unsafe_allow_html=True)
+        # Editable ITL - global benchmark range
+        new_itl = st.number_input("ITL (ms)", value=min(itl, itl_max), min_value=itl_min, max_value=itl_max, step=itl_step, key="edit_itl", label_visibility="collapsed")
+        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">ITL ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_itl}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {itl_min}-{itl_max}ms)</span></div>', unsafe_allow_html=True)
         
-        # Editable E2E - global benchmark max
-        new_e2e = st.number_input("E2E (ms)", value=min(e2e, e2e_max), min_value=1, max_value=e2e_max, step=e2e_step, key="edit_e2e", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">E2E ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_e2e}ms</span></div>', unsafe_allow_html=True)
+        # Editable E2E - global benchmark range
+        new_e2e = st.number_input("E2E (ms)", value=min(e2e, e2e_max), min_value=e2e_min, max_value=e2e_max, step=e2e_step, key="edit_e2e", label_visibility="collapsed")
+        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">E2E ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_e2e}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {e2e_min}-{e2e_max}ms)</span></div>', unsafe_allow_html=True)
         
         # Store custom values
         if new_ttft != ttft:
