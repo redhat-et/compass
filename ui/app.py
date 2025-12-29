@@ -1258,14 +1258,26 @@ st.markdown("""
         border: 1px solid rgba(163, 113, 247, 0.25);
     }
     
-    /* Progress Bar Styling */
+    /* Progress Bar Styling - Red Hat Theme */
     .stProgress > div > div {
-        background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green)) !important;
+        background: linear-gradient(90deg, #EE0000, #CC0000, #EE0000) !important;
         border-radius: 8px;
     }
     .stProgress > div {
-        background: var(--bg-tertiary) !important;
+        background: #1a1a1a !important;
         border-radius: 8px;
+    }
+    
+    /* Spinner Styling - Red Hat Theme */
+    .stSpinner > div {
+        border-top-color: #EE0000 !important;
+    }
+    .stSpinner > div > div {
+        border-top-color: #EE0000 !important;
+    }
+    [data-testid="stSpinner"] svg {
+        color: #EE0000 !important;
+        fill: #EE0000 !important;
     }
     
     /* Info/Warning/Error Message Styling */
