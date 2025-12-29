@@ -1,6 +1,6 @@
 """Data schemas for deployment intent and specifications."""
 
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
