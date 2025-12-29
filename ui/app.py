@@ -4751,12 +4751,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Focus on TOP 3 benchmarks: τ²-Bench (91%), LiveCodeBench (84%), MMLU-Pro (83%), GPQA (82%)
         TASK_DATASETS = {
             "chatbot_conversational": [
-                ("τ²-Bench", 45, "Conversational AI is agentic workflow (114 tasks, 91% score)"),
-                ("MMLU-Pro", 35, "General knowledge for factual responses (12,032 questions)"),
+                ("τ²-Bench", 45, "Conversational AI agentic workflow (114 tasks)"),
+                ("MMLU-Pro", 35, "General knowledge (12,032 questions)"),
                 ("GPQA", 20, "Scientific reasoning (198 questions)"),
             ],
             "code_completion": [
-                ("LiveCodeBench", 45, "Primary code benchmark (315 questions, 84% score)"),
+                ("LiveCodeBench", 45, "Code benchmark (315 questions)"),
                 ("τ²-Bench", 35, "Agentic code assistance (114 tasks)"),
                 ("MMLU-Pro", 20, "Knowledge for context"),
             ],
@@ -4766,7 +4766,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 ("GPQA", 20, "Scientific reasoning for explanations"),
             ],
             "translation": [
-                ("τ²-Bench", 45, "Language tasks benefit from agentic (114 tasks)"),
+                ("τ²-Bench", 45, "Language agentic tasks (114 tasks)"),
                 ("MMLU-Pro", 35, "Language understanding (12,032 questions)"),
                 ("GPQA", 20, "Reasoning"),
             ],
@@ -4776,7 +4776,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 ("GPQA", 20, "Reasoning"),
             ],
             "summarization_short": [
-                ("τ²-Bench", 45, "Summarization is agentic (114 tasks)"),
+                ("τ²-Bench", 45, "Summarization agentic (114 tasks)"),
                 ("MMLU-Pro", 35, "Comprehension (12,032 questions)"),
                 ("GPQA", 20, "Reasoning"),
             ],
@@ -5207,42 +5207,51 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     
     with col1:
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
-            st.session_state.user_input = "Customer service chatbot for 30 users. Latency is critical. Using H100 GPUs."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "Customer service chatbot for 30 users."
     
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
-            st.session_state.user_input = "IDE code completion tool for 30 developers. Need fast autocomplete suggestions, low latency is key."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "IDE code completion tool for 30 developers."
     
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
-            st.session_state.user_input = "RAG system for enterprise document Q&A, 30 users, cost-efficient preferred, A100 GPUs available."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 30 users."
     
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
-            st.session_state.user_input = "News article summarization for 30 daily users. Quick summaries, cost-effective solution needed."
+            # With priority (cost-effective) to show filtering
+            st.session_state.user_input = "News article summarization for 30 users, cost-effective solution preferred."
     
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
-            st.session_state.user_input = "Legal document analysis for 30 lawyers. Accuracy is critical, budget is flexible."
+            # With priority (accuracy) to show filtering
+            st.session_state.user_input = "Legal document analysis for 30 lawyers, accuracy is critical."
     
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
     
     with col6:
         if st.button("Translation", use_container_width=True, key="task_trans"):
-            st.session_state.user_input = "Multi-language translation service for 30 users. Need to translate between 10 language pairs accurately."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "Multi-language translation service for 30 users."
     
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
-            st.session_state.user_input = "Content generation tool for marketing team, 30 users. Need creative blog posts and social media content."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "Content generation tool for marketing team, 30 users."
     
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
-            st.session_state.user_input = "Long document summarization for research papers (50+ pages). 30 researchers, accuracy is most important."
+            # With priority (accuracy) to show filtering
+            st.session_state.user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
     
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
-            st.session_state.user_input = "Full code generation tool for implementing features from specs. 30 developers, high accuracy needed."
+            # Simple prompt - no priority, no hardware = show all configs
+            st.session_state.user_input = "Full code generation tool for implementing features, 30 developers."
     
     # Input area with validation
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
