@@ -1555,6 +1555,41 @@ def load_research_slo_ranges():
     except Exception:
         return None
 
+@st.cache_data
+def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int) -> dict:
+    """Get actual min-max ranges for each percentile from benchmark data for a specific token config."""
+    try:
+        json_path = DATA_DIR / "benchmarks_redhat_performance.json"
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+        
+        benchmarks = data.get("benchmarks", [])
+        
+        # Filter by token config
+        matching = [b for b in benchmarks 
+                    if b.get('prompt_tokens') == prompt_tokens and b.get('output_tokens') == output_tokens]
+        
+        if not matching:
+            return {"config_count": 0}
+        
+        # Calculate min/max for each percentile
+        result = {"config_count": len(matching)}
+        
+        for percentile in ['mean', 'p90', 'p95', 'p99']:
+            for metric in ['ttft', 'itl', 'e2e']:
+                key = f"{metric}_{percentile}"
+                vals = [b.get(key, 0) for b in matching if b.get(key) and b.get(key) > 0]
+                if vals:
+                    result[f"{key}_min"] = min(vals)
+                    result[f"{key}_max"] = max(vals)
+                else:
+                    result[f"{key}_min"] = 0
+                    result[f"{key}_max"] = 0
+        
+        return result
+    except Exception:
+        return {"config_count": 0}
+
 @st.cache_data  
 def load_research_workload_patterns():
     """Load research-backed workload patterns from JSON file (includes benchmark data)."""
@@ -3886,20 +3921,20 @@ def render_stats(models_count: int):
 def render_about_section(models_df: pd.DataFrame):
     """Render About section at the bottom with expandable info."""
     st.markdown("""
-    <div style="margin-top: 2rem; padding: 1.5rem; background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(139, 92, 246, 0.05)); 
-                border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);">
+    <div style="margin-top: 2rem; padding: 1.5rem; background: #000000; 
+                border-radius: 1rem; border: 1px solid rgba(255,255,255,0.2);">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <span style="color: white; font-weight: 700; font-size: 1.2rem;">About</span>
+            <span style="color: #EE0000; font-weight: 700; font-size: 1.2rem;">About</span>
         </div>
         <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">🔧 <strong style="color: #38ef7d;">2,662</strong> Model-Hardware Configs</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">📦 <strong style="color: #38ef7d;">40</strong> Models with Performance</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">🎯 <strong style="color: #38ef7d;">50</strong> Models with Accuracy</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">💻 <strong style="color: #667eea;">6</strong> GPU Types</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">🎪 <strong style="color: #a371f7;">9</strong> Use Cases</span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">2,662</strong> Model-Hardware Configs</span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">40</strong> Models with Performance</span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">50</strong> Models with Accuracy</span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">6</strong> GPU Types</span>
+            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">9</strong> Use Cases</span>
         </div>
         <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 0;">
-            Powered by <strong style="color: #a371f7;">Qwen 2.5 7B</strong> for context extraction, <strong style="color: #667eea;">Red Hat Performance Benchmarks (integ-oct-29.sql)</strong> and <strong style="color: #D4AF37;">Artificial Analysis</strong> accuracy scores.
+            Powered by <strong style="color: white;">Qwen 2.5 7B</strong> for context extraction, <strong style="color: white;">Red Hat Performance Benchmarks (integ-oct-29.sql)</strong> and <strong style="color: white;">Artificial Analysis</strong> accuracy scores.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -3941,43 +3976,39 @@ def render_about_section(models_df: pd.DataFrame):
     """, unsafe_allow_html=True)
     
     # Three expanders for extra info
-    with st.expander("📊 **Scoring Methodology** - How each category is calculated", expanded=False):
-        st.markdown('<h4 style="color: var(--accent-purple) !important; margin-bottom: 1.25rem; font-family: Inter, sans-serif;">5 Recommendation Categories</h4>', unsafe_allow_html=True)
+    with st.expander("**Scoring Methodology** - How each category is calculated", expanded=False):
+        st.markdown('<h4 style="color: #EE0000 !important; margin-bottom: 1.25rem; font-family: Inter, sans-serif;">4 Recommendation Categories</h4>', unsafe_allow_html=True)
         st.markdown("""
 <table style="width: 100%; border-collapse: collapse; margin-top: 1rem; background: transparent;">
-<tr style="border-bottom: 2px solid rgba(88, 166, 255, 0.25);">
-    <th style="text-align: left; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700; width: 140px;">Category</th>
-    <th style="text-align: left; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Scoring Logic</th>
+<tr style="border-bottom: 2px solid rgba(255,255,255,0.25);">
+    <th style="text-align: left; padding: 0.75rem; color: #EE0000 !important; font-weight: 700; width: 140px;">Category</th>
+    <th style="text-align: left; padding: 0.75rem; color: #EE0000 !important; font-weight: 700;">Scoring Logic</th>
 </tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: #f472b6 !important; font-weight: 600;">🎯 Best Accuracy</td>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;"><strong>RAW</strong> Artificial Analysis benchmark score (MMLU-Pro, GPQA, etc.) - No weighting applied</td>
+<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Accuracy</td>
+    <td style="padding: 0.75rem; color: white !important;"><strong>RAW</strong> accuracy score from Artificial Analysis benchmarks (MMLU-Pro, GPQA, etc.) - Top 5 unique models</td>
 </tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: #667eea !important; font-weight: 600;">⚡ Best Latency</td>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;"><strong>RAW</strong> latency score from benchmarks - lower TTFT/ITL/E2E = higher score</td>
+<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Latency</td>
+    <td style="padding: 0.75rem; color: white !important;">From the <strong>top 5 accuracy models</strong>, finds the hardware config with <strong>lowest TTFT</strong> (fastest response)</td>
 </tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: #f97316 !important; font-weight: 600;">💰 Best Cost</td>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;"><strong>RAW</strong> price score - fewer/cheaper GPUs = higher score</td>
+<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Cost</td>
+    <td style="padding: 0.75rem; color: white !important;">From the <strong>top 5 accuracy models</strong>, finds the hardware config with <strong>cheapest GPU setup</strong></td>
 </tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: #06b6d4 !important; font-weight: 600;">🔧 Simplest</td>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;"><strong>RAW</strong> complexity score: 1 GPU = 100, 2 GPUs = 90, ... 8+ GPUs = 60</td>
-</tr>
-<tr style="border-bottom: 1px solid var(--border-default); background: rgba(56, 239, 125, 0.08);">
-    <td style="padding: 0.75rem; color: #38ef7d !important; font-weight: 600;">⚖️ Balanced</td>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;"><strong>WEIGHTED</strong> combination using MCDM formula below</td>
+<tr style="border-bottom: 1px solid rgba(255,255,255,0.2); background: rgba(238,0,0,0.1);">
+    <td style="padding: 0.75rem; color: #EE0000 !important; font-weight: 600;">Balanced</td>
+    <td style="padding: 0.75rem; color: white !important;"><strong>WEIGHTED</strong> combination using MCDM formula below</td>
 </tr>
 </table>
         """, unsafe_allow_html=True)
         
-        st.markdown('<h4 style="color: var(--accent-green) !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">⚖️ Balanced Score (MCDM Formula)</h4>', unsafe_allow_html=True)
+        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (MCDM Formula)</h4>', unsafe_allow_html=True)
         st.code("BALANCED = Accuracy × 40% + Cost × 40% + Latency × 10% + Complexity × 10%", language=None)
         st.markdown("""
 <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 1rem;">
-    <strong style="color: #a371f7;">Note:</strong> Priority adjustments (high accuracy, low latency, etc.) <strong>ONLY affect the Balanced score weights</strong>.
-    The other 4 categories always use RAW scores without any weighting.
+    <strong style="color: #EE0000;">Note:</strong> Priority adjustments (high accuracy, low latency, etc.) <strong>ONLY affect the Balanced score weights</strong>.
+    The other 3 categories always use RAW scores without any weighting.
 </p>
 <table style="width: 100%; border-collapse: collapse; margin-top: 1rem; background: transparent;">
 <tr style="border-bottom: 2px solid rgba(88, 166, 255, 0.25);">
@@ -4055,41 +4086,41 @@ def render_how_it_works_content():
     """How It Works content for About section expander."""
     st.markdown("""
     <div style="margin-bottom: 1.5rem;">
-        <h4 style="color: #667eea; margin-bottom: 1rem;">🔄 End-to-End Pipeline</h4>
+        <h4 style="color: #EE0000; margin-bottom: 1rem;">End-to-End Pipeline</h4>
         <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.75rem; border-left: 3px solid #667eea;">
-                <div style="font-weight: 700; color: #667eea; margin-bottom: 0.5rem;">1. Context Extraction</div>
+            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid #EE0000;">
+                <div style="font-weight: 700; color: #EE0000; margin-bottom: 0.5rem;">1. Context Extraction</div>
                 <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Qwen 2.5 7B extracts use case, users, priority & hardware from natural language</div>
             </div>
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: rgba(56, 239, 125, 0.1); border-radius: 0.75rem; border-left: 3px solid #38ef7d;">
-                <div style="font-weight: 700; color: #38ef7d; margin-bottom: 0.5rem;">2. MCDM Scoring</div>
+            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid white;">
+                <div style="font-weight: 700; color: white; margin-bottom: 0.5rem;">2. MCDM Scoring</div>
                 <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Score 206 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
             </div>
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: rgba(163, 113, 247, 0.1); border-radius: 0.75rem; border-left: 3px solid #a371f7;">
-                <div style="font-weight: 700; color: #a371f7; margin-bottom: 0.5rem;">3. Recommendation</div>
+            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid #EE0000;">
+                <div style="font-weight: 700; color: #EE0000; margin-bottom: 0.5rem;">3. Recommendation</div>
                 <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Best models with explainability, SLO compliance & deployment config</div>
             </div>
         </div>
     </div>
     
-    <h4 style="color: #D4AF37; margin: 1.5rem 0 1rem 0;">📊 Supported Use Cases</h4>
+    <h4 style="color: #EE0000; margin: 1.5rem 0 1rem 0;">Supported Use Cases</h4>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">💬 Chat Completion</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">💻 Code Completion</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">📄 Document Q&A (RAG)</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">📝 Summarization</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">⚖️ Legal Analysis</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">🌐 Translation</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">✍️ Content Generation</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">📚 Long Doc Summary</div>
-        <div style="padding: 0.75rem; background: rgba(102, 126, 234, 0.1); border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem;">🔧 Code Generation</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Chat Completion</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Code Completion</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Document Q&A (RAG)</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Summarization</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Legal Analysis</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Translation</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Content Generation</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Long Doc Summary</div>
+        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Code Generation</div>
     </div>
     
-    <h4 style="color: #38ef7d; margin: 1.5rem 0 1rem 0;">📈 Data Sources</h4>
+    <h4 style="color: #EE0000; margin: 1.5rem 0 1rem 0;">Data Sources</h4>
     <ul style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.8; margin: 0; padding-left: 1.5rem;">
-        <li><strong style="color: #667eea;">Artificial Analysis</strong> - Model benchmarks, pricing, and performance data</li>
-        <li><strong style="color: #a371f7;">Performance Benchmarks</strong> - Real hardware deployment SLOs (TTFT, ITL, E2E latency)</li>
-        <li><strong style="color: #38ef7d;">Use-Case CSVs</strong> - Pre-computed weighted scores for each use case</li>
+        <li><strong style="color: white;">Artificial Analysis</strong> - Model benchmarks, pricing, and performance data</li>
+        <li><strong style="color: white;">Performance Benchmarks</strong> - Real hardware deployment SLOs (TTFT, ITL, E2E latency)</li>
+        <li><strong style="color: white;">Use-Case CSVs</strong> - Pre-computed weighted scores for each use case</li>
     </ul>
         """, unsafe_allow_html=True)
 
@@ -4100,37 +4131,17 @@ def render_pipeline():
     <div class="pipeline-container">
         <div class="pipeline-step">
             <div class="pipeline-number pipeline-number-1">1</div>
-            <div class="pipeline-title">🔍 Context Extraction</div>
+            <div class="pipeline-title">Context Extraction</div>
             <div class="pipeline-desc">Qwen 2.5 7B extracts use case, users, priority & hardware from natural language</div>
         </div>
         <div class="pipeline-step">
             <div class="pipeline-number pipeline-number-2">2</div>
-            <div class="pipeline-title">⚖️ MCDM Scoring</div>
+            <div class="pipeline-title">MCDM Scoring</div>
             <div class="pipeline-desc">Score 206 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
         </div>
         <div class="pipeline-step">
             <div class="pipeline-number pipeline-number-3">3</div>
-            <div class="pipeline-title">🏆 Recommendation</div>
-            <div class="pipeline-desc">Top 5 models with explainability, tradeoffs, SLO compliance & deployment config</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    """Render the pipeline visualization."""
-    st.markdown("""
-    <div class="pipeline-container">
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-1">1</div>
-            <div class="pipeline-title">🔍 Context Extraction</div>
-            <div class="pipeline-desc">Qwen 2.5 7B extracts use case, users, priority & hardware from natural language</div>
-        </div>
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-2">2</div>
-            <div class="pipeline-title">⚖️ MCDM Scoring</div>
-            <div class="pipeline-desc">Score 206 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
-        </div>
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-3">3</div>
-            <div class="pipeline-title">🏆 Recommendation</div>
+            <div class="pipeline-title">Recommendation</div>
             <div class="pipeline-desc">Top 5 models with explainability, tradeoffs, SLO compliance & deployment config</div>
         </div>
     </div>
@@ -4460,29 +4471,58 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     </div>
     """, unsafe_allow_html=True)
     
-    # Explanation box
+    # Get actual benchmark ranges for this use case from real data
+    token_config = research_defaults.get('token_config', {'prompt': 512, 'output': 256})
+    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
+    
+    # Display ranges table with headline showing use case
+    use_case_display = use_case.replace('_', ' ').title()
     st.markdown(f"""
-    <div style="background: #000000; 
-                padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.2);">
-        <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 0.9rem; line-height: 1.6;">
-            <strong style="color: white;">Research-Based Defaults:</strong> Values are set to the <strong>maximum acceptable</strong> 
-            for <em>{use_case.replace('_', ' ').title()}</em> with <em>{priority.replace('_', ' ').title()}</em> priority — showing you <strong>all viable options</strong>.
-            <br><br>
-            <strong style="color: white;">How it works:</strong> Only models whose <strong>actual benchmark performance</strong> 
-            meets these SLO targets will be shown. <strong>Lower the values</strong> to filter down to faster/better models.
-        </p>
+    <div style="background: #000000; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.3);">
+        <div style="color: #EE0000; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
+            Benchmark Ranges for {use_case_display}
+        </div>
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                    <th style="text-align: left; padding: 0.4rem; color: rgba(255,255,255,0.7);">Percentile</th>
+                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">TTFT Range</th>
+                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">ITL Range</th>
+                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">E2E Range</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <td style="padding: 0.4rem; color: white; font-weight: 600;">Mean</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_mean_min', 0):.0f} - {benchmark_ranges.get('ttft_mean_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_mean_min', 0):.0f} - {benchmark_ranges.get('itl_mean_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_mean_min', 0):.0f} - {benchmark_ranges.get('e2e_mean_max', 0):.0f}ms</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <td style="padding: 0.4rem; color: white; font-weight: 600;">P90</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_p90_min', 0):.0f} - {benchmark_ranges.get('ttft_p90_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_p90_min', 0):.0f} - {benchmark_ranges.get('itl_p90_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_p90_min', 0):.0f} - {benchmark_ranges.get('e2e_p90_max', 0):.0f}ms</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(238,0,0,0.1);">
+                    <td style="padding: 0.4rem; color: #EE0000; font-weight: 700;">P95 (default)</td>
+                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('ttft_p95_min', 0):.0f} - {benchmark_ranges.get('ttft_p95_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('itl_p95_min', 0):.0f} - {benchmark_ranges.get('itl_p95_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('e2e_p95_min', 0):.0f} - {benchmark_ranges.get('e2e_p95_max', 0):.0f}ms</td>
+                </tr>
+                <tr>
+                    <td style="padding: 0.4rem; color: white; font-weight: 600;">P99</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_p99_min', 0):.0f} - {benchmark_ranges.get('ttft_p99_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_p99_min', 0):.0f} - {benchmark_ranges.get('itl_p99_max', 0):.0f}ms</td>
+                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_p99_min', 0):.0f} - {benchmark_ranges.get('e2e_p99_max', 0):.0f}ms</td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.5rem;">
+            Real benchmark data from {benchmark_ranges.get('config_count', 0)} configurations • Token config: {token_config['prompt']}/{token_config['output']}
+        </div>
     </div>
     """, unsafe_allow_html=True)
-    
-    # Show research range info - these are P95 default values
-    if 'ttft_range' in research_defaults:
-        st.markdown(f"""
-        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-            <span>P95 (default) TTFT: {research_defaults['ttft_range']['min']}-{research_defaults['ttft_range']['max']}ms</span>
-            <span>P95 (default) ITL: {research_defaults['itl_range']['min']}-{research_defaults['itl_range']['max']}ms</span>
-            <span>P95 (default) E2E: {research_defaults['e2e_range']['min']}-{research_defaults['e2e_range']['max']}ms</span>
-        </div>
-        """, unsafe_allow_html=True)
     
     # Create 4 columns for all cards in one row
     col1, col2, col3, col4 = st.columns(4)
@@ -4619,35 +4659,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         if new_e2e != e2e:
             st.session_state.custom_e2e = new_e2e
         
-        # Get priority from session state
-        current_priority = st.session_state.get('extracted_priority', 'balanced')
-        
-        # Research-backed SLO validation
-        research_messages = validate_slo_against_research(use_case, new_ttft, new_itl, new_e2e, current_priority)
-        
-        # Separate by severity for better UX
-        errors = [m for m in research_messages if m[3] == 'error']
-        warnings = [m for m in research_messages if m[3] == 'warning']
-        successes = [m for m in research_messages if m[3] == 'success']
-        infos = [m for m in research_messages if m[3] == 'info']
-        
-        # Show errors first (red)
-        for icon, color, text, _ in errors:
-            st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: rgba(245, 87, 108, 0.1); border-radius: 6px; margin: 4px 0; border-left: 3px solid {color};">{icon} {text}</div>', unsafe_allow_html=True)
-        
-        # Show warnings (orange/yellow)
-        for icon, color, text, _ in warnings:
-            st.markdown(f'<div style="font-size: 0.85rem; color: {color}; padding: 0.4rem 0.5rem; line-height: 1.4; background: rgba(251, 191, 36, 0.1); border-radius: 6px; margin: 4px 0; border-left: 3px solid {color};">{icon} {text}</div>', unsafe_allow_html=True)
-        
-        # Show successes - black background white text
-        if successes and not errors and not warnings:
-            st.markdown(f'<div style="font-size: 0.9rem; color: white; padding: 0.4rem 0.5rem; line-height: 1.4; background: #000000; border-radius: 6px; margin: 4px 0;">All SLO values within research-backed ranges</div>', unsafe_allow_html=True)
-        
-        # Show research note - black background
-        for icon, color, text, _ in infos:
-            # Remove emoji prefix if present
-            clean_text = text.replace('📚 ', '').replace('📐 ', '')
-            st.markdown(f'<div style="font-size: 0.8rem; color: white; padding: 0.35rem 0.5rem; line-height: 1.4; font-style: italic; background: #000000; border-radius: 5px; margin: 3px 0;">{clean_text}</div>', unsafe_allow_html=True)
+        # Removed SLO validation messages since we now show ranges table above
     
     with col2:
         st.markdown("""
@@ -4911,7 +4923,6 @@ def show_category_dialog():
         "accuracy": {"title": "Best Accuracy - Top 5", "color": "#EE0000", "field": "accuracy", "top5_key": "top5_accuracy"},
         "latency": {"title": "Best Latency - Top 5", "color": "#EE0000", "field": "latency", "top5_key": "top5_latency"},
         "cost": {"title": "Best Cost - Top 5", "color": "#EE0000", "field": "cost", "top5_key": "top5_cost"},
-        "simplest": {"title": "Simplest - Top 5", "color": "#EE0000", "field": "complexity", "top5_key": "top5_simplest"},
     }
     
     config = category_config.get(category, category_config["balanced"])
