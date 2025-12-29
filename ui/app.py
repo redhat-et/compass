@@ -4496,7 +4496,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
-        # CSS for percentile selector - white text, visible border
+        # CSS for SLO inputs - white borders, white text
         st.markdown("""
         <style>
             /* Percentile selector label - WHITE */
@@ -4507,21 +4507,32 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             .stSelectbox p {
                 color: white !important;
             }
-            /* Percentile selector box - visible border */
+            /* Percentile selector box - WHITE border */
             .stSelectbox > div > div {
                 background: rgba(0,0,0,0.5) !important;
-                border: 1px solid rgba(255,255,255,0.4) !important;
+                border: 2px solid rgba(255,255,255,0.6) !important;
+                border-radius: 8px !important;
             }
             .stSelectbox > div > div:hover {
                 border-color: #EE0000 !important;
             }
             .stSelectbox [data-baseweb="select"] > div {
                 background: rgba(0,0,0,0.5) !important;
-                border: 1px solid rgba(255,255,255,0.4) !important;
+                border: 2px solid rgba(255,255,255,0.6) !important;
                 color: white !important;
             }
             .stSelectbox [data-baseweb="select"] span {
                 color: white !important;
+            }
+            /* Number inputs - WHITE border */
+            .stNumberInput > div > div > input {
+                background: rgba(0,0,0,0.5) !important;
+                border: 2px solid rgba(255,255,255,0.6) !important;
+                border-radius: 8px !important;
+                color: white !important;
+            }
+            .stNumberInput > div > div > input:focus {
+                border-color: #EE0000 !important;
             }
             /* Dropdown menu styling */
             [data-baseweb="menu"] {
@@ -4573,17 +4584,17 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # Get percentile label for display
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
         
-        # Editable TTFT - global benchmark range (min to max across all percentiles)
+        # TTFT - Label ABOVE input, white bold
+        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem;">TTFT ({percentile_display}) &lt; {ttft}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {ttft_min}-{ttft_max}ms)</span></div>', unsafe_allow_html=True)
         new_ttft = st.number_input("TTFT (ms)", value=min(ttft, ttft_max), min_value=ttft_min, max_value=ttft_max, step=ttft_step, key="edit_ttft", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">TTFT ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_ttft}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {ttft_min}-{ttft_max}ms)</span></div>', unsafe_allow_html=True)
         
-        # Editable ITL - global benchmark range
+        # ITL - Label ABOVE input, white bold
+        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem; margin-top: 0.5rem;">ITL ({percentile_display}) &lt; {itl}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {itl_min}-{itl_max}ms)</span></div>', unsafe_allow_html=True)
         new_itl = st.number_input("ITL (ms)", value=min(itl, itl_max), min_value=itl_min, max_value=itl_max, step=itl_step, key="edit_itl", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">ITL ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_itl}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {itl_min}-{itl_max}ms)</span></div>', unsafe_allow_html=True)
         
-        # Editable E2E - global benchmark range
+        # E2E - Label ABOVE input, white bold
+        st.markdown(f'<div style="font-size: 0.9rem; color: #ffffff; font-weight: 700; margin-bottom: 0.25rem; margin-top: 0.5rem;">E2E ({percentile_display}) &lt; {e2e}ms <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6;">(range: {e2e_min}-{e2e_max}ms)</span></div>', unsafe_allow_html=True)
         new_e2e = st.number_input("E2E (ms)", value=min(e2e, e2e_max), min_value=e2e_min, max_value=e2e_max, step=e2e_step, key="edit_e2e", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">E2E ({percentile_display}) &lt; <span style="color: #ffffff; font-weight: 700; font-size: 1rem;">{new_e2e}ms</span> <span style="font-size: 0.7rem; opacity: 0.5;">(range: {e2e_min}-{e2e_max}ms)</span></div>', unsafe_allow_html=True)
         
         # Store custom values
         if new_ttft != ttft:
