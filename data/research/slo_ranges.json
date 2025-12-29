@@ -1,14 +1,60 @@
 {
   "_description": "SLO ranges from integ-oct-29.sql REAL benchmark data - realistic defaults to show ALL configs",
   "_sources": [
-    "Red Hat Performance DB (integ-oct-29.sql) - 47 models, 670 configs",
-    "Analyzed actual TTFT, ITL, E2E distributions by token config"
+    "Red Hat Performance DB (integ-oct-29.sql) - 40 models, 2662 configs",
+    "Analyzed actual TTFT, ITL, E2E distributions across ALL percentiles (mean, p90, p95, p99)"
   ],
   "_token_config_summary": {
     "512/256": {"use_cases": ["chatbot_conversational", "code_completion", "translation", "content_creation"], "total_configs": 344},
     "1024/1024": {"use_cases": ["code_generation_detailed"], "total_configs": 72},
     "4096/512": {"use_cases": ["summarization_short", "document_analysis_rag"], "total_configs": 229},
     "10240/1536": {"use_cases": ["long_document_summarization", "research_legal_analysis"], "total_configs": 25}
+  },
+  
+  "global_benchmark_ranges": {
+    "_note": "Global MIN/MAX across ALL percentiles (mean, p90, p95, p99) and ALL 2662 benchmark configs. Use these as slider bounds to guarantee results regardless of which percentile user selects.",
+    "ttft_ms": {
+      "min": 15,
+      "max": 270000,
+      "unit": "ms",
+      "note": "15ms (fastest p50) to 270,000ms (slowest p99, ~4.5 min)"
+    },
+    "itl_ms": {
+      "min": 3,
+      "max": 430,
+      "unit": "ms",
+      "note": "3ms (fastest) to 430ms (slowest p99)"
+    },
+    "e2e_ms": {
+      "min": 800,
+      "max": 300000,
+      "unit": "ms",
+      "note": "800ms (fastest) to 300,000ms (slowest p99, ~5 min)"
+    }
+  },
+  
+  "per_percentile_ranges": {
+    "_note": "Actual MIN/MAX for each percentile column across all 2662 configs. Use to set tighter default values based on selected percentile.",
+    "mean": {
+      "ttft": {"min": 15, "max": 129046},
+      "itl": {"min": 3, "max": 377},
+      "e2e": {"min": 808, "max": 208406}
+    },
+    "p90": {
+      "ttft": {"min": 16, "max": 240508},
+      "itl": {"min": 3, "max": 420},
+      "e2e": {"min": 916, "max": 279204}
+    },
+    "p95": {
+      "ttft": {"min": 16, "max": 252272},
+      "itl": {"min": 3, "max": 425},
+      "e2e": {"min": 938, "max": 290039}
+    },
+    "p99": {
+      "ttft": {"min": 18, "max": 266170},
+      "itl": {"min": 3, "max": 429},
+      "e2e": {"min": 969, "max": 297926}
+    }
   },
   
   "_scoring_explanation": {
