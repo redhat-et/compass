@@ -4513,7 +4513,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 </tr>
             </tbody>
         </table>
-        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.5rem;">
+        <div style="font-size: 0.75rem; color: white; font-weight: 600; margin-top: 0.5rem;">
             Real benchmark data from {benchmark_ranges.get('config_count', 0)} configurations • Token config: {token_config['prompt']}/{token_config['output']}
         </div>
     </div>
@@ -4828,7 +4828,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
             </div>'''
         datasets_html += '</div>'
-        datasets_html += '<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 0.5rem; font-style: italic;">Weights from Artificial Analysis Intelligence Index</div>'
+        datasets_html += '<div style="font-size: 0.75rem; color: white; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
         st.markdown(datasets_html, unsafe_allow_html=True)
 
     with col4:
