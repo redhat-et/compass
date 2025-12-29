@@ -4224,7 +4224,15 @@ def render_top5_table(recommendations: list, priority: str):
                 break
     top5_accuracy = unique_accuracy_recs
     
-    top5_latency = sorted(recommendations, key=lambda x: get_scores(x)["latency"], reverse=True)[:5]
+    # Sort by actual TTFT value (lowest = fastest = best), not latency_score which caps at 100
+    def get_ttft(rec):
+        # Get TTFT from benchmark_metrics (real data from integ-oct-29.sql)
+        metrics = rec.get('benchmark_metrics', {}) or {}
+        percentile = st.session_state.get('slo_percentile', 'p95')
+        ttft = metrics.get(f'ttft_{percentile}', rec.get('predicted_ttft_p95_ms', 999999))
+        return ttft if ttft and ttft > 0 else 999999
+    
+    top5_latency = sorted(recommendations, key=get_ttft)[:5]  # Lowest TTFT first
     top5_cost = sorted(recommendations, key=lambda x: get_scores(x)["cost"], reverse=True)[:5]
     top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
     
