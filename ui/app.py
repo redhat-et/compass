@@ -4211,8 +4211,9 @@ def render_top5_table(recommendations: list, priority: str):
     # Find TOP 5 models for each category
     top5_balanced = sorted(recommendations, key=lambda x: get_scores(x)["final"], reverse=True)[:5]
     
-    # For ACCURACY: Show unique models only (accuracy is independent of hardware)
-    # Deduplicate by model_name, keeping the highest scoring config for each model
+    # ==========================================================================
+    # STEP 1: Get top 5 UNIQUE MODELS by raw accuracy (our quality baseline)
+    # ==========================================================================
     seen_models = set()
     unique_accuracy_recs = []
     for rec in sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True):
@@ -4224,7 +4225,19 @@ def render_top5_table(recommendations: list, priority: str):
                 break
     top5_accuracy = unique_accuracy_recs
     
-    # Sort by actual TTFT value (lowest = fastest = best), not latency_score which caps at 100
+    # Get the model names of our top 5 accuracy models
+    top_accuracy_model_names = {rec.get('model_name', rec.get('model_id', '')) for rec in top5_accuracy}
+    
+    # ==========================================================================
+    # STEP 2: Filter ALL recommendations to only include top accuracy models
+    # This ensures Best Latency and Best Cost show HIGH QUALITY models
+    # ==========================================================================
+    high_quality_recs = [rec for rec in recommendations 
+                         if rec.get('model_name', rec.get('model_id', '')) in top_accuracy_model_names]
+    
+    # ==========================================================================
+    # STEP 3: Best Latency = fastest (lowest TTFT) among high-quality models
+    # ==========================================================================
     def get_ttft(rec):
         # Get TTFT from benchmark_metrics (real data from integ-oct-29.sql)
         metrics = rec.get('benchmark_metrics', {}) or {}
@@ -4232,8 +4245,18 @@ def render_top5_table(recommendations: list, priority: str):
         ttft = metrics.get(f'ttft_{percentile}', rec.get('predicted_ttft_p95_ms', 999999))
         return ttft if ttft and ttft > 0 else 999999
     
-    top5_latency = sorted(recommendations, key=get_ttft)[:5]  # Lowest TTFT first
-    top5_cost = sorted(recommendations, key=lambda x: get_scores(x)["cost"], reverse=True)[:5]
+    top5_latency = sorted(high_quality_recs, key=get_ttft)[:5]  # Lowest TTFT first
+    
+    # ==========================================================================
+    # STEP 4: Best Cost = cheapest hardware among high-quality models
+    # ==========================================================================
+    def get_cost(rec):
+        # Get actual monthly cost (lower = better)
+        return rec.get('cost_per_month_usd', 999999) or 999999
+    
+    top5_cost = sorted(high_quality_recs, key=get_cost)[:5]  # Lowest cost first
+    
+    # Simplest still uses all recommendations (fewer GPUs is simpler regardless of model)
     top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
     
     # Best = first in each list
