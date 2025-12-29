@@ -13,6 +13,7 @@ Usage:
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -24,6 +25,14 @@ import streamlit as st
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
 DATA_DIR = Path(__file__).parent.parent / "data"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -1744,7 +1753,7 @@ def fetch_ranked_recommendations(
 
     try:
         response = requests.post(
-            "http://localhost:8000/api/ranked-recommend-from-spec",
+            f"{API_BASE_URL}/api/ranked-recommend-from-spec",
             json=payload,
             timeout=30,
         )
