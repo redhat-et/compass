@@ -4376,59 +4376,53 @@ def render_top5_table(recommendations: list, priority: str):
             dots_html += f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{dot_color};margin:0 2px;"></span>'
         
         with col:
-            # Use columns to put arrows on sides of card content
-            left_col, center_col, right_col = st.columns([0.1, 0.8, 0.1])
-            
-            with left_col:
-                st.markdown("<div style='height: 340px; display: flex; align-items: center;'>", unsafe_allow_html=True)
-                if st.button("‹", key=f"prev_{category_key}", help="Previous"):
-                    st.session_state[idx_key] = (current_idx - 1) % total
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-            
-            with center_col:
-                card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1.5rem; box-shadow: 0 8px 32px {color}20; min-height: 320px;">
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-<span style="color: {color}; font-weight: 700; font-size: 1.2rem;">{title}</span>
-<span style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">{current_idx + 1}/{total}</span>
+            # Card with arrows INSIDE
+            card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1.75rem; box-shadow: 0 8px 32px {color}20; min-height: 380px; position: relative;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+<span style="color: {color}; font-weight: 700; font-size: 1.3rem;">{title}</span>
+<span style="color: rgba(255,255,255,0.5); font-size: 1rem;">{current_idx + 1}/{total}</span>
 </div>
-<div style="color: white; font-weight: 700; font-size: 1.4rem; margin-bottom: 1rem;">{model_name}</div>
-<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">Hardware</div>
-<div style="color: white; font-weight: 700; font-size: 1rem;">{hw_display}</div>
+<div style="color: white; font-weight: 700; font-size: 1.6rem; margin-bottom: 1.25rem;">{model_name}</div>
+<div style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem;">
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Hardware</div>
+<div style="color: white; font-weight: 700; font-size: 1.1rem;">{hw_display}</div>
 </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">Replicas</div>
-<div style="color: white; font-weight: 700; font-size: 1rem;">{replicas}</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Replicas</div>
+<div style="color: white; font-weight: 700; font-size: 1.1rem;">{replicas}</div>
 </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.6rem; text-transform: uppercase;">RPS/Rep</div>
-<div style="color: white; font-weight: 700; font-size: 1rem;">{rps_per_replica:.1f}</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">RPS/Rep</div>
+<div style="color: white; font-weight: 700; font-size: 1.1rem;">{rps_per_replica:.1f}</div>
 </div>
 </div>
-<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.75rem;">
+<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 1rem;">
 <div style="text-align: right;">
-<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
-<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
+<div style="color: {color}; font-size: 3rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
+<div style="color: rgba(255,255,255,0.4); font-size: 0.75rem; text-transform: uppercase;">Score</div>
 </div>
 </div>
-<div style="display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem;">
+<div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem;">
 <span style="color: rgba(255,255,255,0.6);">Acc {scores["accuracy"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Lat {scores["latency"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
 <span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
 </div>
-<div style="text-align: center; margin-top: 0.6rem;">{dots_html}</div>
+<div style="text-align: center; margin-top: 0.75rem;">{dots_html}</div>
 </div>'''
-                st.markdown(card_html, unsafe_allow_html=True)
+            st.markdown(card_html, unsafe_allow_html=True)
             
-            with right_col:
-                st.markdown("<div style='height: 340px; display: flex; align-items: center;'>", unsafe_allow_html=True)
-                if st.button("›", key=f"next_{category_key}", help="Next"):
+            # Arrow buttons below card, centered
+            btn_left, btn_center, btn_right = st.columns([0.4, 0.2, 0.4])
+            with btn_left:
+                if st.button("◀", key=f"prev_{category_key}", help="Previous", use_container_width=True):
+                    st.session_state[idx_key] = (current_idx - 1) % total
+                    st.rerun()
+            with btn_right:
+                if st.button("▶", key=f"next_{category_key}", help="Next", use_container_width=True):
                     st.session_state[idx_key] = (current_idx + 1) % total
                     st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
     
     # Render 4 carousel cards: 2 on top row, 2 on bottom row
     col1, col2 = st.columns(2)
@@ -4666,6 +4660,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         with percentile_col:
             percentile_options = ["Mean", "P90", "P95", "P99"]
             percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
+            percentile_help = {
+                "Mean": "Mean = Average of all requests",
+                "P90": "P90 = 90% of requests meet target",
+                "P95": "P95 = 95% of requests meet target (default)",
+                "P99": "P99 = 99% of requests meet target (strictest)"
+            }
             reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
             current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
             
@@ -4674,7 +4674,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 percentile_options,
                 index=percentile_options.index(current_percentile_display),
                 key="percentile_selector",
-                help="P99 = strictest (99% of requests meet target)"
+                help=percentile_help.get(current_percentile_display, "Select percentile")
             )
             st.session_state.slo_percentile = percentile_map[selected_percentile]
         
