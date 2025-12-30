@@ -223,23 +223,23 @@ class RankingService:
 
         for config in configs:
             if config.scores:
-                # MAXMIN: Balanced score = highest minimum across key dimensions
-                # This prevents low-accuracy models from winning
-                min_score = min(
-                    config.scores.accuracy_score,
-                    config.scores.price_score,
-                    config.scores.latency_score,
-                )
+                # ACCURACY-DOMINANT BALANCED SCORE
+                # Accuracy contributes 70%, operational (lat+cost avg) contributes 30%
+                # This ensures high-accuracy models win, while still considering cost/latency
+                #
+                # Example:
+                #   GPT-OSS 20B:  Acc=60, Lat=86, Cost=92 → 60×0.7 + 89×0.3 = 68.7
+                #   MiniMax-M2:   Acc=80, Lat=70, Cost=35 → 80×0.7 + 52.5×0.3 = 71.75 ← WINS
+                #
+                acc = config.scores.accuracy_score
+                lat = config.scores.latency_score
+                cost = config.scores.price_score
                 
-                # Add small weighted bonus to differentiate configs with same min
-                weighted_avg = (
-                    config.scores.accuracy_score * normalized.get("accuracy", 0.34)
-                    + config.scores.price_score * normalized.get("price", 0.33)
-                    + config.scores.latency_score * normalized.get("latency", 0.33)
-                )
+                # Operational score = average of latency and cost
+                operational_avg = (lat + cost) / 2
                 
-                # 90% min score + 10% weighted avg for tiebreaking
-                balanced = min_score * 0.9 + weighted_avg * 0.1
+                # Balanced = 70% accuracy + 30% operational
+                balanced = acc * 0.7 + operational_avg * 0.3
                 config.scores.balanced_score = round(balanced, 1)
 
     def get_unique_configs_count(
