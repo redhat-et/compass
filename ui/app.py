@@ -4222,6 +4222,20 @@ def render_top5_table(recommendations: list, priority: str):
         .stSlider [data-baseweb="slider"] + div {
             display: none !important;
         }
+        /* Carousel navigation buttons - small, inside card aesthetic */
+        .stButton button[kind="secondary"] {
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            color: rgba(255,255,255,0.7) !important;
+            padding: 0.3rem !important;
+            min-height: 2rem !important;
+            font-size: 0.9rem !important;
+        }
+        .stButton button[kind="secondary"]:hover {
+            background: rgba(238,0,0,0.2) !important;
+            border-color: #EE0000 !important;
+            color: white !important;
+        }
     </style>
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 1rem; 
                 background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); 
@@ -4230,7 +4244,7 @@ def render_top5_table(recommendations: list, priority: str):
             <span style="font-size: 1.5rem;"></span>
             <span style="color: white; font-weight: 700; font-size: 1.1rem;">Best Model Recommendations</span>
         </div>
-        <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Use ← → to browse top 5</span>
+        <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Click ◀ ▶ to browse top 5</span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -4376,7 +4390,7 @@ def render_top5_table(recommendations: list, priority: str):
             dots_html += f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{dot_color};margin:0 2px;"></span>'
         
         with col:
-            # Card with arrows INSIDE
+            # Card with arrows INSIDE using CSS absolute positioning
             card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1.75rem; box-shadow: 0 8px 32px {color}20; min-height: 380px; position: relative;">
 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
 <span style="color: {color}; font-weight: 700; font-size: 1.3rem;">{title}</span>
@@ -4409,20 +4423,22 @@ def render_top5_table(recommendations: list, priority: str):
 <span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
 <span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
 </div>
-<div style="text-align: center; margin-top: 0.75rem;">{dots_html}</div>
+<div style="display: flex; align-items: center; justify-content: center; margin-top: 0.75rem; gap: 0.5rem;">
+<span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">◀</span>
+{dots_html}
+<span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">▶</span>
+</div>
 </div>'''
             st.markdown(card_html, unsafe_allow_html=True)
             
-            # Arrow buttons below card, centered
-            btn_left, btn_center, btn_right = st.columns([0.4, 0.2, 0.4])
-            with btn_left:
-                if st.button("◀", key=f"prev_{category_key}", help="Previous", use_container_width=True):
+            # Small arrow buttons inside card footer area
+            btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
+            with btn_col1:
+                if st.button("◀", key=f"prev_{category_key}", use_container_width=True):
                     st.session_state[idx_key] = (current_idx - 1) % total
-                    st.rerun()
-            with btn_right:
-                if st.button("▶", key=f"next_{category_key}", help="Next", use_container_width=True):
+            with btn_col3:
+                if st.button("▶", key=f"next_{category_key}", use_container_width=True):
                     st.session_state[idx_key] = (current_idx + 1) % total
-                    st.rerun()
     
     # Render 4 carousel cards: 2 on top row, 2 on bottom row
     col1, col2 = st.columns(2)
