@@ -4350,6 +4350,9 @@ def render_top5_table(recommendations: list, priority: str):
         replicas = gpu_cfg.get('replicas', 1)
         benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
         rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
+        # Get TTFT (P95) and Throughput from benchmark metrics
+        ttft_p95 = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
+        throughput_tps = benchmark_metrics.get('tokens_per_second', benchmark_metrics.get('tokens_per_second_mean', 0))
         hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
         final_score = scores.get("final", 0)
@@ -4382,10 +4385,22 @@ def render_top5_table(recommendations: list, priority: str):
 <div style="color: white; font-weight: 700; font-size: 1.1rem;">{rps_per_replica:.1f}</div>
 </div>
 </div>
-<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 1rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+<div style="display: flex; gap: 1.5rem;">
+<div style="display: flex; align-items: center; gap: 0.4rem;">
+<span style="color: {color}; font-size: 1rem;">⏱</span>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">TTFT</span>
+<span style="color: white; font-weight: 700; font-size: 1rem;">{ttft_p95:.0f}ms</span>
+</div>
+<div style="display: flex; align-items: center; gap: 0.4rem;">
+<span style="color: {color}; font-size: 1rem;">⚡</span>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Throughput</span>
+<span style="color: white; font-weight: 700; font-size: 1rem;">{throughput_tps:.0f} tok/s</span>
+</div>
+</div>
 <div style="text-align: right;">
-<div style="color: {color}; font-size: 3rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
-<div style="color: rgba(255,255,255,0.4); font-size: 0.75rem; text-transform: uppercase;">Score</div>
+<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
+<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
 </div>
 </div>
 <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem;">
