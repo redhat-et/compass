@@ -4706,13 +4706,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             st.session_state.filter_e2e = False
         
         # === PRIMARY METRIC INPUT (number input with +/-) ===
-        # Initialize values in session state BEFORE creating widgets (prevents reset)
-        if 'slo_ttft_val' not in st.session_state:
-            st.session_state.slo_ttft_val = ttft_max
-        if 'slo_itl_val' not in st.session_state:
-            st.session_state.slo_itl_val = itl_max
-        if 'slo_e2e_val' not in st.session_state:
-            st.session_state.slo_e2e_val = e2e_max
+        # Initialize widget keys DIRECTLY - Streamlit manages state via keys
+        # DO NOT use 'value' parameter when using 'key' - causes reset bug!
+        if 'input_ttft' not in st.session_state:
+            st.session_state.input_ttft = ttft_max
+        if 'input_itl' not in st.session_state:
+            st.session_state.input_itl = itl_max
+        if 'input_e2e' not in st.session_state:
+            st.session_state.input_e2e = e2e_max
         
         st.markdown(f'''<div style="margin-top: 1rem; margin-bottom: 0.25rem;">
             <span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">● {primary_metric} ({percentile_display}) &lt;</span>
@@ -4720,23 +4721,17 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>''', unsafe_allow_html=True)
         
         if primary_metric == "TTFT":
-            # Clamp value to current range
-            current_val = min(max(st.session_state.slo_ttft_val, ttft_min), ttft_max)
-            new_primary = st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, value=current_val, step=100, key="edit_ttft", label_visibility="collapsed")
-            st.session_state.slo_ttft_val = new_primary
-            st.session_state.custom_ttft = new_primary
+            # Let Streamlit manage via key - no 'value' parameter!
+            st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
+            st.session_state.custom_ttft = st.session_state.input_ttft
             st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
         elif primary_metric == "ITL":
-            current_val = min(max(st.session_state.slo_itl_val, itl_min), itl_max)
-            new_primary = st.number_input("ITL", min_value=itl_min, max_value=itl_max, value=current_val, step=10, key="edit_itl_primary", label_visibility="collapsed")
-            st.session_state.slo_itl_val = new_primary
-            st.session_state.custom_itl = new_primary
+            st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
+            st.session_state.custom_itl = st.session_state.input_itl
             st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min} - {itl_max} ms</div>', unsafe_allow_html=True)
         else:  # E2E
-            current_val = min(max(st.session_state.slo_e2e_val, e2e_min), e2e_max)
-            new_primary = st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, value=current_val, step=1000, key="edit_e2e_primary", label_visibility="collapsed")
-            st.session_state.slo_e2e_val = new_primary
-            st.session_state.custom_e2e = new_primary
+            st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
+            st.session_state.custom_e2e = st.session_state.input_e2e
             st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
         
         # === OPTIONAL SECONDARY FILTERS ===
@@ -4745,14 +4740,20 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>''', unsafe_allow_html=True)
         
         # Show checkboxes + number inputs for non-primary metrics
+        # Initialize secondary input keys
+        if 'input_ttft_sec' not in st.session_state:
+            st.session_state.input_ttft_sec = ttft_max
+        if 'input_itl_sec' not in st.session_state:
+            st.session_state.input_itl_sec = itl_max
+        if 'input_e2e_sec' not in st.session_state:
+            st.session_state.input_e2e_sec = e2e_max
+        
         if primary_metric != "TTFT":
             filter_ttft = st.checkbox(f"TTFT ({percentile_display})", value=st.session_state.filter_ttft, key="chk_ttft")
             st.session_state.filter_ttft = filter_ttft
             if filter_ttft:
-                current_val = min(max(st.session_state.slo_ttft_val, ttft_min), ttft_max)
-                new_ttft = st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, value=current_val, step=100, key="edit_ttft_secondary", label_visibility="collapsed")
-                st.session_state.slo_ttft_val = new_ttft
-                st.session_state.custom_ttft = new_ttft
+                st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft_sec", label_visibility="collapsed")
+                st.session_state.custom_ttft = st.session_state.input_ttft_sec
             else:
                 st.session_state.custom_ttft = ttft_max
         
@@ -4760,10 +4761,8 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             filter_itl = st.checkbox(f"ITL ({percentile_display})", value=st.session_state.filter_itl, key="chk_itl")
             st.session_state.filter_itl = filter_itl
             if filter_itl:
-                current_val = min(max(st.session_state.slo_itl_val, itl_min), itl_max)
-                new_itl = st.number_input("ITL", min_value=itl_min, max_value=itl_max, value=current_val, step=10, key="edit_itl_secondary", label_visibility="collapsed")
-                st.session_state.slo_itl_val = new_itl
-                st.session_state.custom_itl = new_itl
+                st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl_sec", label_visibility="collapsed")
+                st.session_state.custom_itl = st.session_state.input_itl_sec
             else:
                 st.session_state.custom_itl = itl_max
         
@@ -4771,10 +4770,8 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             filter_e2e = st.checkbox(f"E2E ({percentile_display})", value=st.session_state.filter_e2e, key="chk_e2e")
             st.session_state.filter_e2e = filter_e2e
             if filter_e2e:
-                current_val = min(max(st.session_state.slo_e2e_val, e2e_min), e2e_max)
-                new_e2e = st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, value=current_val, step=1000, key="edit_e2e_secondary", label_visibility="collapsed")
-                st.session_state.slo_e2e_val = new_e2e
-                st.session_state.custom_e2e = new_e2e
+                st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e_sec", label_visibility="collapsed")
+                st.session_state.custom_e2e = st.session_state.input_e2e_sec
             else:
                 st.session_state.custom_e2e = e2e_max
     
