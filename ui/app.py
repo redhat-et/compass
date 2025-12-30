@@ -4380,51 +4380,51 @@ def render_top5_table(recommendations: list, priority: str):
             left_col, center_col, right_col = st.columns([0.1, 0.8, 0.1])
             
             with left_col:
-                st.markdown("<div style='height: 280px; display: flex; align-items: center;'>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 340px; display: flex; align-items: center;'>", unsafe_allow_html=True)
                 if st.button("‹", key=f"prev_{category_key}", help="Previous"):
                     st.session_state[idx_key] = (current_idx - 1) % total
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
             
             with center_col:
-                card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1rem; box-shadow: 0 8px 32px {color}20; min-height: 260px;">
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
-<span style="color: {color}; font-weight: 700; font-size: 1rem;">{title}</span>
-<span style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{current_idx + 1}/{total}</span>
+                card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1.5rem; box-shadow: 0 8px 32px {color}20; min-height: 320px;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+<span style="color: {color}; font-weight: 700; font-size: 1.2rem;">{title}</span>
+<span style="color: rgba(255,255,255,0.5); font-size: 0.9rem;">{current_idx + 1}/{total}</span>
 </div>
-<div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 0.6rem;">{model_name}</div>
-<div style="display: flex; gap: 0.3rem; margin-bottom: 0.6rem;">
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase;">Hardware</div>
-<div style="color: white; font-weight: 700; font-size: 0.8rem;">{hw_display}</div>
+<div style="color: white; font-weight: 700; font-size: 1.4rem; margin-bottom: 1rem;">{model_name}</div>
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">Hardware</div>
+<div style="color: white; font-weight: 700; font-size: 1rem;">{hw_display}</div>
 </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase;">Replicas</div>
-<div style="color: white; font-weight: 700; font-size: 0.8rem;">{replicas}</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">Replicas</div>
+<div style="color: white; font-weight: 700; font-size: 1rem;">{replicas}</div>
 </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.5rem; text-transform: uppercase;">RPS/Rep</div>
-<div style="color: white; font-weight: 700; font-size: 0.8rem;">{rps_per_replica:.1f}</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.5rem 0.6rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.6rem; text-transform: uppercase;">RPS/Rep</div>
+<div style="color: white; font-weight: 700; font-size: 1rem;">{rps_per_replica:.1f}</div>
 </div>
 </div>
-<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.4rem;">
+<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.75rem;">
 <div style="text-align: right;">
-<div style="color: {color}; font-size: 1.8rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
-<div style="color: rgba(255,255,255,0.4); font-size: 0.6rem; text-transform: uppercase;">Score</div>
+<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
+<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
 </div>
 </div>
-<div style="display: flex; justify-content: space-between; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.7rem;">
+<div style="display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.85rem;">
 <span style="color: rgba(255,255,255,0.6);">Acc {scores["accuracy"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Lat {scores["latency"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
 <span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
 </div>
-<div style="text-align: center; margin-top: 0.4rem;">{dots_html}</div>
+<div style="text-align: center; margin-top: 0.6rem;">{dots_html}</div>
 </div>'''
                 st.markdown(card_html, unsafe_allow_html=True)
             
             with right_col:
-                st.markdown("<div style='height: 280px; display: flex; align-items: center;'>", unsafe_allow_html=True)
+                st.markdown("<div style='height: 340px; display: flex; align-items: center;'>", unsafe_allow_html=True)
                 if st.button("›", key=f"next_{category_key}", help="Next"):
                     st.session_state[idx_key] = (current_idx + 1) % total
                     st.rerun()
@@ -4643,15 +4643,24 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         
         with metric_col:
             metric_options = ["TTFT", "ITL", "E2E"]
-            if 'slo_primary_metric' not in st.session_state:
-                st.session_state.slo_primary_metric = "TTFT"
+            # Use the widget key directly as the source of truth
+            if 'metric_selector_val' not in st.session_state:
+                st.session_state.metric_selector_val = "TTFT"
+            
+            # Get current index safely
+            current_metric = st.session_state.metric_selector_val
+            if current_metric not in metric_options:
+                current_metric = "TTFT"
+            
             primary_metric = st.selectbox(
                 "Filter by Metric",
                 metric_options,
-                index=metric_options.index(st.session_state.slo_primary_metric),
+                index=metric_options.index(current_metric),
                 key="metric_selector",
                 help="Primary latency metric to filter configurations"
             )
+            # Update our tracking variable
+            st.session_state.metric_selector_val = primary_metric
             st.session_state.slo_primary_metric = primary_metric
         
         with percentile_col:
