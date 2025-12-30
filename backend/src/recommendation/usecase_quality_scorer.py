@@ -227,14 +227,43 @@ class UseCaseQualityScorer:
                     return scores[aa_name]
         
         # Try partial matching (for HuggingFace repo names)
+        # Find BEST match - prioritize matches that include model size (7b, 20b, 120b, etc.)
+        import re
+        size_pattern = re.compile(r'\b(\d+(?:\.\d+)?[bB])\b')
+        model_sizes = set(s.lower() for s in size_pattern.findall(base_model))
+        
+        best_match = None
+        best_score = 0.0
+        best_common_count = 0
+        best_has_size_match = False
+        
         for cached_name, score in scores.items():
             model_words = set(base_model.replace("-", " ").replace("/", " ").replace("_", " ").split())
             cached_words = set(cached_name.replace("-", " ").replace("/", " ").replace("_", " ").split())
             
             common_words = model_words & cached_words
-            if len(common_words) >= 2:  # Reduced from 3 to 2 for better matching
-                logger.debug(f"Partial match {model_name} -> {cached_name} (common: {common_words})")
-                return score
+            if len(common_words) >= 2:
+                # Check if this match includes the model size
+                cached_sizes = set(s.lower() for s in size_pattern.findall(cached_name))
+                has_size_match = bool(model_sizes & cached_sizes)
+                
+                # Prefer matches with size match, then by common word count
+                is_better = False
+                if has_size_match and not best_has_size_match:
+                    is_better = True  # Size match beats no size match
+                elif has_size_match == best_has_size_match:
+                    if len(common_words) > best_common_count:
+                        is_better = True  # More common words is better
+                
+                if is_better:
+                    best_match = cached_name
+                    best_score = score
+                    best_common_count = len(common_words)
+                    best_has_size_match = has_size_match
+        
+        if best_match:
+            logger.debug(f"Partial match {model_name} -> {best_match} (size_match={best_has_size_match})")
+            return best_score
         
         # No valid AA data found - return 0 to indicate missing data
         # This allows filtering out models without quality scores
