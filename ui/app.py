@@ -3994,55 +3994,26 @@ def render_about_section(models_df: pd.DataFrame):
 </tr>
 <tr style="border-bottom: 1px solid rgba(255,255,255,0.2); background: rgba(238,0,0,0.1);">
     <td style="padding: 0.75rem; color: #EE0000 !important; font-weight: 600;">Balanced</td>
-    <td style="padding: 0.75rem; color: white !important;"><strong>WEIGHTED</strong> combination using MCDM formula below</td>
+    <td style="padding: 0.75rem; color: white !important;"><strong>ACCURACY-DOMINANT</strong>: 70% Accuracy + 30% avg(Latency, Cost) - ensures high-accuracy models win</td>
 </tr>
 </table>
         """, unsafe_allow_html=True)
         
-        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (MCDM Formula)</h4>', unsafe_allow_html=True)
-        st.code("BALANCED = Accuracy × 40% + Cost × 40% + Latency × 10% + Complexity × 10%", language=None)
+        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (Accuracy-Dominant Formula)</h4>', unsafe_allow_html=True)
+        st.code("BALANCED = Accuracy × 70% + avg(Latency, Cost) × 30%", language=None)
         st.markdown("""
 <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 1rem;">
     <strong style="color: #EE0000;">Note:</strong> Priority adjustments (high accuracy, low latency, etc.) <strong>ONLY affect the Balanced score weights</strong>.
     The other 3 categories always use RAW scores without any weighting.
 </p>
-<table style="width: 100%; border-collapse: collapse; margin-top: 1rem; background: transparent;">
-<tr style="border-bottom: 2px solid rgba(88, 166, 255, 0.25);">
-    <th style="text-align: left; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Priority</th>
-    <th style="text-align: center; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Accuracy</th>
-    <th style="text-align: center; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Cost</th>
-    <th style="text-align: center; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Latency</th>
-    <th style="text-align: center; padding: 0.75rem; color: var(--accent-purple) !important; font-weight: 700;">Complexity</th>
-</tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;">Default</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-green) !important;">40%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-orange) !important;">40%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-blue) !important;">10%</td>
-    <td style="padding: 0.75rem; text-align: center; color: #06b6d4 !important;">10%</td>
-</tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;">High Accuracy</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-green) !important;"><strong>50%</strong></td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-orange) !important;">25%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-blue) !important;">15%</td>
-    <td style="padding: 0.75rem; text-align: center; color: #06b6d4 !important;">10%</td>
-</tr>
-<tr style="border-bottom: 1px solid var(--border-default);">
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;">Low Latency</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-green) !important;">20%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-orange) !important;">20%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-blue) !important;"><strong>50%</strong></td>
-    <td style="padding: 0.75rem; text-align: center; color: #06b6d4 !important;">10%</td>
-</tr>
-<tr>
-    <td style="padding: 0.75rem; color: var(--text-primary) !important;">Low Cost</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-green) !important;">25%</td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-orange) !important;"><strong>50%</strong></td>
-    <td style="padding: 0.75rem; text-align: center; color: var(--accent-blue) !important;">15%</td>
-    <td style="padding: 0.75rem; text-align: center; color: #06b6d4 !important;">10%</td>
-</tr>
-</table>
+<p style="color: rgba(255,255,255,0.8); margin-top: 0.5rem; font-size: 0.9rem;">
+    The formula ensures <strong style="color: #EE0000;">high-accuracy models always rank at the top</strong>, even if they have higher cost or latency.
+    A model with 80% accuracy will beat a model with 60% accuracy even if the 60% model has perfect cost/latency scores.
+</p>
+<p style="color: rgba(255,255,255,0.6); margin-top: 0.5rem; font-size: 0.85rem;">
+    <em>Example: Model A (Acc=80, Lat=70, Cost=40) → 80×0.7 + 55×0.3 = <strong>72.5</strong><br>
+    Model B (Acc=60, Lat=90, Cost=95) → 60×0.7 + 92.5×0.3 = <strong>69.75</strong> → A wins!</em>
+</p>
         """, unsafe_allow_html=True)
     
     with st.expander("Model Catalog - Browse 206 open-source models", expanded=False):
@@ -4435,10 +4406,12 @@ def render_top5_table(recommendations: list, priority: str):
             btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
             with btn_col1:
                 if st.button("◀", key=f"prev_{category_key}", use_container_width=True):
-                    st.session_state[idx_key] = (current_idx - 1) % total
+                    # Use session state directly to get latest value
+                    st.session_state[idx_key] = (st.session_state[idx_key] - 1) % total
             with btn_col3:
                 if st.button("▶", key=f"next_{category_key}", use_container_width=True):
-                    st.session_state[idx_key] = (current_idx + 1) % total
+                    # Use session state directly to get latest value
+                    st.session_state[idx_key] = (st.session_state[idx_key] + 1) % total
     
     # Render 4 carousel cards: 2 on top row, 2 on bottom row
     col1, col2 = st.columns(2)
