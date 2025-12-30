@@ -195,38 +195,51 @@ class RankingService:
         weights: dict[str, int],
     ) -> None:
         """
-        Recalculate balanced scores using custom weights.
-
-        The weights are provided on a 0-10 scale and are normalized
-        to percentages that sum to 1.0.
+        Recalculate balanced scores using MAXMIN approach.
+        
+        MaxMin: The balanced score is the MINIMUM of (accuracy, price, latency).
+        This ensures a model with low accuracy cannot win even with excellent cost/latency.
+        A small weighted bonus is added to differentiate configs with same min score.
 
         Args:
             configs: List of configurations to update (modified in place)
-            weights: Dict with keys: accuracy, price, latency, complexity
+            weights: Dict with keys: accuracy, price, latency (complexity ignored)
                      Values are integers 0-10
         """
-        # Normalize weights to percentages
-        total = sum(weights.values())
+        # Normalize weights (excluding complexity)
+        filtered_weights = {k: v for k, v in weights.items() if k != "complexity"}
+        total = sum(filtered_weights.values())
         if total == 0:
             logger.warning("All weights are zero, using default equal weights")
-            normalized = {"accuracy": 0.25, "price": 0.25, "latency": 0.25, "complexity": 0.25}
+            normalized = {"accuracy": 0.34, "price": 0.33, "latency": 0.33}
         else:
-            normalized = {k: v / total for k, v in weights.items()}
+            normalized = {k: v / total for k, v in filtered_weights.items()}
 
         logger.info(
-            f"Recalculating balanced scores with weights: "
-            f"A={normalized['accuracy']:.0%}, P={normalized['price']:.0%}, "
-            f"L={normalized['latency']:.0%}, C={normalized['complexity']:.0%}"
+            f"Recalculating balanced scores with MAXMIN approach: "
+            f"A={normalized.get('accuracy', 0):.0%}, P={normalized.get('price', 0):.0%}, "
+            f"L={normalized.get('latency', 0):.0%}"
         )
 
         for config in configs:
             if config.scores:
-                balanced = (
-                    config.scores.accuracy_score * normalized["accuracy"]
-                    + config.scores.price_score * normalized["price"]
-                    + config.scores.latency_score * normalized["latency"]
-                    + config.scores.complexity_score * normalized["complexity"]
+                # MAXMIN: Balanced score = highest minimum across key dimensions
+                # This prevents low-accuracy models from winning
+                min_score = min(
+                    config.scores.accuracy_score,
+                    config.scores.price_score,
+                    config.scores.latency_score,
                 )
+                
+                # Add small weighted bonus to differentiate configs with same min
+                weighted_avg = (
+                    config.scores.accuracy_score * normalized.get("accuracy", 0.34)
+                    + config.scores.price_score * normalized.get("price", 0.33)
+                    + config.scores.latency_score * normalized.get("latency", 0.33)
+                )
+                
+                # 90% min score + 10% weighted avg for tiebreaking
+                balanced = min_score * 0.9 + weighted_avg * 0.1
                 config.scores.balanced_score = round(balanced, 1)
 
     def get_unique_configs_count(

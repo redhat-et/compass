@@ -4230,7 +4230,7 @@ def render_top5_table(recommendations: list, priority: str):
             <span style="font-size: 1.5rem;"></span>
             <span style="color: white; font-weight: 700; font-size: 1.1rem;">Best Model Recommendations</span>
         </div>
-        <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">One model per category</span>
+        <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Use ← → to browse top 5</span>
     </div>
     """, unsafe_allow_html=True)
     
@@ -4342,77 +4342,102 @@ def render_top5_table(recommendations: list, priority: str):
                         </div>
         '''
     
-    # Helper to render a card WITH explore button
-    def render_card_with_explore(title, icon, color, rec, highlight_field, category_key, col):
-        if not rec:
+    # Helper to render a CAROUSEL card with arrows INSIDE the card design
+    def render_carousel_card(title, color, recs_list, highlight_field, category_key, col):
+        """Render a card with ← → arrows embedded inside the card."""
+        if not recs_list:
             return
+        
+        # Initialize carousel index
+        idx_key = f"carousel_{category_key}"
+        if idx_key not in st.session_state:
+            st.session_state[idx_key] = 0
+        
+        total = min(5, len(recs_list))
+        current_idx = st.session_state[idx_key] % total
+        rec = recs_list[current_idx]
+        
         scores = get_scores(rec)
         model_name = rec.get('model_name', 'Unknown')
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
         replicas = gpu_cfg.get('replicas', 1)
-        # Get RPS per replica from benchmark_metrics
         benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
         rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
-        # Hardware display - simple format for cards (TP/R shown in table only)
         hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
         final_score = scores.get("final", 0)
         
+        # Dots indicator
+        dots_html = ""
+        for i in range(total):
+            dot_color = "#EE0000" if i == current_idx else "rgba(255,255,255,0.3)"
+            dots_html += f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{dot_color};margin:0 2px;"></span>'
+        
         with col:
-            card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(40,40,55,0.9)); border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; box-shadow: 0 8px 32px {color}20;">
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-<span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
-</div>
-<div style="color: white; font-weight: 700; font-size: 1.3rem; margin-bottom: 1rem;">{model_name}</div>
-<div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Hardware</div>
-<div style="color: white; font-weight: 700; font-size: 0.9rem;">{hw_display}</div>
-</div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.2rem;">Replicas</div>
-<div style="color: white; font-weight: 700; font-size: 0.9rem;">{replicas}</div>
-</div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; padding: 0.5rem 0.6rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 0.2rem;">RPS/Replica</div>
-<div style="color: white; font-weight: 700; font-size: 0.9rem;">{rps_per_replica:.1f}</div>
-</div>
-</div>
-<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.75rem;">
-<div style="text-align: right;">
-<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
-<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
-</div>
-</div>
-<div style="display: flex; justify-content: space-between; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
-<span style="color: #ffffff; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
-</div>
-</div>'''
-            st.markdown(card_html, unsafe_allow_html=True)
+            # Use columns to put arrows on sides of card content
+            left_col, center_col, right_col = st.columns([0.1, 0.8, 0.1])
             
-            # Explore button for this category
-            if st.button(f"Explore Top 5", key=f"explore_{category_key}_btn", use_container_width=True):
-                # Reset other dialogs first
-                st.session_state.show_full_table_dialog = False
-                st.session_state.show_winner_dialog = False
-                # Then open this dialog
-                st.session_state.explore_category = category_key
-                st.session_state.show_category_dialog = True
-                st.rerun()
+            with left_col:
+                st.markdown("<div style='height: 280px; display: flex; align-items: center;'>", unsafe_allow_html=True)
+                if st.button("‹", key=f"prev_{category_key}", help="Previous"):
+                    st.session_state[idx_key] = (current_idx - 1) % total
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
+            
+            with center_col:
+                card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1rem; box-shadow: 0 8px 32px {color}20; min-height: 260px;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+<span style="color: {color}; font-weight: 700; font-size: 1rem;">{title}</span>
+<span style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{current_idx + 1}/{total}</span>
+</div>
+<div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 0.6rem;">{model_name}</div>
+<div style="display: flex; gap: 0.3rem; margin-bottom: 0.6rem;">
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase;">Hardware</div>
+<div style="color: white; font-weight: 700; font-size: 0.8rem;">{hw_display}</div>
+</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.55rem; text-transform: uppercase;">Replicas</div>
+<div style="color: white; font-weight: 700; font-size: 0.8rem;">{replicas}</div>
+</div>
+<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 0.3rem 0.4rem;">
+<div style="color: rgba(255,255,255,0.5); font-size: 0.5rem; text-transform: uppercase;">RPS/Rep</div>
+<div style="color: white; font-weight: 700; font-size: 0.8rem;">{rps_per_replica:.1f}</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 0.4rem;">
+<div style="text-align: right;">
+<div style="color: {color}; font-size: 1.8rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
+<div style="color: rgba(255,255,255,0.4); font-size: 0.6rem; text-transform: uppercase;">Score</div>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; padding-top: 0.4rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.7rem;">
+<span style="color: rgba(255,255,255,0.6);">Acc {scores["accuracy"]:.0f}</span>
+<span style="color: rgba(255,255,255,0.6);">Lat {scores["latency"]:.0f}</span>
+<span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
+<span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
+</div>
+<div style="text-align: center; margin-top: 0.4rem;">{dots_html}</div>
+</div>'''
+                st.markdown(card_html, unsafe_allow_html=True)
+            
+            with right_col:
+                st.markdown("<div style='height: 280px; display: flex; align-items: center;'>", unsafe_allow_html=True)
+                if st.button("›", key=f"next_{category_key}", help="Next"):
+                    st.session_state[idx_key] = (current_idx + 1) % total
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
     
-    # Render 5 "Best" cards: 2 on top row, 3 on bottom row
+    # Render 4 carousel cards: 2 on top row, 2 on bottom row
     col1, col2 = st.columns(2)
-    render_card_with_explore("Balanced", "", "#EE0000", best_overall, "final", "balanced", col1)
-    render_card_with_explore("Best Accuracy", "", "#EE0000", best_accuracy, "accuracy", "accuracy", col2)
+    render_carousel_card("Balanced", "#EE0000", top5_balanced, "final", "balanced", col1)
+    render_carousel_card("Best Accuracy", "#EE0000", top5_accuracy, "accuracy", "accuracy", col2)
     
-    col3, col4, col5 = st.columns(3)
-    render_card_with_explore("Best Latency", "", "#EE0000", best_latency, "latency", "latency", col3)
-    render_card_with_explore("Best Cost", "", "#EE0000", best_cost, "cost", "cost", col4)
+    col3, col4 = st.columns(2)
+    render_carousel_card("Best Latency", "#EE0000", top5_latency, "latency", "latency", col3)
+    render_carousel_card("Best Cost", "#EE0000", top5_cost, "cost", "cost", col4)
     
     # Show info if limited models available
     total_available = len(recommendations)
@@ -4525,54 +4550,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     
     # benchmark_ranges already fetched above for defaults
     
-    # Display ranges table with headline showing use case
-    use_case_display = use_case.replace('_', ' ').title()
-    st.markdown(f"""
-    <div style="background: #000000; padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.3);">
-        <div style="color: #EE0000; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
-            Benchmark Ranges for {use_case_display}
-        </div>
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
-            <thead>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
-                    <th style="text-align: left; padding: 0.4rem; color: rgba(255,255,255,0.7);">Percentile</th>
-                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">TTFT Range</th>
-                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">ITL Range</th>
-                    <th style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.7);">E2E Range</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td style="padding: 0.4rem; color: white; font-weight: 600;">Mean</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_mean_min', 0):.0f} - {benchmark_ranges.get('ttft_mean_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_mean_min', 0):.0f} - {benchmark_ranges.get('itl_mean_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_mean_min', 0):.0f} - {benchmark_ranges.get('e2e_mean_max', 0):.0f}ms</td>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <td style="padding: 0.4rem; color: white; font-weight: 600;">P90</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_p90_min', 0):.0f} - {benchmark_ranges.get('ttft_p90_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_p90_min', 0):.0f} - {benchmark_ranges.get('itl_p90_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_p90_min', 0):.0f} - {benchmark_ranges.get('e2e_p90_max', 0):.0f}ms</td>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(238,0,0,0.1);">
-                    <td style="padding: 0.4rem; color: #EE0000; font-weight: 700;">P95 (default)</td>
-                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('ttft_p95_min', 0):.0f} - {benchmark_ranges.get('ttft_p95_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('itl_p95_min', 0):.0f} - {benchmark_ranges.get('itl_p95_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: white; font-weight: 600;">{benchmark_ranges.get('e2e_p95_min', 0):.0f} - {benchmark_ranges.get('e2e_p95_max', 0):.0f}ms</td>
-                </tr>
-                <tr>
-                    <td style="padding: 0.4rem; color: white; font-weight: 600;">P99</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('ttft_p99_min', 0):.0f} - {benchmark_ranges.get('ttft_p99_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('itl_p99_min', 0):.0f} - {benchmark_ranges.get('itl_p99_max', 0):.0f}ms</td>
-                    <td style="text-align: center; padding: 0.4rem; color: rgba(255,255,255,0.9);">{benchmark_ranges.get('e2e_p99_min', 0):.0f} - {benchmark_ranges.get('e2e_p99_max', 0):.0f}ms</td>
-                </tr>
-            </tbody>
-        </table>
-        <div style="font-size: 0.75rem; color: white; font-weight: 600; margin-top: 0.5rem;">
-            Real benchmark data from {benchmark_ranges.get('config_count', 0)} configurations • Token config: {token_config['prompt']}/{token_config['output']}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Benchmark ranges table removed - user found it confusing
     
     # Create 4 columns for all cards in one row
     col1, col2, col3, col4 = st.columns(4)
@@ -4649,182 +4627,147 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             [data-baseweb="menu"] li:hover {
                 background: rgba(238, 0, 0, 0.3) !important;
             }
+            /* Checkbox text - BOLD WHITE */
+            .stCheckbox label p, .stCheckbox label span {
+                color: white !important;
+                font-weight: 700 !important;
+            }
+            .stCheckbox label {
+                color: white !important;
+            }
         </style>
         """, unsafe_allow_html=True)
         
-        # Percentile selector dropdown
-        percentile_options = ["Mean", "P90", "P95", "P99"]
-        percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
-        reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
-        current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
+        # === ROW 1: Metric + Percentile dropdowns side by side ===
+        metric_col, percentile_col = st.columns(2)
         
-        selected_percentile = st.selectbox(
-            "Latency Percentile",
-            percentile_options,
-            index=percentile_options.index(current_percentile_display),
-            key="percentile_selector",
-            help="Which percentile to use for SLO comparison. P95 = 95% of requests meet this target."
-        )
-        st.session_state.slo_percentile = percentile_map[selected_percentile]
+        with metric_col:
+            metric_options = ["TTFT", "ITL", "E2E"]
+            if 'slo_primary_metric' not in st.session_state:
+                st.session_state.slo_primary_metric = "TTFT"
+            primary_metric = st.selectbox(
+                "Filter by Metric",
+                metric_options,
+                index=metric_options.index(st.session_state.slo_primary_metric),
+                key="metric_selector",
+                help="Primary latency metric to filter configurations"
+            )
+            st.session_state.slo_primary_metric = primary_metric
+        
+        with percentile_col:
+            percentile_options = ["Mean", "P90", "P95", "P99"]
+            percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
+            reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
+            current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
+            
+            selected_percentile = st.selectbox(
+                "Percentile",
+                percentile_options,
+                index=percentile_options.index(current_percentile_display),
+                key="percentile_selector",
+                help="P99 = strictest (99% of requests meet target)"
+            )
+            st.session_state.slo_percentile = percentile_map[selected_percentile]
         
         # Load research data and get use-case specific ranges
         research_data = load_research_slo_ranges()
-        
-        # Get token config for current use case
         use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
         token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
         prompt_tokens = token_config.get('prompt', 512)
         output_tokens = token_config.get('output', 256)
-        
-        # Get ACTUAL benchmark ranges for this use case's token config
         benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
         
-        # Get selected percentile key (e.g., 'p95')
-        percentile_key = st.session_state.slo_percentile  # 'mean', 'p90', 'p95', 'p99'
-        
-        # Get ranges for this specific percentile from actual benchmark data (ensure int type)
-        ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
-        ttft_max_raw = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
-        itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
-        itl_max_raw = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
-        e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
-        e2e_max_raw = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
-        
-        # Apply priority factor to adjust MAX (low_latency = tighter max)
-        priority_adjustments = research_data.get('priority_adjustments', {}) if research_data else {}
-        priority_factor = priority_adjustments.get(priority, {})
-        ttft_factor = priority_factor.get('ttft_factor', 1.0)
-        itl_factor = priority_factor.get('itl_factor', 1.0)
-        e2e_factor = priority_factor.get('e2e_factor', 1.0)
-        
-        # Adjusted max values based on priority
-        ttft_max = int(ttft_max_raw * ttft_factor)
-        itl_max = int(itl_max_raw * itl_factor)
-        e2e_max = int(e2e_max_raw * e2e_factor)
-        
-        # Ensure min <= max after priority adjustment
-        ttft_max = max(ttft_max, ttft_min + 1)
-        itl_max = max(itl_max, itl_min + 1)
-        e2e_max = max(e2e_max, e2e_min + 1)
-        
-        # Get percentile label for display
+        percentile_key = st.session_state.slo_percentile
         percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
         
-        # Inject CSS for clean slider - small white circle ON the red track
-        st.markdown("""
-        <style>
-            /* COMPLETELY HIDE the tooltip line above circle */
-            [data-testid="stThumbValue"],
-            div[data-testid="stThumbValue"],
-            .stSlider [data-testid="stThumbValue"],
-            .stSlider div[data-testid="stThumbValue"] {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-                width: 0 !important;
-                height: 0 !important;
-                overflow: hidden !important;
-                position: absolute !important;
-                left: -9999px !important;
-                top: -9999px !important;
-                pointer-events: none !important;
-            }
-            
-            /* Hide default min/max labels */
-            [data-testid="stTickBarMin"],
-            [data-testid="stTickBarMax"] {
-                display: none !important;
-            }
-            
-            /* Slider track - unfilled part */
-            .stSlider [data-baseweb="slider"] > div:first-child {
-                background: rgba(238, 0, 0, 0.3) !important;
-                height: 6px !important;
-                border-radius: 3px !important;
-            }
-            
-            /* Slider track - filled/active part (bright red) */
-            .stSlider [data-baseweb="slider"] > div:first-child > div {
-                background: #EE0000 !important;
-                height: 6px !important;
-                border-radius: 3px !important;
-            }
-            
-            /* Small WHITE circle thumb centered ON the track */
-            .stSlider [role="slider"] {
-                background: white !important;
-                width: 14px !important;
-                height: 14px !important;
-                border-radius: 50% !important;
-                border: 2px solid #EE0000 !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.15) !important;
-                margin-top: -4px !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
+        # Get ranges for this percentile
+        ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
+        ttft_max = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
+        itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
+        itl_max = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
+        e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
+        e2e_max = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
         
-        # JavaScript to REMOVE tooltip line - aggressive removal
-        import streamlit.components.v1 as components
-        components.html("""
-        <script>
-            function removeTooltipLine() {
-                const parent = window.parent.document;
-                
-                // AGGRESSIVELY REMOVE all tooltip elements (the line above circle)
-                parent.querySelectorAll('[data-testid="stThumbValue"]').forEach(el => el.remove());
-                
-                // Also remove tick bar labels
-                parent.querySelectorAll('[data-testid="stTickBarMin"]').forEach(el => el.remove());
-                parent.querySelectorAll('[data-testid="stTickBarMax"]').forEach(el => el.remove());
-            }
-            // Run immediately and keep running
-            removeTooltipLine();
-            setInterval(removeTooltipLine, 50);
-        </script>
-        """, height=0)
+        # Initialize filter checkboxes
+        if 'filter_ttft' not in st.session_state:
+            st.session_state.filter_ttft = False
+        if 'filter_itl' not in st.session_state:
+            st.session_state.filter_itl = False
+        if 'filter_e2e' not in st.session_state:
+            st.session_state.filter_e2e = False
         
-        # TTFT - Label and value above slider
-        ttft_val = st.session_state.get('edit_ttft', min(ttft, ttft_max))
-        st.markdown(f'''
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem;">
-            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">TTFT ({percentile_display})</span>
-            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{ttft_val:,} ms</span>
-        </div>
-        ''', unsafe_allow_html=True)
-        new_ttft = st.slider("TTFT", min_value=ttft_min, max_value=ttft_max, value=int(min(ttft, ttft_max)), key="edit_ttft", label_visibility="collapsed", format=" ")
-        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{ttft_min} ms</span><span>{ttft_max:,} ms</span></div>', unsafe_allow_html=True)
+        # === PRIMARY METRIC INPUT (number input with +/-) ===
+        # Initialize values in session state BEFORE creating widgets (prevents reset)
+        if 'slo_ttft_val' not in st.session_state:
+            st.session_state.slo_ttft_val = ttft_max
+        if 'slo_itl_val' not in st.session_state:
+            st.session_state.slo_itl_val = itl_max
+        if 'slo_e2e_val' not in st.session_state:
+            st.session_state.slo_e2e_val = e2e_max
         
-        # ITL - Label and value above slider
-        itl_val = st.session_state.get('edit_itl', min(itl, itl_max))
-        st.markdown(f'''
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; margin-top: 1.5rem;">
-            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">ITL ({percentile_display})</span>
-            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{itl_val:,} ms</span>
-        </div>
-        ''', unsafe_allow_html=True)
-        new_itl = st.slider("ITL", min_value=itl_min, max_value=itl_max, value=int(min(itl, itl_max)), key="edit_itl", label_visibility="collapsed", format=" ")
-        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{itl_min} ms</span><span>{itl_max} ms</span></div>', unsafe_allow_html=True)
+        st.markdown(f'''<div style="margin-top: 1rem; margin-bottom: 0.25rem;">
+            <span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">● {primary_metric} ({percentile_display}) &lt;</span>
+            <span style="color: rgba(255,255,255,0.5); font-size: 0.75rem; float: right;">Primary filter</span>
+        </div>''', unsafe_allow_html=True)
         
-        # E2E - Label and value above slider
-        e2e_val = st.session_state.get('edit_e2e', min(e2e, e2e_max))
-        st.markdown(f'''
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; margin-top: 1.5rem;">
-            <span style="font-size: 0.9rem; color: #ffffff; font-weight: 700;">E2E ({percentile_display})</span>
-            <span style="font-size: 1.1rem; color: white; font-weight: 600;">{e2e_val:,} ms</span>
-        </div>
-        ''', unsafe_allow_html=True)
-        new_e2e = st.slider("E2E", min_value=e2e_min, max_value=e2e_max, value=int(min(e2e, e2e_max)), key="edit_e2e", label_visibility="collapsed", format=" ")
-        st.markdown(f'<div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: -0.5rem;"><span>{e2e_min} ms</span><span>{e2e_max:,} ms</span></div>', unsafe_allow_html=True)
+        if primary_metric == "TTFT":
+            # Clamp value to current range
+            current_val = min(max(st.session_state.slo_ttft_val, ttft_min), ttft_max)
+            new_primary = st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, value=current_val, step=100, key="edit_ttft", label_visibility="collapsed")
+            st.session_state.slo_ttft_val = new_primary
+            st.session_state.custom_ttft = new_primary
+            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
+        elif primary_metric == "ITL":
+            current_val = min(max(st.session_state.slo_itl_val, itl_min), itl_max)
+            new_primary = st.number_input("ITL", min_value=itl_min, max_value=itl_max, value=current_val, step=10, key="edit_itl_primary", label_visibility="collapsed")
+            st.session_state.slo_itl_val = new_primary
+            st.session_state.custom_itl = new_primary
+            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min} - {itl_max} ms</div>', unsafe_allow_html=True)
+        else:  # E2E
+            current_val = min(max(st.session_state.slo_e2e_val, e2e_min), e2e_max)
+            new_primary = st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, value=current_val, step=1000, key="edit_e2e_primary", label_visibility="collapsed")
+            st.session_state.slo_e2e_val = new_primary
+            st.session_state.custom_e2e = new_primary
+            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
         
-        # Store custom values
-        if new_ttft != ttft:
-            st.session_state.custom_ttft = new_ttft
-        if new_itl != itl:
-            st.session_state.custom_itl = new_itl
-        if new_e2e != e2e:
-            st.session_state.custom_e2e = new_e2e
+        # === OPTIONAL SECONDARY FILTERS ===
+        st.markdown('''<div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.15);">
+            <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Additional filters (click to enable):</span>
+        </div>''', unsafe_allow_html=True)
         
-        # Removed SLO validation messages since we now show ranges table above
+        # Show checkboxes + number inputs for non-primary metrics
+        if primary_metric != "TTFT":
+            filter_ttft = st.checkbox(f"TTFT ({percentile_display})", value=st.session_state.filter_ttft, key="chk_ttft")
+            st.session_state.filter_ttft = filter_ttft
+            if filter_ttft:
+                current_val = min(max(st.session_state.slo_ttft_val, ttft_min), ttft_max)
+                new_ttft = st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, value=current_val, step=100, key="edit_ttft_secondary", label_visibility="collapsed")
+                st.session_state.slo_ttft_val = new_ttft
+                st.session_state.custom_ttft = new_ttft
+            else:
+                st.session_state.custom_ttft = ttft_max
+        
+        if primary_metric != "ITL":
+            filter_itl = st.checkbox(f"ITL ({percentile_display})", value=st.session_state.filter_itl, key="chk_itl")
+            st.session_state.filter_itl = filter_itl
+            if filter_itl:
+                current_val = min(max(st.session_state.slo_itl_val, itl_min), itl_max)
+                new_itl = st.number_input("ITL", min_value=itl_min, max_value=itl_max, value=current_val, step=10, key="edit_itl_secondary", label_visibility="collapsed")
+                st.session_state.slo_itl_val = new_itl
+                st.session_state.custom_itl = new_itl
+            else:
+                st.session_state.custom_itl = itl_max
+        
+        if primary_metric != "E2E":
+            filter_e2e = st.checkbox(f"E2E ({percentile_display})", value=st.session_state.filter_e2e, key="chk_e2e")
+            st.session_state.filter_e2e = filter_e2e
+            if filter_e2e:
+                current_val = min(max(st.session_state.slo_e2e_val, e2e_min), e2e_max)
+                new_e2e = st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, value=current_val, step=1000, key="edit_e2e_secondary", label_visibility="collapsed")
+                st.session_state.slo_e2e_val = new_e2e
+                st.session_state.custom_e2e = new_e2e
+            else:
+                st.session_state.custom_e2e = e2e_max
     
     with col2:
         st.markdown("""
