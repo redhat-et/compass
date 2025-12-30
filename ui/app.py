@@ -4406,10 +4406,18 @@ def render_top5_table(recommendations: list, priority: str):
             btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
             with btn_col1:
                 if st.button("◀", key=f"prev_{category_key}", use_container_width=True):
+                    # IMPORTANT: Reset dialog states to prevent table from opening
+                    st.session_state.show_full_table_dialog = False
+                    st.session_state.show_category_dialog = False
+                    st.session_state.show_winner_dialog = False
                     # Use session state directly to get latest value
                     st.session_state[idx_key] = (st.session_state[idx_key] - 1) % total
             with btn_col3:
                 if st.button("▶", key=f"next_{category_key}", use_container_width=True):
+                    # IMPORTANT: Reset dialog states to prevent table from opening
+                    st.session_state.show_full_table_dialog = False
+                    st.session_state.show_category_dialog = False
+                    st.session_state.show_winner_dialog = False
                     # Use session state directly to get latest value
                     st.session_state[idx_key] = (st.session_state[idx_key] + 1) % total
     
