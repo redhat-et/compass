@@ -4352,7 +4352,8 @@ def render_top5_table(recommendations: list, priority: str):
         rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
         # Get TTFT (P95) and Throughput from benchmark metrics
         ttft_p95 = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
-        throughput_tps = benchmark_metrics.get('tokens_per_second', benchmark_metrics.get('tokens_per_second_mean', 0))
+        # Backend uses tps_mean for throughput (tokens per second)
+        throughput_tps = benchmark_metrics.get('tps_mean', benchmark_metrics.get('tps_p95', 0))
         hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
         final_score = scores.get("final", 0)
