@@ -30,32 +30,38 @@ TOKEN_CONFIGS = {
 }
 
 # Hardware by model size (in billions of parameters)
+# IMPORTANT: Same GPU count for comparable hardware tiers to ensure H200 > H100 > A100
 def get_hardware_config(size_b: float, is_quantized: bool = False):
-    """Get appropriate hardware based on model size."""
+    """Get appropriate hardware based on model size.
+    
+    Key principle: For same GPU count, better hardware = faster performance.
+    """
     if size_b <= 8:
         return [
             {"hardware": "L4", "count": 1},
             {"hardware": "A100-80", "count": 1},
+            {"hardware": "H100", "count": 1},
         ]
     elif size_b <= 24:
         return [
             {"hardware": "A100-80", "count": 1},
             {"hardware": "H100", "count": 1},
+            {"hardware": "H200", "count": 1},
         ]
     elif size_b <= 70:
         return [
             {"hardware": "H100", "count": 2},
-            {"hardware": "H200", "count": 1},
+            {"hardware": "H200", "count": 2},  # Same count for fair comparison
         ]
     elif size_b <= 200:
         return [
-            {"hardware": "H200", "count": 2},
             {"hardware": "H200", "count": 4},
+            {"hardware": "B200", "count": 4},  # Same count for fair comparison
         ]
     else:  # >200B
         return [
-            {"hardware": "H200", "count": 4},
             {"hardware": "H200", "count": 8},
+            {"hardware": "B200", "count": 8},  # Same count for fair comparison
         ]
 
 
