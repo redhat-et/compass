@@ -69,3 +69,13 @@ phi-4 mini instruct,Microsoft Azure,Microsoft Azure training dataset,20.20%
 qwen3 235b a22b 2507 (reasoning),Alibaba,Alibaba training dataset,52.84%
 solar pro 2 (non-reasoning),Upstage,Upstage training dataset,37.50%
 solar pro 2 (reasoning),Upstage,Upstage training dataset,39.23%
+kimi k2 thinking,Moonshot AI,Moonshot AI training dataset,88.70%
+ring-1t,InclusionAI,InclusionAI training dataset,49.23%
+glm-4.5 (reasoning),Z AI,Z AI training dataset,62.19%
+apriel-v1.5-15b-thinker,ServiceNow,ServiceNow training dataset,71.65%
+exaone 4.0 32b (reasoning),LG AI Research,LG AI Research training dataset,47.97%
+minimax m1 80k,MiniMax,MiniMax training dataset,55.52%
+doubao seed code,ByteDance Seed,ByteDance Seed training dataset,70.00%
+seed-oss-36b-instruct,ByteDance Seed,ByteDance Seed training dataset,63.67%
+qwen3 32b (reasoning),Alibaba,Alibaba training dataset,52.20%
+glm-4.5-air,Z AI,Z AI training dataset,62.36%

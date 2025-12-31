@@ -334,6 +334,77 @@ MODELS_TO_ESTIMATE = [
         "best_use_case": "summarization_short",
         "based_on": "DeepSeek patterns",
     },
+    # === NEW BATCH: 10 High-Value Reasoning Models ===
+    {
+        "model_id": "moonshot/Kimi-K2-Thinking",
+        "model_name": "Kimi K2 Thinking",
+        "size_b": 200,  # MoE architecture, ~200B active
+        "best_use_case": "code_generation_detailed",
+        "based_on": "Kimi K2 Instruct patterns",
+    },
+    {
+        "model_id": "inclusionai/Ring-1T",
+        "model_name": "Ring-1T",
+        "size_b": 1000,  # 1 Trillion params!
+        "best_use_case": "research_legal_analysis",
+        "based_on": "Large model patterns",
+    },
+    {
+        "model_id": "zai/GLM-4.5-Reasoning",
+        "model_name": "GLM-4.5 (Reasoning)",
+        "size_b": 60,
+        "best_use_case": "code_generation_detailed",
+        "based_on": "GLM family patterns",
+    },
+    {
+        "model_id": "servicenow/Apriel-v1.5-15B-Thinker",
+        "model_name": "Apriel-v1.5-15B-Thinker",
+        "size_b": 15,
+        "best_use_case": "code_completion",
+        "based_on": "Medium model patterns",
+    },
+    {
+        "model_id": "lgai/EXAONE-4.0-32B-Reasoning",
+        "model_name": "EXAONE 4.0 32B (Reasoning)",
+        "size_b": 32,
+        "best_use_case": "code_generation_detailed",
+        "based_on": "Medium model patterns",
+    },
+    {
+        "model_id": "minimax/MiniMax-M1-80k",
+        "model_name": "MiniMax M1 80k",
+        "size_b": 80,
+        "best_use_case": "research_legal_analysis",
+        "based_on": "MiniMax patterns",
+    },
+    {
+        "model_id": "bytedance/Doubao-Seed-Code",
+        "model_name": "Doubao Seed Code",
+        "size_b": 30,
+        "best_use_case": "code_completion",
+        "based_on": "Code model patterns",
+    },
+    {
+        "model_id": "bytedance/Seed-OSS-36B-Instruct",
+        "model_name": "Seed-OSS-36B-Instruct",
+        "size_b": 36,
+        "best_use_case": "chatbot_conversational",
+        "based_on": "Medium model patterns",
+    },
+    {
+        "model_id": "alibaba/Qwen3-32B-Reasoning",
+        "model_name": "Qwen3 32B (Reasoning)",
+        "size_b": 32,
+        "best_use_case": "code_generation_detailed",
+        "based_on": "Qwen family patterns",
+    },
+    {
+        "model_id": "zai/GLM-4.5-Air",
+        "model_name": "GLM-4.5-Air",
+        "size_b": 20,
+        "best_use_case": "chatbot_conversational",
+        "based_on": "GLM family patterns",
+    },
 ]
 
 
