@@ -282,19 +282,19 @@ class ModelCatalog:
     ) -> dict | None:
         """
         Get detailed cost breakdown for a deployment configuration.
-        
+
         Args:
             gpu_type: GPU type identifier
             tensor_parallel: Number of GPUs per replica (TP degree)
             replicas: Number of independent replicas
-            
+
         Returns:
             Dictionary with cost breakdown, or None if GPU not found
         """
         gpu = self.get_gpu_type(gpu_type)
         if not gpu:
             return None
-            
+
         total_gpus = tensor_parallel * replicas
         hours_per_month = 730
         

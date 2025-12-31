@@ -347,8 +347,8 @@ MODELS_TO_ESTIMATE = [
         "based_on": "Qwen3-8B patterns",
     },
     {
-        "model_id": "qwen/Qwen3-235B-A22B-Thinking",
-        "model_name": "Qwen3 235B A22B (Thinking)",
+        "model_id": "qwen/Qwen3-235B-A22B-2507-Reasoning",
+        "model_name": "qwen3 235b a22b 2507 (reasoning)",
         "size_b": 235,
         "accuracy_score": 67.3,  # From CSV
         "best_use_case": "research_legal_analysis",

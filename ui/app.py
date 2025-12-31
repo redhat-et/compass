@@ -3030,10 +3030,14 @@ def mock_extraction(user_input: str) -> dict:
 
 
 def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
-    """Get enhanced recommendation with explainability."""
+    """Get enhanced recommendation with explainability.
+    
+    ALL logic is in backend - UI only fetches data.
+    """
     try:
+        # Use the BACKEND ranked-recommend endpoint - ALL scoring logic is there
         response = requests.post(
-            f"{API_BASE_URL}/api/v2/recommend",
+            f"{API_BASE_URL}/api/ranked-recommend",
             json={
                 "business_context": business_context,
                 "include_explanation": True,
@@ -3046,7 +3050,7 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
     except Exception:
         pass
     
-    # Use benchmark-based recommendation with ACTUAL data
+    # Fallback only when backend unavailable
     return benchmark_recommendation(business_context)
 
 
@@ -4227,23 +4231,16 @@ def render_top5_table(recommendations: list, priority: str):
         return
     
     # Helper function to get scores from recommendation
+    # ALL scores come from BACKEND - no UI calculation
     def get_scores(rec):
         backend_scores = rec.get("scores", {}) or {}
-        ui_breakdown = rec.get("score_breakdown", {}) or {}
-        model_name = rec.get('model_name', 'Unknown')
-        
-        # Get raw AA accuracy
-        raw_aa = rec.get('raw_aa_accuracy', 0)
-        if not raw_aa:
-            raw_aa = get_raw_aa_accuracy(model_name, use_case)
-        rec['raw_aa_accuracy'] = raw_aa
         
         return {
-            "accuracy": raw_aa,
-            "latency": backend_scores.get("latency_score", ui_breakdown.get("latency_score", 0)),
-            "cost": backend_scores.get("price_score", ui_breakdown.get("cost_score", 0)),
-            "complexity": backend_scores.get("complexity_score", ui_breakdown.get("capacity_score", 0)),
-            "final": backend_scores.get("balanced_score", rec.get("final_score", 0)),
+            "accuracy": backend_scores.get("accuracy_score", 0),
+            "latency": backend_scores.get("latency_score", 0),
+            "cost": backend_scores.get("price_score", 0),
+            "complexity": backend_scores.get("complexity_score", 0),
+            "final": backend_scores.get("balanced_score", 0),
         }
     
     # ==========================================================================
