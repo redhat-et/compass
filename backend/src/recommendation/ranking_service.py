@@ -70,12 +70,16 @@ class RankingService:
 
         # =====================================================================
         # STEP 1: Get top N UNIQUE MODELS by raw accuracy (quality baseline)
+        # When accuracy is TIED, use latency_score as tie-breaker (faster = better)
         # =====================================================================
         seen_models = set()
         unique_accuracy_configs = []
         sorted_by_accuracy = sorted(
             filtered,
-            key=lambda x: (x.scores.accuracy_score if x.scores else 0),
+            key=lambda x: (
+                x.scores.accuracy_score if x.scores else 0,
+                x.scores.latency_score if x.scores else 0,  # Tie-breaker: faster config
+            ),
             reverse=True,
         )
         
