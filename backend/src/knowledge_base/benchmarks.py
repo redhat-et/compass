@@ -175,11 +175,12 @@ class BenchmarkRepository:
                         'e2e_p90': b.get('e2e_p90', 0),
                         'e2e_p95': b.get('e2e_p95', 0),
                         'e2e_p99': b.get('e2e_p99', 0),
-                        'tps_mean': b.get('tokens_per_second_mean', 0),
-                        'tps_p90': b.get('tokens_per_second_p90', 0),
-                        'tps_p95': b.get('tokens_per_second_p95', 0),
-                        'tps_p99': b.get('tokens_per_second_p99', 0),
-                        'tokens_per_second': b.get('tokens_per_second_mean', 0),
+                        # Support both field names (tps_mean or tokens_per_second_mean)
+                        'tps_mean': b.get('tps_mean') or b.get('tokens_per_second_mean', 0),
+                        'tps_p90': b.get('tps_p90') or b.get('tokens_per_second_p90', 0),
+                        'tps_p95': b.get('tps_p95') or b.get('tokens_per_second_p95', 0),
+                        'tps_p99': b.get('tps_p99') or b.get('tokens_per_second_p99', 0),
+                        'tokens_per_second': b.get('tps_mean') or b.get('tokens_per_second_mean') or b.get('tokens_per_second', 0),
                         'requests_per_second': b.get('requests_per_second', 1.0),
                         'estimated': True,
                     })
