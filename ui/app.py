@@ -3177,6 +3177,12 @@ def benchmark_recommendation(context: dict) -> dict:
     
     # Get SLO targets for this use case
     slo_data = get_slo_targets_for_use_case(use_case, priority)
+    if slo_data is None:
+        # Fallback defaults if use case not found
+        slo_data = {
+            'ttft_target': {'min': 50, 'max': 5000},
+            'e2e_target': {'min': 500, 'max': 60000},
+        }
     ttft_max = slo_data.get('ttft_target', {}).get('max', 200)
     e2e_max = slo_data.get('e2e_target', {}).get('max', 5000)
     
