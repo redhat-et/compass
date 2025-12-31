@@ -4351,6 +4351,8 @@ def render_top5_table(recommendations: list, priority: str):
         ttft_p95 = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
         # Backend uses tps_mean for throughput (tokens per second)
         throughput_tps = benchmark_metrics.get('tps_mean', benchmark_metrics.get('tps_p95', 0))
+        # Check if data is estimated or real (validated)
+        is_estimated = benchmark_metrics.get('estimated', False)
         hw_display = f"{hw_count}x{hw_type}"
         highlight_value = scores.get(highlight_field, 0)
         final_score = scores.get("final", 0)
@@ -4407,10 +4409,15 @@ def render_top5_table(recommendations: list, priority: str):
 <span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
 <span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
 </div>
-<div style="display: flex; align-items: center; justify-content: center; margin-top: 0.75rem; gap: 0.5rem;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
+<div style="display: flex; align-items: center; gap: 0.3rem;">
+{'<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: #10B981; color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">✓</span> Validated</span>' if not is_estimated else '<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(255,165,0,0.8); color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">◐</span> Estimated</span>'}
+</div>
+<div style="display: flex; align-items: center; gap: 0.5rem;">
 <span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">◀</span>
 {dots_html}
 <span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">▶</span>
+</div>
 </div>
 </div>'''
             st.markdown(card_html, unsafe_allow_html=True)

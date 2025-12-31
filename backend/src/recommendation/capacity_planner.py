@@ -282,6 +282,8 @@ class CapacityPlanner:
                 "tps_p99": float(bench.tps_p99) if bench.tps_p99 else 0,
                 # RPS per replica from benchmark (for card display)
                 "requests_per_second": float(bench.requests_per_second) if bench.requests_per_second else 0,
+                # Data validation flag: True = estimated/interpolated, False = real benchmark
+                "estimated": getattr(bench, 'estimated', False),
             }
             
             # Build recommendation (price score calculated later after we know min/max)
