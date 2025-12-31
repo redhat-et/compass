@@ -78,7 +78,9 @@ class RankingService:
             filtered,
             key=lambda x: (
                 x.scores.accuracy_score if x.scores else 0,
-                x.scores.latency_score if x.scores else 0,  # Tie-breaker: faster config
+                # Tie-breaker: LOWEST TTFT wins (faster response)
+                # Negate TTFT so lower values sort higher
+                -(x.predicted_ttft_p95_ms or 999999),
             ),
             reverse=True,
         )
