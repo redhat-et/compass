@@ -3035,20 +3035,42 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
     ALL logic is in backend - UI only fetches data.
     """
     try:
-        # Use the BACKEND ranked-recommend endpoint - ALL scoring logic is there
+        # Extract values from business_context for the API
+        use_case = business_context.get("use_case", "chatbot_conversational")
+        priority = business_context.get("priority", "balanced")
+        user_count = business_context.get("user_count", 30)
+        prompt_tokens = business_context.get("prompt_tokens", 512)
+        output_tokens = business_context.get("output_tokens", 256)
+        expected_qps = business_context.get("expected_qps", user_count)
+        ttft_target = business_context.get("ttft_p95_target_ms", 5000)
+        itl_target = business_context.get("itl_p95_target_ms", 200)
+        e2e_target = business_context.get("e2e_p95_target_ms", 60000)
+        percentile = business_context.get("percentile", "p95")
+        
+        # Use the ranked-recommend-from-spec endpoint with proper fields
         response = requests.post(
-            f"{API_BASE_URL}/api/ranked-recommend",
+            f"{API_BASE_URL}/api/ranked-recommend-from-spec",
             json={
-                "business_context": business_context,
-                "include_explanation": True,
-                "top_k": 5,
+                "use_case": use_case,
+                "user_count": user_count,
+                "latency_requirement": "high",
+                "budget_constraint": "moderate",
+                "prompt_tokens": prompt_tokens,
+                "output_tokens": output_tokens,
+                "expected_qps": expected_qps,
+                "ttft_target_ms": ttft_target,
+                "itl_target_ms": itl_target,
+                "e2e_target_ms": e2e_target,
+                "percentile": percentile,
+                "include_near_miss": True,
+                "min_accuracy": 35,
             },
             timeout=60,
         )
         if response.status_code == 200:
             return response.json()
-    except Exception:
-        pass
+    except Exception as e:
+        st.warning(f"Backend call failed: {e}")
     
     # Fallback only when backend unavailable
     return benchmark_recommendation(business_context)
