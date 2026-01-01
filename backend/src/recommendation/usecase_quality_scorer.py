@@ -71,8 +71,9 @@ class UseCaseQualityScorer:
             with open(filepath, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    model_name = row.get('Model Name', '').strip()
-                    score_str = row.get('Use Case Score', '0')
+                    # Support both old format (Model Name, Use Case Score) and new format (model_name, weighted_score)
+                    model_name = row.get('model_name', row.get('Model Name', '')).strip()
+                    score_str = row.get('weighted_score', row.get('Use Case Score', '0'))
                     
                     # Parse score (handle percentage strings)
                     try:
