@@ -153,10 +153,13 @@ class BenchmarkRepository:
             for b in data.get('benchmarks', []):
                 if b.get('estimated'):
                     # Map JSON keys to database column names
+                    # Support both old format (hardware/hardware_count) and new format (hardware_type/gpu_count)
+                    hw = b.get('hardware') or b.get('hardware_type') or b.get('gpu_type') or ''
+                    hw_count = b.get('hardware_count') or b.get('gpu_count') or 1
                     estimated.append({
                         'model_hf_repo': b.get('model_id', b.get('model_name', '')),
-                        'hardware': b.get('hardware', ''),
-                        'hardware_count': b.get('hardware_count', 1),
+                        'hardware': hw,
+                        'hardware_count': hw_count,
                         'framework': b.get('framework', 'vllm'),
                         'framework_version': b.get('framework_version', '0.6.2'),
                         'prompt_tokens': b.get('prompt_tokens', 512),

@@ -3058,21 +3058,24 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
                 "prompt_tokens": prompt_tokens,
                 "output_tokens": output_tokens,
                 "expected_qps": expected_qps,
-                "ttft_target_ms": ttft_target,
-                "itl_target_ms": itl_target,
-                "e2e_target_ms": e2e_target,
+                "ttft_p95_target_ms": ttft_target,  # Fixed: was ttft_target_ms
+                "itl_p95_target_ms": itl_target,    # Fixed: was itl_target_ms
+                "e2e_p95_target_ms": e2e_target,    # Fixed: was e2e_target_ms
                 "percentile": percentile,
-                "include_near_miss": True,
+                "include_near_miss": False,  # Strict filtering!
                 "min_accuracy": 35,
             },
             timeout=60,
         )
         if response.status_code == 200:
             return response.json()
+        else:
+            st.error(f"API returned status {response.status_code}: {response.text[:500]}")
     except Exception as e:
-        st.warning(f"Backend call failed: {e}")
+        st.error(f"Backend call failed: {e}")
     
-    # Fallback only when backend unavailable
+    # Fallback only when backend unavailable - THIS DOESN'T RESPECT SLO FILTERS!
+    st.warning("⚠️ Using fallback - SLO filters may not be applied!")
     return benchmark_recommendation(business_context)
 
 
@@ -4332,23 +4335,23 @@ def render_top5_table(recommendations: list, priority: str):
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
                 <span style="font-size: 1.5rem;">{icon}</span>
                 <span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
-                        </div>
+        </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <div style="flex: 1;">
                     <div style="color: white; font-weight: 700; font-size: 1.15rem;">{model_name}</div>
                     <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">{hw_display}</div>
-                    </div>
+        </div>
                 <div style="text-align: right;">
                     <div style="color: {color}; font-size: 2rem; font-weight: 800;">{highlight_value:.0f}</div>
                     <div style="color: rgba(255,255,255,0.4); font-size: 0.7rem;">SCORE</div>
-                        </div>
-                        </div>
+        </div>
+        </div>
             <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
                 <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
                 <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
                 <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
                 <span style="color: #ffffff; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
-                        </div>
+    </div>
                         </div>
         '''
     
@@ -4375,8 +4378,24 @@ def render_top5_table(recommendations: list, priority: str):
         replicas = gpu_cfg.get('replicas', 1)
         benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
         rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
-        # Get TTFT (P95) and Throughput from benchmark metrics
-        ttft_p95 = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
+        
+        # Get the primary metric selected by user (TTFT, ITL, or E2E)
+        primary_metric = st.session_state.get('slo_primary_metric', 'TTFT')
+        
+        # Get metric values based on selected primary metric
+        if primary_metric == "ITL":
+            metric_value = benchmark_metrics.get('itl_p95', benchmark_metrics.get('itl_mean', 0))
+            metric_label = "ITL"
+            metric_unit = "ms"
+        elif primary_metric == "E2E":
+            metric_value = benchmark_metrics.get('e2e_p95', benchmark_metrics.get('e2e_mean', 0))
+            metric_label = "E2E"
+            metric_unit = "ms"
+        else:  # Default to TTFT
+            metric_value = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
+            metric_label = "TTFT"
+            metric_unit = "ms"
+        
         # Backend uses tps_mean for throughput (tokens per second)
         throughput_tps = benchmark_metrics.get('tps_mean', benchmark_metrics.get('tps_p95', 0))
         # Check if data is estimated or real (validated)
@@ -4397,50 +4416,50 @@ def render_top5_table(recommendations: list, priority: str):
 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
 <span style="color: {color}; font-weight: 700; font-size: 1.3rem;">{title}</span>
 <span style="color: rgba(255,255,255,0.5); font-size: 1rem;">{current_idx + 1}/{total}</span>
-</div>
+                        </div>
 <div style="color: white; font-weight: 700; font-size: 1.6rem; margin-bottom: 1.25rem;">{model_name}</div>
 <div style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem;">
 <div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
 <div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Hardware</div>
 <div style="color: white; font-weight: 700; font-size: 1.1rem;">{hw_display}</div>
-</div>
+                    </div>
 <div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
 <div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Replicas</div>
 <div style="color: white; font-weight: 700; font-size: 1.1rem;">{replicas}</div>
-</div>
+                        </div>
 <div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
 <div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">RPS/Rep</div>
 <div style="color: white; font-weight: 700; font-size: 1.1rem;">{rps_per_replica:.1f}</div>
-</div>
-</div>
+                    </div>
+                        </div>
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
 <div style="display: flex; gap: 1.5rem;">
 <div style="display: flex; align-items: center; gap: 0.4rem;">
 <span style="color: {color}; font-size: 1rem;">⏱</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">TTFT</span>
-<span style="color: white; font-weight: 700; font-size: 1rem;">{ttft_p95:.0f}ms</span>
-</div>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{metric_label}</span>
+<span style="color: white; font-weight: 700; font-size: 1rem;">{metric_value:.0f}{metric_unit}</span>
+                    </div>
 <div style="display: flex; align-items: center; gap: 0.4rem;">
 <span style="color: {color}; font-size: 1rem;">⚡</span>
 <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Throughput</span>
 <span style="color: white; font-weight: 700; font-size: 1rem;">{throughput_tps:.0f} tok/s</span>
-</div>
-</div>
+                        </div>
+                    </div>
 <div style="text-align: right;">
 <div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
 <div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
-</div>
-</div>
+                        </div>
+                    </div>
 <div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem;">
 <span style="color: rgba(255,255,255,0.6);">Acc {scores["accuracy"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Lat {scores["latency"]:.0f}</span>
 <span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
 <span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
-</div>
+                    </div>
 <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
 <div style="display: flex; align-items: center; gap: 0.3rem;">
 {'<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: #10B981; color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">✓</span> Validated</span>' if not is_estimated else '<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(255,165,0,0.8); color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">◐</span> Estimated</span>'}
-</div>
+                    </div>
 <div style="display: flex; align-items: center; gap: 0.5rem;">
 <span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">◀</span>
 {dots_html}
@@ -4487,7 +4506,7 @@ def render_top5_table(recommendations: list, priority: str):
             <span style="color: #a5b4fc; font-size: 0.85rem;">
                 Only {total_available} model(s) have benchmarks for {use_case_display}
             </span>
-                        </div>
+    </div>
         ''', unsafe_allow_html=True)
     
 
@@ -4765,6 +4784,11 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             <span style="color: rgba(255,255,255,0.5); font-size: 0.75rem; float: right;">Primary filter</span>
         </div>''', unsafe_allow_html=True)
         
+        # Track previous SLO values to detect changes
+        prev_ttft = st.session_state.get("_last_ttft")
+        prev_itl = st.session_state.get("_last_itl")
+        prev_e2e = st.session_state.get("_last_e2e")
+        
         if primary_metric == "TTFT":
             # Let Streamlit manage via key - no 'value' parameter!
             st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
@@ -4819,6 +4843,20 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 st.session_state.custom_e2e = st.session_state.input_e2e_sec
             else:
                 st.session_state.custom_e2e = e2e_max
+        
+        # Check if SLO values changed - if so, clear recommendation cache
+        curr_ttft = st.session_state.get("custom_ttft")
+        curr_itl = st.session_state.get("custom_itl")
+        curr_e2e = st.session_state.get("custom_e2e")
+        
+        if (curr_ttft != prev_ttft or curr_itl != prev_itl or curr_e2e != prev_e2e):
+            # SLO values changed - invalidate recommendation cache
+            if st.session_state.get("recommendation_result"):
+                st.session_state.recommendation_result = None
+            # Store current values for next comparison
+            st.session_state._last_ttft = curr_ttft
+            st.session_state._last_itl = curr_itl
+            st.session_state._last_e2e = curr_e2e
     
     with col2:
         st.markdown("""
@@ -4839,7 +4877,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         workload_data = load_research_workload_patterns()
         pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
         peak_mult = pattern.get('peak_multiplier', 2.0)
-
+        
         # 1. Editable QPS - support up to 10M QPS for enterprise scale
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
@@ -4889,7 +4927,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
                     <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
-                </div>
+            </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
             </div>
             <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
@@ -4988,7 +5026,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">{name}</span>
                     <span style="color: white; font-weight: 700; font-size: 0.95rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
-                </div>
+            </div>
                 <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
             </div>'''
         datasets_html += '</div>'
@@ -5118,7 +5156,7 @@ def show_category_dialog():
         </p>
     </div>
     """, unsafe_allow_html=True)
-
+        
     if not top5_list:
         st.warning("No models available for this category.")
         if st.button("Close", key="close_cat_dialog_empty"):
@@ -5195,7 +5233,7 @@ def show_category_dialog():
                     <div>
                         <div style="color: white; font-weight: 700; font-size: 1.05rem;">{model_name}</div>
                         <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{hw_display} (TP={tp})</div>
-                    </div>
+        </div>
                 </div>
                 <div style="text-align: right;">
                     <div style="color: #ffffff; font-size: 1.75rem; font-weight: 800;">{highlight_score:.0f}</div>
@@ -5362,11 +5400,11 @@ def main():
     
     with tab3:
         render_results_tab(priority, models_df)
-    
+
     with tab4:
         render_about_section(models_df)
 
-
+    
 def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     """Tab 1: Use case input interface."""
     
@@ -5601,21 +5639,59 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     
     final_extraction = st.session_state.edited_extraction or st.session_state.extraction_result or {}
     
-    # Generate recommendations if needed
-    if not st.session_state.recommendation_result:
+    # ALWAYS regenerate recommendations to ensure fresh SLO filtering
+    # Clear any cached results
+    st.session_state.recommendation_result = None
+    
+    # Generate recommendations
+    # FORCE clear cache to ensure fresh data every time
+    st.session_state.recommendation_result = None
+    st.session_state.pop('ranked_response', None)
+    
+    if True:  # Always regenerate
+        # Get custom SLO values from session state (set in Tech Specs tab)
+        use_case = final_extraction.get("use_case", "chatbot_conversational")
+        
+        # Get SLO targets - use custom values if set, otherwise use defaults
+        # Use explicit None check to handle 0 values correctly
+        ttft_target = st.session_state.get("custom_ttft") if st.session_state.get("custom_ttft") is not None else (st.session_state.get("input_ttft") if st.session_state.get("input_ttft") is not None else 15000)
+        itl_target = st.session_state.get("custom_itl") if st.session_state.get("custom_itl") is not None else (st.session_state.get("input_itl") if st.session_state.get("input_itl") is not None else 200)
+        e2e_target = st.session_state.get("custom_e2e") if st.session_state.get("custom_e2e") is not None else (st.session_state.get("input_e2e") if st.session_state.get("input_e2e") is not None else 60000)
+        qps_target = st.session_state.get("custom_qps") if st.session_state.get("custom_qps") is not None else (st.session_state.get("input_qps") if st.session_state.get("input_qps") is not None else final_extraction.get("user_count", 30))
+        
+        # Get token config for use case
+        token_configs = {
+            "chatbot_conversational": (512, 256),
+            "code_completion": (512, 256),
+            "code_generation_detailed": (1024, 1024),
+            "translation": (512, 256),
+            "content_generation": (512, 256),
+            "summarization_short": (4096, 512),
+            "document_analysis_rag": (4096, 512),
+            "long_document_summarization": (10240, 1536),
+            "research_legal_analysis": (4096, 1024),
+        }
+        prompt_tokens, output_tokens = token_configs.get(use_case, (512, 256))
+        
         business_context = {
-            "use_case": final_extraction.get("use_case", "chatbot_conversational"),
+            "use_case": use_case,
             "user_count": final_extraction.get("user_count", 1000),
             "priority": used_priority,
             "hardware_preference": final_extraction.get("hardware"),
+            "prompt_tokens": prompt_tokens,
+            "output_tokens": output_tokens,
+            "expected_qps": float(qps_target),
+            "ttft_p95_target_ms": int(ttft_target),
+            "itl_p95_target_ms": int(itl_target),
+            "e2e_p95_target_ms": int(e2e_target),
         }
         with st.spinner(f"Scoring {len(models_df)} models with MCDM..."):
             recommendation = get_enhanced_recommendation(business_context)
         if recommendation:
             st.session_state.recommendation_result = recommendation
-    
+        
     if st.session_state.recommendation_result:
-        render_recommendation_result(st.session_state.recommendation_result, used_priority, final_extraction)
+            render_recommendation_result(st.session_state.recommendation_result, used_priority, final_extraction)
 
 
 def render_extraction_result(extraction: dict, priority: str):
@@ -5946,70 +6022,19 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
 def render_recommendation_result(result: dict, priority: str, extraction: dict):
     """Render beautiful recommendation results with Top 5 table."""
     
-    # === Ranked Hardware Recommendations (Backend API) ===
+    # === Use the ALREADY FETCHED data from result ===
+    # The result was fetched with correct SLO filters from get_enhanced_recommendation
+    # DO NOT call fetch_ranked_recommendations again - it would use wrong default values!
+    
     # Gather data from extraction (handle None case)
     if extraction is None:
         extraction = {}
     use_case = extraction.get("use_case", "chatbot_conversational")
     user_count = extraction.get("user_count", 1000)
 
-    # Get SLO targets from RESEARCH DATA (not from extraction result!)
-    # This ensures we use proper research-backed SLO ranges
-    slo_targets = get_slo_targets_for_use_case(use_case, priority)
+    # Use the result directly - it already has correct SLO-filtered data
+    ranked_response = result
     
-    if not slo_targets:
-        # Fallback to loose defaults if research data unavailable
-        slo_targets = {
-            "token_config": {"prompt": 512, "output": 256},
-            "ttft_target": {"min": 1, "max": 150000},
-            "itl_target": {"min": 1, "max": 300},
-            "e2e_target": {"min": 1, "max": 200000},
-        }
-
-    # Get token config and SLO targets
-    token_config = slo_targets.get("token_config", {"prompt": 512, "output": 256})
-    prompt_tokens = token_config.get("prompt", 512)
-    output_tokens = token_config.get("output", 256)
-        
-    # Get SLO target values (use max as the target - shows all configs by default)
-    ttft_target = slo_targets.get("ttft_target", {}).get("max", 150000)
-    itl_target = slo_targets.get("itl_target", {}).get("max", 300)
-    e2e_target = slo_targets.get("e2e_target", {}).get("max", 200000)
-        
-    # Calculate expected QPS from user count (rough estimate: ~1 query per 100 users per second)
-    expected_qps = max(1.0, user_count / 100.0)
-
-    # Get current weights and include_near_miss settings from session state
-    weights = {
-        "accuracy": st.session_state.weight_accuracy,
-        "price": st.session_state.weight_cost,
-        "latency": st.session_state.weight_latency,
-        "complexity": st.session_state.weight_simplicity,
-    }
-    include_near_miss = st.session_state.include_near_miss
-
-    # Get selected percentile from session state
-    selected_percentile = st.session_state.get('slo_percentile', 'p95')
-    
-    # Fetch ranked recommendations from backend (using ALL 28 PostgreSQL models)
-    with st.spinner("Fetching ranked recommendations from backend..."):
-        ranked_response = fetch_ranked_recommendations(
-            use_case=use_case,
-            user_count=user_count,
-            priority=priority,
-            prompt_tokens=prompt_tokens,
-            output_tokens=output_tokens,
-            expected_qps=expected_qps,
-            ttft_target_ms=ttft_target,
-            itl_target_ms=itl_target,
-            e2e_target_ms=e2e_target,
-            weights=weights,
-            include_near_miss=include_near_miss,
-            percentile=selected_percentile,
-        )
-
-    # NOTE: Removed VALID_MODEL_KEYWORDS filter - now using ALL 28 PostgreSQL models
-    # Models without AA scores will show 0% accuracy but still have performance data
     if ranked_response:
         # NOTE: Table removed from main view - now only shown in "Explore More Options" dialog
         # render_ranked_recommendations(ranked_response)
@@ -6326,7 +6351,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
 </div>'''
     
     st.markdown(rec_html, unsafe_allow_html=True)
-    
+        
     st.markdown("---")
     st.markdown('<div class="section-header" style="background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);">Winner Details: Score Breakdown</div>', unsafe_allow_html=True)
     

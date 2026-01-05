@@ -127,8 +127,8 @@ class CapacityPlanner:
         slo_targets: SLOTargets,
         intent: DeploymentIntent,
         model_evaluator: "ModelEvaluator | None" = None,
-        include_near_miss: bool = True,
-        near_miss_tolerance: float = 0.2,
+        include_near_miss: bool = False,  # Strict SLO filtering - no tolerance
+        near_miss_tolerance: float = 0.0,  # No near-miss tolerance
     ) -> list[DeploymentRecommendation]:
         """
         Plan GPU capacity and return ALL viable configurations meeting SLO.

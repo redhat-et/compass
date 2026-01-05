@@ -52,7 +52,7 @@ class DeploymentIntent(BaseModel):
         "code_completion",
         "code_generation_detailed",
         "translation",
-        "content_creation",
+        "content_generation",
         "summarization_short",
         "document_analysis_rag",
         "long_document_summarization",
