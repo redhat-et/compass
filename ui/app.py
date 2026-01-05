@@ -4381,23 +4381,33 @@ def render_top5_table(recommendations: list, priority: str):
         
         # Get the primary metric selected by user (TTFT, ITL, or E2E)
         primary_metric = st.session_state.get('slo_primary_metric', 'TTFT')
+        # Get selected percentile (mean, p90, p95, p99)
+        selected_percentile = st.session_state.get('slo_percentile', 'p95')
         
-        # Get metric values based on selected primary metric
+        # Map percentile to display label
+        percentile_labels = {'mean': 'Mean', 'p90': 'P90', 'p95': 'P95', 'p99': 'P99'}
+        percentile_display = percentile_labels.get(selected_percentile, 'P95')
+        
+        # Get metric values based on selected primary metric AND percentile
         if primary_metric == "ITL":
-            metric_value = benchmark_metrics.get('itl_p95', benchmark_metrics.get('itl_mean', 0))
-            metric_label = "ITL"
+            metric_key = f'itl_{selected_percentile}'
+            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('itl_mean', 0))
+            metric_label = f"ITL ({percentile_display})"
             metric_unit = "ms"
         elif primary_metric == "E2E":
-            metric_value = benchmark_metrics.get('e2e_p95', benchmark_metrics.get('e2e_mean', 0))
-            metric_label = "E2E"
+            metric_key = f'e2e_{selected_percentile}'
+            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('e2e_mean', 0))
+            metric_label = f"E2E ({percentile_display})"
             metric_unit = "ms"
         else:  # Default to TTFT
-            metric_value = benchmark_metrics.get('ttft_p95', benchmark_metrics.get('ttft_mean', 0))
-            metric_label = "TTFT"
+            metric_key = f'ttft_{selected_percentile}'
+            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('ttft_mean', 0))
+            metric_label = f"TTFT ({percentile_display})"
             metric_unit = "ms"
         
-        # Backend uses tps_mean for throughput (tokens per second)
-        throughput_tps = benchmark_metrics.get('tps_mean', benchmark_metrics.get('tps_p95', 0))
+        # Get throughput with percentile label too
+        tps_key = f'tps_{selected_percentile}'
+        throughput_tps = benchmark_metrics.get(tps_key, benchmark_metrics.get('tps_mean', 0))
         # Check if data is estimated or real (validated)
         is_estimated = benchmark_metrics.get('estimated', False)
         hw_display = f"{hw_count}x{hw_type}"
@@ -4441,7 +4451,7 @@ def render_top5_table(recommendations: list, priority: str):
                     </div>
 <div style="display: flex; align-items: center; gap: 0.4rem;">
 <span style="color: {color}; font-size: 1rem;">⚡</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Throughput</span>
+<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">TPS ({percentile_display})</span>
 <span style="color: white; font-weight: 700; font-size: 1rem;">{throughput_tps:.0f} tok/s</span>
                         </div>
                     </div>
