@@ -36,8 +36,8 @@ BACKEND_DIR := backend
 UI_DIR := ui
 SIMULATOR_DIR := simulator
 
-VENV := venv
-# Shared venv at project root for both backend and UI
+VENV := .venv
+# Shared venv at project root for both backend and UI (managed by uv)
 
 # PID files for background processes
 PID_DIR := .pids
@@ -78,6 +78,8 @@ check-prereqs: ## Check if required tools are installed
 	@printf "$(GREEN)✓ ollama found$(NC)\n"
 	@command -v $(PYTHON) >/dev/null 2>&1 || (printf "$(RED)✗ $(PYTHON) not found$(NC). Run: brew install python@3.13\n" && exit 1)
 	@printf "$(GREEN)✓ $(PYTHON) found$(NC)\n"
+	@command -v uv >/dev/null 2>&1 || (printf "$(RED)✗ uv not found$(NC). Run: curl -LsSf https://astral.sh/uv/install.sh | sh\n" && exit 1)
+	@printf "$(GREEN)✓ uv found$(NC)\n"
 	@# Check Python version and warn if 3.14+
 	@PY_VERSION=$$($(PYTHON) -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "0.0"); \
 	if [ "$$(echo "$$PY_VERSION" | cut -d. -f1)" = "3" ] && [ "$$(echo "$$PY_VERSION" | cut -d. -f2)" -ge "14" ]; then \
@@ -90,9 +92,7 @@ check-prereqs: ## Check if required tools are installed
 
 setup-backend: ## Set up Python environment (includes backend and UI dependencies)
 	@printf "$(BLUE)Setting up Python environment...$(NC)\n"
-	$(PYTHON) -m venv $(VENV)
-	. $(VENV)/bin/activate && pip install --upgrade pip
-	. $(VENV)/bin/activate && pip install -r requirements.txt
+	uv sync
 	@printf "$(GREEN)✓ Python environment ready (includes backend and UI dependencies)$(NC)\n"
 
 setup-ui: setup-backend ## Set up UI (uses shared venv)
@@ -157,8 +157,8 @@ start-backend: ## Start FastAPI backend
 	@if [ -f $(BACKEND_PID) ] && [ -s $(BACKEND_PID) ] && kill -0 $$(cat $(BACKEND_PID) 2>/dev/null) 2>/dev/null; then \
 		printf "$(YELLOW)Backend already running (PID: $$(cat $(BACKEND_PID)))$(NC)\n"; \
 	else \
-		. $(VENV)/bin/activate && cd $(BACKEND_DIR) && \
-		( uvicorn src.api.routes:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
+		cd $(BACKEND_DIR) && \
+		( uv run uvicorn src.api.routes:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
 		sleep 2; \
 		printf "$(GREEN)✓ Backend started (PID: $$(cat $(BACKEND_PID)))$(NC)\n"; \
 	fi
@@ -169,7 +169,7 @@ start-ui: ## Start Streamlit UI
 	@if [ -f $(UI_PID) ] && [ -s $(UI_PID) ] && kill -0 $$(cat $(UI_PID) 2>/dev/null) 2>/dev/null; then \
 		printf "$(YELLOW)UI already running (PID: $$(cat $(UI_PID)))$(NC)\n"; \
 	else \
-		. $(VENV)/bin/activate && streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
+		uv run streamlit run $(UI_DIR)/app.py --server.headless true > $(LOG_DIR)/ui.log 2>&1 & echo $$! > $(UI_PID); \
 		sleep 2; \
 		printf "$(GREEN)✓ UI started (PID: $$(cat $(UI_PID)))$(NC)\n"; \
 	fi
@@ -321,12 +321,12 @@ postgres-init: postgres-start ## Initialize PostgreSQL schema
 
 postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSON
 	@printf "$(BLUE)Loading synthetic benchmark data...$(NC)\n"
-	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py data/benchmarks_synthetic.json
+	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_synthetic.json
 	@printf "$(GREEN)✓ Synthetic data loaded$(NC)\n"
 
 postgres-load-blis: postgres-init ## Load BLIS benchmark data from JSON
 	@printf "$(BLUE)Loading BLIS benchmark data...$(NC)\n"
-	@. $(VENV)/bin/activate && $(PYTHON) scripts/load_benchmarks.py data/benchmarks_BLIS.json
+	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_BLIS.json
 	@printf "$(GREEN)✓ BLIS data loaded$(NC)\n"
 
 postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
@@ -384,41 +384,35 @@ test: test-unit ## Run all tests
 
 test-unit: ## Run unit tests
 	@printf "$(BLUE)Running unit tests...$(NC)\n"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m "not integration and not e2e"
+	cd $(BACKEND_DIR) && uv run pytest ../tests/ -v -m "not integration and not e2e"
 
 test-integration: setup-ollama ## Run integration tests (requires Ollama)
 	@printf "$(BLUE)Running integration tests...$(NC)\n"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m integration
+	cd $(BACKEND_DIR) && uv run pytest ../tests/ -v -m integration
 
 test-e2e: ## Run end-to-end tests (requires cluster)
 	@printf "$(BLUE)Running end-to-end tests...$(NC)\n"
 	@kubectl cluster-info > /dev/null 2>&1 || (printf "$(RED)✗ Kubernetes cluster not accessible$(NC). Run: make cluster-start\n" && exit 1)
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest ../tests/ -v -m e2e
+	cd $(BACKEND_DIR) && uv run pytest ../tests/ -v -m e2e
 
 test-workflow: setup-ollama ## Run workflow integration test
 	@printf "$(BLUE)Running workflow test...$(NC)\n"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && $(PYTHON) test_workflow.py
+	cd $(BACKEND_DIR) && uv run $(PYTHON) test_workflow.py
 
 test-watch: ## Run tests in watch mode
 	@printf "$(BLUE)Running tests in watch mode...$(NC)\n"
-	. $(VENV)/bin/activate && cd $(BACKEND_DIR) && pytest-watch
+	cd $(BACKEND_DIR) && uv run pytest-watch
 
 ##@ Code Quality
 
 lint: ## Run linters
 	@printf "$(BLUE)Running linters...$(NC)\n"
-	@if [ -d $(VENV) ]; then \
-		. $(VENV)/bin/activate && \
-		(command -v ruff >/dev/null 2>&1 && ruff check $(BACKEND_DIR)/src/ $(UI_DIR)/*.py || printf "$(YELLOW)ruff not installed, skipping$(NC)\n"); \
-	fi
+	@uv run ruff check $(BACKEND_DIR)/src/ $(UI_DIR)/*.py || printf "$(YELLOW)ruff not installed, skipping$(NC)\n"
 	@printf "$(GREEN)✓ Linting complete$(NC)\n"
 
 format: ## Auto-format code
 	@printf "$(BLUE)Formatting code...$(NC)\n"
-	@if [ -d $(VENV) ]; then \
-		. $(VENV)/bin/activate && \
-		(command -v ruff >/dev/null 2>&1 && ruff format $(BACKEND_DIR)/ $(UI_DIR)/ || printf "$(YELLOW)ruff not installed, skipping$(NC)\n"); \
-	fi
+	@uv run ruff format $(BACKEND_DIR)/ $(UI_DIR)/ || printf "$(YELLOW)ruff not installed, skipping$(NC)\n"
 	@printf "$(GREEN)✓ Formatting complete$(NC)\n"
 
 ##@ Cleanup
@@ -435,7 +429,7 @@ clean: ## Clean generated files and caches
 	@printf "$(GREEN)✓ Cleanup complete$(NC)\n"
 
 clean-all: clean ## Clean everything including virtual environments
-	@printf "$(BLUE)Cleaning virtual environments...$(NC)\n"
+	@printf "$(BLUE)Cleaning virtual environments (uv-managed)...$(NC)\n"
 	rm -rf $(VENV)
 	@printf "$(GREEN)✓ Deep cleanup complete$(NC)\n"
 
