@@ -9,6 +9,11 @@ This ensures:
 - All recommendations show HIGH QUALITY models
 - No "fast but useless" or "cheap but terrible" recommendations
 - Cards show different trade-offs within the same quality tier
+
+TASK-SPECIFIC BONUSES (Balanced card only):
+- Different model types get bonuses for specific use cases
+- E.g., Code models get +8 for code tasks, multilingual for translation
+- This diversifies recommendations across use cases
 """
 
 import logging
@@ -16,6 +21,114 @@ import logging
 from ..context_intent.schema import DeploymentRecommendation
 
 logger = logging.getLogger(__name__)
+
+
+# Task-specific bonuses for Balanced score diversification
+# Format: {use_case: {model_keyword: bonus_points}}
+# 
+# STRATEGY: Kimi K2 has high base accuracy (~71-78), so it needs LOW or ZERO
+# bonus in most tasks to allow task-specific models to win.
+# Task-specialist models need HIGH bonuses to overcome accuracy gaps.
+#
+TASK_BONUSES = {
+    "code_completion": {
+        # Code-specialized models get HIGHEST bonus (DeepSeek excels at code)
+        "coder": 20, "starcoder": 20, "codellama": 20,
+        "deepseek": 20,  # DeepSeek R1 excellent for code
+        "gpt-oss": 12,
+        "qwen": 10,
+        # Kimi: NO bonus (already high accuracy, not code-specialized)
+    },
+    "code_generation_detailed": {
+        "coder": 20, "starcoder": 20, "codellama": 20,
+        "deepseek": 20,
+        "gpt-oss": 12,
+        "qwen": 10,
+    },
+    "chatbot_conversational": {
+        # GPT-OSS is good for general chat
+        "gpt-oss": 15,
+        "llama": 12, "qwen": 12, "mistral": 12,
+        "instruct": 8, "chat": 8,
+        "gemma": 8,
+        # Kimi: small bonus (good but not specialized for casual chat)
+        "kimi": 5,
+    },
+    "translation": {
+        # Multilingual specialists get highest bonus
+        "qwen": 20,  # Qwen is strongly multilingual
+        "aya": 20, "nllb": 20,
+        "llama": 10,
+        "gpt-oss": 8,
+        "mistral": 8,
+        # Kimi: small bonus (not primarily multilingual)
+        "kimi": 5,
+    },
+    "content_generation": {
+        # Creative/general models
+        "llama": 18, "gpt-oss": 15,
+        "mistral": 15, "qwen": 12,
+        "gemma": 10,
+        # Kimi: reasoning-focused, not creative writing
+        "kimi": 3,
+    },
+    "summarization_short": {
+        # Fast, efficient summarizers - favor smaller/faster models
+        "llama": 15, "qwen": 15, "mistral": 15,
+        "gpt-oss": 12,
+        "gemma": 10,
+        "kimi": 5,
+    },
+    "long_document_summarization": {
+        # Long-context specialists
+        "qwen": 18,  # Qwen has good long context
+        "minimax": 18,  # MiniMax designed for long context
+        "llama": 12, "mistral": 12,
+        "gpt-oss": 10,
+        "kimi": 8,  # Kimi has good context but others specialize
+    },
+    "document_analysis_rag": {
+        # Analytical and retrieval-augmented
+        "llama": 15, "qwen": 15,
+        "gpt-oss": 12, "mistral": 12,
+        "gemma": 10,
+        "kimi": 8,
+    },
+    "research_legal_analysis": {
+        # Complex reasoning - Kimi CAN get bonus here (reasoning is its strength)
+        "kimi": 15,  # Kimi Thinking excels at reasoning
+        "deepseek": 18,  # DeepSeek R1 also excellent for reasoning
+        "qwen": 12,
+        "gpt-oss": 10,
+        "llama": 10,
+        "mistral": 8,
+    },
+}
+
+
+def get_task_bonus(model_name: str, use_case: str) -> int:
+    """
+    Get task-specific bonus for a model based on use case.
+    
+    Args:
+        model_name: Model name (e.g., "Moonshot/Kimi-K2-Thinking")
+        use_case: Use case identifier (e.g., "code_completion")
+    
+    Returns:
+        Bonus points (0-10) to add to balanced score
+    """
+    if not model_name or not use_case:
+        return 0
+    
+    model_lower = model_name.lower()
+    bonuses = TASK_BONUSES.get(use_case, {})
+    
+    # Find matching bonus (first match wins)
+    for keyword, bonus in bonuses.items():
+        if keyword in model_lower:
+            return bonus
+    
+    return 0
 
 
 class RankingService:
@@ -28,6 +141,7 @@ class RankingService:
         max_cost: float | None = None,
         top_n: int = 5,
         weights: dict[str, int] | None = None,
+        use_case: str | None = None,
     ) -> dict[str, list[DeploymentRecommendation]]:
         """
         Generate 5 ranked lists using ACCURACY-FIRST strategy.
@@ -54,9 +168,9 @@ class RankingService:
         # Apply filters
         filtered = self._apply_filters(configurations, min_accuracy, max_cost)
 
-        # Recalculate balanced scores if custom weights provided
-        if weights and filtered:
-            self._recalculate_balanced_scores(filtered, weights)
+        # Recalculate balanced scores with custom weights and task bonuses
+        if filtered:
+            self._recalculate_balanced_scores(filtered, weights or {}, use_case)
 
         if not filtered:
             logger.warning("No configurations remain after filtering")
@@ -199,54 +313,62 @@ class RankingService:
         self,
         configs: list[DeploymentRecommendation],
         weights: dict[str, int],
+        use_case: str | None = None,
     ) -> None:
         """
-        Recalculate balanced scores using MAXMIN approach.
+        Recalculate balanced scores with task-specific bonuses.
         
-        MaxMin: The balanced score is the MINIMUM of (accuracy, price, latency).
-        This ensures a model with low accuracy cannot win even with excellent cost/latency.
-        A small weighted bonus is added to differentiate configs with same min score.
+        Formula: Balanced = (Accuracy + Task_Bonus) × 70% + (Latency + Cost) / 2 × 30%
+        
+        Task bonuses diversify recommendations by boosting models suited for specific tasks:
+        - Code models get +8 for code tasks
+        - Multilingual models get +8 for translation
+        - General models get bonuses for chatbot/content tasks
 
         Args:
             configs: List of configurations to update (modified in place)
             weights: Dict with keys: accuracy, price, latency (complexity ignored)
                      Values are integers 0-10
+            use_case: Use case identifier for task-specific bonuses
         """
-        # Normalize weights (excluding complexity)
-        filtered_weights = {k: v for k, v in weights.items() if k != "complexity"}
-        total = sum(filtered_weights.values())
-        if total == 0:
-            logger.warning("All weights are zero, using default equal weights")
-            normalized = {"accuracy": 0.34, "price": 0.33, "latency": 0.33}
-        else:
-            normalized = {k: v / total for k, v in filtered_weights.items()}
-
         logger.info(
-            f"Recalculating balanced scores with MAXMIN approach: "
-            f"A={normalized.get('accuracy', 0):.0%}, P={normalized.get('price', 0):.0%}, "
-            f"L={normalized.get('latency', 0):.0%}"
+            f"Recalculating balanced scores for use_case={use_case} with task bonuses"
         )
+        
+        # Track bonuses applied for logging
+        bonuses_applied = {}
 
         for config in configs:
             if config.scores:
-                # ACCURACY-DOMINANT BALANCED SCORE
-                # Accuracy contributes 70%, operational (lat+cost avg) contributes 30%
-                # This ensures high-accuracy models win, while still considering cost/latency
-                #
-                # Example:
-                #   GPT-OSS 20B:  Acc=60, Lat=86, Cost=92 → 60×0.7 + 89×0.3 = 68.7
-                #   MiniMax-M2:   Acc=80, Lat=70, Cost=35 → 80×0.7 + 52.5×0.3 = 71.75 ← WINS
-                #
+                # Get base scores
                 acc = config.scores.accuracy_score
                 lat = config.scores.latency_score
                 cost = config.scores.price_score
                 
+                # Get task-specific bonus for this model
+                model_name = config.model_name or config.model_id or ""
+                task_bonus = get_task_bonus(model_name, use_case) if use_case else 0
+                
+                # Track for logging
+                if task_bonus > 0:
+                    bonuses_applied[model_name] = task_bonus
+                
+                # BALANCED SCORE WITH TASK BONUS
+                # (Accuracy + Task_Bonus) × 70% + Operational × 30%
+                # Task bonus is capped to not exceed +10 points effect
+                adjusted_acc = min(acc + task_bonus, 100)  # Cap at 100
+                
                 # Operational score = average of latency and cost
                 operational_avg = (lat + cost) / 2
                 
-                # Balanced = 70% accuracy + 30% operational
-                balanced = acc * 0.7 + operational_avg * 0.3
+                # Balanced = 70% adjusted accuracy + 30% operational
+                balanced = adjusted_acc * 0.7 + operational_avg * 0.3
                 config.scores.balanced_score = round(balanced, 1)
+        
+        if bonuses_applied:
+            logger.info(
+                f"Task bonuses applied for {use_case}: {bonuses_applied}"
+            )
 
     def get_unique_configs_count(
         self, ranked_lists: dict[str, list[DeploymentRecommendation]]

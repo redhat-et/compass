@@ -3,7 +3,7 @@ Red Hat AI Deployment Assistant - E2E LLM Deployment Recommendation System
 
 A beautiful, presentation-ready Streamlit application demonstrating:
 1. Business Context Extraction (Qwen 2.5 7B @ 95.1% accuracy)
-2. MCDM Scoring (206 Open-Source Models)
+2. MCDM Scoring (204 Open-Source Models)
 3. Full Explainability with visual score breakdowns
 4. SLO & Workload Impact Analysis
 5. Hardware-aware recommendations
@@ -32,6 +32,107 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# MODEL NAME NORMALIZATION - Consistent Provider/Model-Name Format
+# =============================================================================
+
+# Provider mapping for model name normalization
+PROVIDER_MAPPING = {
+    "gpt-oss": "OpenAI",
+    "gptoss": "OpenAI",
+    "kimi": "Moonshot",
+    "deepseek": "DeepSeek",
+    "qwen": "Qwen",
+    "llama": "Meta",
+    "mistral": "Mistral",
+    "gemma": "Google",
+    "minimax": "MiniMax",
+    "phi": "Microsoft",
+    "falcon": "TII",
+    "yi": "01.AI",
+    "internlm": "Shanghai AI Lab",
+    "baichuan": "Baichuan",
+    "chatglm": "Zhipu",
+    "glm": "Zhipu",
+    "starcoder": "BigCode",
+    "codellama": "Meta",
+    "aya": "Cohere",
+}
+
+
+def normalize_model_name(raw_name: str) -> str:
+    """
+    Normalize model name to consistent Provider/Model-Name format.
+    
+    Examples:
+        "GPT-OSS 120B" → "OpenAI/GPT-OSS-120B"
+        "gpt-oss-120b" → "OpenAI/GPT-OSS-120B"
+        "Moonshot/Kimi-K2-Thinking" → "Moonshot/Kimi-K2-Thinking"
+        "kimi-k2-thinking" → "Moonshot/Kimi-K2-Thinking"
+        "DeepSeek/DeepSeek-V3.1-Reasoning" → "DeepSeek/DeepSeek-V3.1-Reasoning"
+    """
+    if not raw_name:
+        return "Unknown"
+    
+    name = raw_name.strip()
+    
+    # Already has provider prefix (e.g., "Moonshot/Kimi-K2")
+    if "/" in name:
+        parts = name.split("/", 1)
+        provider = parts[0].strip()
+        model = parts[1].strip()
+        # Normalize model part: title case with hyphens
+        model_normalized = "-".join(word.title() if not word.isupper() else word 
+                                     for word in model.replace("_", "-").split("-"))
+        return f"{provider}/{model_normalized}"
+    
+    # No provider - need to detect and add it
+    name_lower = name.lower().replace(" ", "-").replace("_", "-")
+    
+    # Find matching provider
+    detected_provider = None
+    for keyword, provider in PROVIDER_MAPPING.items():
+        if keyword in name_lower:
+            detected_provider = provider
+            break
+    
+    if not detected_provider:
+        detected_provider = "Unknown"
+    
+    # Normalize model name: title case with hyphens
+    # Keep version numbers and special terms intact
+    model_parts = name.replace(" ", "-").replace("_", "-").split("-")
+    normalized_parts = []
+    for part in model_parts:
+        if not part:
+            continue
+        # Keep uppercase terms (like "OSS", "W4A16", "B200")
+        if part.isupper() or any(c.isdigit() for c in part):
+            normalized_parts.append(part.upper() if part.isalpha() else part)
+        else:
+            normalized_parts.append(part.title())
+    
+    model_normalized = "-".join(normalized_parts)
+    
+    return f"{detected_provider}/{model_normalized}"
+
+
+def format_display_name(raw_name: str) -> str:
+    """
+    Format model name for display (uppercase, spaces instead of hyphens).
+    
+    Examples:
+        "OpenAI/GPT-OSS-120B" → "OPENAI / GPT OSS 120B"
+        "Moonshot/Kimi-K2-Thinking" → "MOONSHOT / KIMI K2 THINKING"
+    """
+    normalized = normalize_model_name(raw_name)
+    if "/" in normalized:
+        provider, model = normalized.split("/", 1)
+        model_display = model.replace("-", " ")
+        return f"{provider.upper()} / {model_display.upper()}"
+    return normalized.upper().replace("-", " ")
 
 
 # =============================================================================
@@ -2224,7 +2325,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
     
     # Helper function to build a table row from a recommendation
     def build_row(rec: dict, cat_color: str, cat_name: str = "", cat_emoji: str = "", is_top: bool = False, more_count: int = 0) -> str:
-        model_name = rec.get("model_name", "Unknown")
+        model_name = format_display_name(rec.get("model_name", "Unknown"))
         gpu_config = rec.get("gpu_config", {})
         gpu_str = format_gpu_config(gpu_config)
         # Get TTFT from benchmark_metrics using selected percentile, fallback to p95
@@ -3334,7 +3435,7 @@ def benchmark_recommendation(context: dict) -> dict:
     
     # Build recommendation response
     return {
-        "model_name": top['model_name'].replace('-', ' ').title(),
+        "model_name": format_display_name(top['model_name']),
         "model_hf_repo": top['model_repo'],
         "score": top['final_score'],
         "intent": {
@@ -3361,7 +3462,7 @@ def benchmark_recommendation(context: dict) -> dict:
             "selection_reason": get_selection_reason(top, priority),
             "alternatives": [
                 {
-                    "model": c['model_name'],
+                    "model": format_display_name(c['model_name']),
                     "hardware": c['hardware'],
                     "hardware_count": c['hardware_count'],
                     "ttft_p95": c['ttft_p95'],
@@ -3393,7 +3494,7 @@ def benchmark_recommendation(context: dict) -> dict:
         "recommendations": [
             {
                 "rank": i + 1,
-                "model_name": f"{c['model_name'].replace('-', ' ').title()} on {c['hardware']} x{c['hardware_count']}",
+                "model_name": f"{format_display_name(c['model_name'])} on {c['hardware']} x{c['hardware_count']}",
                 "model_id": c['model_repo'],
                 "hardware": c['hardware'],
                 "hardware_count": c['hardware_count'],
@@ -3441,7 +3542,7 @@ def benchmark_recommendation(context: dict) -> dict:
 
 def get_selection_reason(top: dict, priority: str) -> str:
     """Generate human-readable selection reason."""
-    model = top['model_name'].replace('-', ' ').title()
+    model = format_display_name(top['model_name'])
     hw = f"{top['hardware']} x{top['hardware_count']}"
     ttft = top['ttft_p95']
     cost = top['hw_cost_monthly']
@@ -3553,8 +3654,8 @@ def mock_recommendation(context: dict) -> dict:
     
     # Load use-case-specific weighted scores (the QUALITY component)
     weighted_df = load_weighted_scores(use_case)
-    # Also load 206-model benchmark for validation
-    all_models_df = load_206_models()
+    # Also load 204-model benchmark for validation
+    all_models_df = load_204_models()
     # Load REAL pricing and latency data
     pricing_df = load_model_pricing()
     
@@ -3656,10 +3757,10 @@ def mock_recommendation(context: dict) -> dict:
     
     # Use weighted_scores CSV for quality (already ranked by use case)
     if not weighted_df.empty:
-        # Get valid model names from the 206-model benchmark
+        # Get valid model names from the 204-model benchmark
         valid_models = set(all_models_df['Model Name'].dropna().tolist()) if not all_models_df.empty else set()
         
-        # Filter weighted_scores to only include models in the 206 benchmark
+        # Filter weighted_scores to only include models in the 204 benchmark
         weighted_df = weighted_df[weighted_df['Model Name'].isin(valid_models)] if valid_models else weighted_df
         
         # Get top 10 models from weighted scores (already sorted by use case quality)
@@ -4047,29 +4148,29 @@ def render_about_section(models_df: pd.DataFrame):
 </tr>
 <tr style="border-bottom: 1px solid rgba(255,255,255,0.2); background: rgba(238,0,0,0.1);">
     <td style="padding: 0.75rem; color: #EE0000 !important; font-weight: 600;">Balanced</td>
-    <td style="padding: 0.75rem; color: white !important;"><strong>ACCURACY-DOMINANT</strong>: 70% Accuracy + 30% avg(Latency, Cost) - ensures high-accuracy models win</td>
+    <td style="padding: 0.75rem; color: white !important;"><strong>TASK-OPTIMIZED</strong>: 70% (Accuracy + Task Bonus) + 30% avg(Latency, Cost) - diversifies recommendations per use case</td>
 </tr>
 </table>
         """, unsafe_allow_html=True)
         
-        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (Accuracy-Dominant Formula)</h4>', unsafe_allow_html=True)
-        st.code("BALANCED = Accuracy × 70% + avg(Latency, Cost) × 30%", language=None)
+        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (Task-Optimized Formula)</h4>', unsafe_allow_html=True)
+        st.code("BALANCED = (Accuracy + Task_Bonus) × 70% + avg(Latency, Cost) × 30%", language=None)
         st.markdown("""
 <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 1rem;">
-    <strong style="color: #EE0000;">Note:</strong> Priority adjustments (high accuracy, low latency, etc.) <strong>ONLY affect the Balanced score weights</strong>.
-    The other 3 categories always use RAW scores without any weighting.
+    <strong style="color: #EE0000;">Task Bonuses:</strong> Different model families get bonuses based on their strengths for specific use cases.
+    For example, <strong>DeepSeek</strong> gets +20 for code tasks, <strong>Qwen</strong> gets +20 for translation, <strong>MiniMax</strong> gets +18 for long documents.
 </p>
 <p style="color: rgba(255,255,255,0.8); margin-top: 0.5rem; font-size: 0.9rem;">
-    The formula ensures <strong style="color: #EE0000;">high-accuracy models always rank at the top</strong>, even if they have higher cost or latency.
-    A model with 80% accuracy will beat a model with 60% accuracy even if the 60% model has perfect cost/latency scores.
+    This ensures <strong style="color: #EE0000;">diverse, task-appropriate recommendations</strong> - the best code model for code, best multilingual for translation, etc.
+    The other 3 categories (Best Accuracy, Best Latency, Best Cost) still use RAW scores without task bonuses.
 </p>
 <p style="color: rgba(255,255,255,0.6); margin-top: 0.5rem; font-size: 0.85rem;">
-    <em>Example: Model A (Acc=80, Lat=70, Cost=40) → 80×0.7 + 55×0.3 = <strong>72.5</strong><br>
-    Model B (Acc=60, Lat=90, Cost=95) → 60×0.7 + 92.5×0.3 = <strong>69.75</strong> → A wins!</em>
+    <em>Example for Code task: GPT-OSS (Acc=67, Bonus=+12) → (67+12)×0.7 + 55×0.3 = <strong>71.8</strong><br>
+    DeepSeek (Acc=62, Bonus=+20) → (62+20)×0.7 + 60×0.3 = <strong>75.4</strong> → DeepSeek wins for code!</em>
 </p>
         """, unsafe_allow_html=True)
     
-    with st.expander("Model Catalog - Browse 206 open-source models", expanded=False):
+    with st.expander("Model Catalog - Browse 204 open-source models", expanded=False):
         render_catalog_content(models_df)
     
     with st.expander("How It Works - End-to-end pipeline documentation", expanded=False):
@@ -4114,7 +4215,7 @@ def render_how_it_works_content():
             </div>
             <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid white;">
                 <div style="font-weight: 700; color: white; margin-bottom: 0.5rem;">2. MCDM Scoring</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Score 206 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
+                <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Score 204 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
             </div>
             <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid #EE0000;">
                 <div style="font-weight: 700; color: #EE0000; margin-bottom: 0.5rem;">3. Recommendation</div>
@@ -4157,7 +4258,7 @@ def render_pipeline():
         <div class="pipeline-step">
             <div class="pipeline-number pipeline-number-2">2</div>
             <div class="pipeline-title">MCDM Scoring</div>
-            <div class="pipeline-desc">Score 206 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
+            <div class="pipeline-desc">Score 204 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
         </div>
         <div class="pipeline-step">
             <div class="pipeline-number pipeline-number-3">3</div>
@@ -4365,7 +4466,7 @@ def render_top5_table(recommendations: list, priority: str):
     # Helper to render a "Best" card
     def render_best_card(title, icon, color, rec, highlight_field):
         scores = get_scores(rec)
-        model_name = rec.get('model_name', 'Unknown')
+        model_name = format_display_name(rec.get('model_name', 'Unknown'))
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
@@ -4417,7 +4518,9 @@ def render_top5_table(recommendations: list, priority: str):
         rec = recs_list[current_idx]
         
         scores = get_scores(rec)
-        model_name = rec.get('model_name', 'Unknown')
+        # Normalize model name to Provider/Model format for display
+        raw_model_name = rec.get('model_name', 'Unknown')
+        model_name = format_display_name(raw_model_name)
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
@@ -5245,7 +5348,7 @@ def show_category_dialog():
     # Render each model in the top 5
     for i, rec in enumerate(top5_list):
         scores = get_model_scores(rec)
-        model_name = rec.get('model_name', 'Unknown')
+        model_name = format_display_name(rec.get('model_name', 'Unknown'))
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
@@ -5380,7 +5483,7 @@ def show_full_table_dialog():
             all_rows.append(f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td></tr>')
         else:
             for i, rec in enumerate(recs[:5]):  # Show top 5 per category
-                model_name = rec.get("model_name", "Unknown")
+                model_name = format_display_name(rec.get("model_name", "Unknown"))
                 gpu_config = rec.get("gpu_config", {})
                 gpu_str = format_gpu_config(gpu_config)
                 ttft = rec.get("predicted_ttft_p95_ms", 0)
@@ -5436,7 +5539,7 @@ def main():
     
     # Load models
     if st.session_state.models_df is None:
-        st.session_state.models_df = load_206_models()
+        st.session_state.models_df = load_204_models()
     models_df = st.session_state.models_df
     
     # Default priority
@@ -6924,7 +7027,7 @@ def render_how_it_works_tab():
     <div class="doc-section" style="color: #EE0000;">How Factors Affect Scoring</div>
     <table class="doc-table">
         <tr><th>Factor</th><th>Impact on Recommendation</th><th>Example</th></tr>
-        <tr><td><strong>Use Case</strong></td><td>Models are ranked by use-case-specific benchmarks from our 206-model evaluation. <span style="color: #EE0000;">Higher-ranked models for your use case get better Accuracy scores.</span></td><td>Code Completion → LiveCodeBench weighted heavily</td></tr>
+        <tr><td><strong>Use Case</strong></td><td>Models are ranked by use-case-specific benchmarks from our 204-model evaluation. <span style="color: #EE0000;">Higher-ranked models for your use case get better Accuracy scores.</span></td><td>Code Completion → LiveCodeBench weighted heavily</td></tr>
         <tr><td><strong>User Count</strong></td><td>High user counts increase importance of Capacity & Latency. <span style="color: #EE0000;">More users = need for faster, scalable models.</span></td><td>10K users → Capacity weight +15%</td></tr>
         <tr><td><strong>Hardware</strong></td><td>GPU type affects Cost & Throughput calculations. <span style="color: #EE0000;">Premium GPUs enable larger models.</span></td><td>H100 → Can run 70B+ models efficiently</td></tr>
         <tr><td><strong>Priority</strong></td><td>Dynamically shifts MCDM weight distribution. <span style="color: #EE0000;">Your priority becomes the dominant factor (45-50%).</span></td><td>"Cost Saving" → Cost weight = 50%</td></tr>
@@ -6933,7 +7036,7 @@ def render_how_it_works_tab():
     <div class="doc-section" style="color: #EE0000;">Use-Case Accuracy Scoring</div>
     <p style="color: rgba(255,255,255,0.9); line-height: 1.8; margin-bottom: 1rem;">
         Each use case has a dedicated <strong style="color: #EE0000;">Weighted Scores CSV</strong> (e.g., <code style="background: rgba(255,255,255,0.1); padding: 0.2rem 0.4rem; border-radius: 0.25rem;">opensource_chatbot_conversational.csv</code>) 
-        that ranks all 206 models based on relevant benchmarks for that task:
+        that ranks all 204 models based on relevant benchmarks for that task:
     </p>
     <table class="doc-table">
         <tr><th>Use Case</th><th>Primary Benchmarks</th><th>Top Model (Example)</th></tr>
