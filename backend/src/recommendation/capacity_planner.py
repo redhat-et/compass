@@ -199,17 +199,18 @@ class CapacityPlanner:
                 bench.requests_per_second, traffic_profile.expected_qps or 1.0
             )
 
-            # Create GPU config
+            # Create GPU config - gpu_count is PER REPLICA, not total
             gpu_config = GPUConfig(
                 gpu_type=bench.hardware,
-                gpu_count=bench.hardware_count * replicas,
+                gpu_count=bench.hardware_count,  # Per-replica GPU count
                 tensor_parallel=bench.hardware_count,
                 replicas=replicas,
             )
 
-            # Calculate cost
+            # Calculate cost using TOTAL GPUs (per-replica * replicas)
+            total_gpus = bench.hardware_count * replicas
             cost_per_hour = self.catalog.calculate_gpu_cost(
-                bench.hardware, gpu_config.gpu_count, hours_per_month=1
+                bench.hardware, total_gpus, hours_per_month=1
             )
 
             if cost_per_hour is None:
@@ -255,7 +256,7 @@ class CapacityPlanner:
             
             accuracy_score = int(raw_accuracy)
 
-            complexity_score = scorer.score_complexity(gpu_config.gpu_count)
+            complexity_score = scorer.score_complexity(total_gpus)  # Use total GPUs for complexity
 
             # Determine model_id and model_name
             # Use catalog info if available, otherwise use benchmark model_hf_repo

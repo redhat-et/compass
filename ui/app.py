@@ -5679,7 +5679,7 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
             "summarization_short": (4096, 512),
             "document_analysis_rag": (4096, 512),
             "long_document_summarization": (10240, 1536),
-            "research_legal_analysis": (4096, 1024),
+            "research_legal_analysis": (10240, 1536),  # Fixed: was (4096, 1024)
         }
         prompt_tokens, output_tokens = token_configs.get(use_case, (512, 256))
         
