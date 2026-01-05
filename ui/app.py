@@ -1558,7 +1558,11 @@ def load_research_slo_ranges():
 
 @st.cache_data
 def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int) -> dict:
-    """Get actual min-max ranges for each percentile from benchmark data for a specific token config."""
+    """Get actual min-max ranges for each percentile from benchmark data for a specific token config.
+    
+    OUTLIER FILTERING: Caps max values at realistic thresholds to exclude bad benchmark entries
+    (e.g., 24B models on L4 GPUs that result in 200+ second TTFT).
+    """
     try:
         json_path = DATA_DIR / "benchmarks_redhat_performance.json"
         with open(json_path, 'r') as f:
@@ -1573,19 +1577,33 @@ def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int
         if not matching:
             return {"config_count": 0}
         
-        # Calculate min/max for each percentile
+        # OUTLIER CAPS - realistic max values to filter bad benchmark entries
+        # Based on analysis: mean TTFT ~100-900ms, outliers are 200,000+ ms
+        OUTLIER_CAPS = {
+            'ttft': 10000,    # Cap TTFT at 10 seconds (outliers are 200+ seconds)
+            'itl': 500,       # Cap ITL at 500ms
+            'e2e': 120000,    # Cap E2E at 2 minutes (outliers are 5+ minutes)
+        }
+        
+        # Calculate min/max for each percentile with outlier filtering
         result = {"config_count": len(matching)}
         
         for percentile in ['mean', 'p90', 'p95', 'p99']:
             for metric in ['ttft', 'itl', 'e2e']:
                 key = f"{metric}_{percentile}"
-                vals = [b.get(key, 0) for b in matching if b.get(key) and b.get(key) > 0]
+                cap = OUTLIER_CAPS.get(metric, float('inf'))
+                
+                # Filter values: must be > 0 and below the outlier cap
+                vals = [b.get(key, 0) for b in matching 
+                        if b.get(key) and 0 < b.get(key) <= cap]
+                
                 if vals:
                     result[f"{key}_min"] = min(vals)
                     result[f"{key}_max"] = max(vals)
                 else:
+                    # Fallback if no values pass filter
                     result[f"{key}_min"] = 0
-                    result[f"{key}_max"] = 0
+                    result[f"{key}_max"] = cap
         
         return result
     except Exception:
@@ -4254,6 +4272,34 @@ def render_top5_table(recommendations: list, priority: str):
     </div>
     """, unsafe_allow_html=True)
     
+    # Show filter summary stats
+    ranked_response_stats = st.session_state.get("ranked_response", {})
+    total_configs = ranked_response_stats.get("total_configs_evaluated", 0)
+    passed_configs = ranked_response_stats.get("configs_after_filters", 0)
+    
+    # Count unique models from passed configs
+    all_passed = []
+    for cat in ["balanced", "best_accuracy", "lowest_cost", "lowest_latency", "simplest"]:
+        all_passed.extend(ranked_response_stats.get(cat, []))
+    unique_models = len(set(r.get("model_name", "") for r in all_passed if r.get("model_name")))
+    
+    if total_configs > 0:
+        filter_pct = (passed_configs / total_configs * 100) if total_configs > 0 else 0
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 0.6rem 1rem;
+                    background: rgba(238,0,0,0.08); border-radius: 8px; border: 1px solid rgba(238,0,0,0.2);">
+            <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                <strong style="color: #10B981;">{passed_configs:,}</strong> configs passed SLO filter 
+                from <strong>{total_configs:,}</strong> total 
+                <span style="color: rgba(255,255,255,0.4);">({filter_pct:.0f}% match)</span>
+            </span>
+            <span style="color: rgba(255,255,255,0.5);">|</span>
+            <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                <strong style="color: #EE0000;">{unique_models}</strong> unique models
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+    
     # Get use case for raw accuracy lookup
     use_case = st.session_state.get("detected_use_case", "chatbot_conversational")
     
@@ -4427,7 +4473,7 @@ def render_top5_table(recommendations: list, priority: str):
 <span style="color: {color}; font-weight: 700; font-size: 1.3rem;">{title}</span>
 <span style="color: rgba(255,255,255,0.5); font-size: 1rem;">{current_idx + 1}/{total}</span>
                         </div>
-<div style="color: white; font-weight: 700; font-size: 1.6rem; margin-bottom: 1.25rem;">{model_name}</div>
+<div style="color: white; font-weight: 700; font-size: 1.6rem; margin-bottom: 1.25rem; text-transform: uppercase;">{model_name}</div>
 <div style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem;">
 <div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
 <div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Hardware</div>
@@ -6176,15 +6222,22 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
             for key in keys_to_clear:
                 if key in st.session_state:
                     del st.session_state[key]
-            # Switch to Tab 1 (Define Use Case)
-            import streamlit.components.v1 as components
-            components.html("""
-            <script>
+            # Set flag to switch to Tab 1 after rerun
+            st.session_state.switch_to_tab1 = True
+            st.rerun()
+    
+    # Check if we need to switch to Tab 1 (after New Case button)
+    if st.session_state.get('switch_to_tab1', False):
+        st.session_state.switch_to_tab1 = False
+        import streamlit.components.v1 as components
+        components.html("""
+        <script>
+            setTimeout(function() {
                 const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
                 if (tabs.length > 0) tabs[0].click();
-            </script>
-            """, height=0)
-            st.rerun()
+            }, 100);
+        </script>
+        """, height=0)
 
 
 def _render_winner_details(winner: dict, priority: str, extraction: dict):
