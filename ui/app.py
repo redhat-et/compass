@@ -4780,7 +4780,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         # CSS for SLO inputs - white borders, white text, red arrows
         st.markdown("""
         <style>
@@ -4844,63 +4844,9 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             [data-baseweb="menu"] li:hover {
                 background: rgba(238, 0, 0, 0.3) !important;
             }
-            /* Checkbox text - BOLD WHITE */
-            .stCheckbox label p, .stCheckbox label span {
-                color: white !important;
-                font-weight: 700 !important;
-            }
-            .stCheckbox label {
-                color: white !important;
-            }
         </style>
         """, unsafe_allow_html=True)
-        
-        # === ROW 1: Metric + Percentile dropdowns side by side ===
-        metric_col, percentile_col = st.columns(2)
-        
-        with metric_col:
-            metric_options = ["TTFT", "ITL", "E2E"]
-            # Use the widget key directly as the source of truth
-            if 'metric_selector_val' not in st.session_state:
-                st.session_state.metric_selector_val = "TTFT"
-            
-            # Get current index safely
-            current_metric = st.session_state.metric_selector_val
-            if current_metric not in metric_options:
-                current_metric = "TTFT"
-            
-            primary_metric = st.selectbox(
-                "Filter by Metric",
-                metric_options,
-                index=metric_options.index(current_metric),
-                key="metric_selector",
-                help="Primary latency metric to filter configurations"
-            )
-            # Update our tracking variable
-            st.session_state.metric_selector_val = primary_metric
-            st.session_state.slo_primary_metric = primary_metric
-        
-        with percentile_col:
-            percentile_options = ["Mean", "P90", "P95", "P99"]
-            percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
-            percentile_help = {
-                "Mean": "Mean = Average of all requests",
-                "P90": "P90 = 90% of requests meet target",
-                "P95": "P95 = 95% of requests meet target (default)",
-                "P99": "P99 = 99% of requests meet target (strictest)"
-            }
-            reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
-            current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
-            
-            selected_percentile = st.selectbox(
-                "Percentile",
-                percentile_options,
-                index=percentile_options.index(current_percentile_display),
-                key="percentile_selector",
-                help=percentile_help.get(current_percentile_display, "Select percentile")
-            )
-            st.session_state.slo_percentile = percentile_map[selected_percentile]
-        
+
         # Load research data and get use-case specific ranges
         research_data = load_research_slo_ranges()
         use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
@@ -4908,106 +4854,96 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         prompt_tokens = token_config.get('prompt', 512)
         output_tokens = token_config.get('output', 256)
         benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
-        
-        percentile_key = st.session_state.slo_percentile
-        percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
-        
-        # Get ranges for this percentile
-        ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
-        ttft_max = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
-        itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
-        itl_max = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
-        e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
-        e2e_max = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
-        
-        # Initialize filter checkboxes
-        if 'filter_ttft' not in st.session_state:
-            st.session_state.filter_ttft = False
-        if 'filter_itl' not in st.session_state:
-            st.session_state.filter_itl = False
-        if 'filter_e2e' not in st.session_state:
-            st.session_state.filter_e2e = False
-        
-        # === PRIMARY METRIC INPUT (number input with +/-) ===
-        # Initialize widget keys DIRECTLY - Streamlit manages state via keys
-        # DO NOT use 'value' parameter when using 'key' - causes reset bug!
-        if 'input_ttft' not in st.session_state:
-            st.session_state.input_ttft = ttft_max
-        if 'input_itl' not in st.session_state:
-            st.session_state.input_itl = itl_max
-        if 'input_e2e' not in st.session_state:
-            st.session_state.input_e2e = e2e_max
-        
-        st.markdown(f'''<div style="margin-top: 1rem; margin-bottom: 0.25rem;">
-            <span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">● {primary_metric} ({percentile_display}) &lt;</span>
-            <span style="color: rgba(255,255,255,0.5); font-size: 0.75rem; float: right;">Primary filter</span>
-        </div>''', unsafe_allow_html=True)
-        
+
+        # Percentile options
+        percentile_options = ["P50", "P90", "P95", "P99"]
+        percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
+        reverse_map = {"p50": "P50", "p90": "P90", "p95": "P95", "p99": "P99"}
+
+        # Initialize percentile states for each metric
+        if 'ttft_percentile' not in st.session_state:
+            st.session_state.ttft_percentile = "p95"
+        if 'itl_percentile' not in st.session_state:
+            st.session_state.itl_percentile = "p95"
+        if 'e2e_percentile' not in st.session_state:
+            st.session_state.e2e_percentile = "p95"
+
         # Track previous SLO values to detect changes
         prev_ttft = st.session_state.get("_last_ttft")
         prev_itl = st.session_state.get("_last_itl")
         prev_e2e = st.session_state.get("_last_e2e")
-        
-        if primary_metric == "TTFT":
-            # Let Streamlit manage via key - no 'value' parameter!
-            st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
+
+        # Helper function to get range for a metric and percentile
+        def get_metric_range(metric: str, percentile_key: str) -> tuple:
+            if metric == "ttft":
+                return (
+                    int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15)),
+                    int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
+                )
+            elif metric == "itl":
+                return (
+                    int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3)),
+                    int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
+                )
+            else:  # e2e
+                return (
+                    int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800)),
+                    int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
+                )
+
+        # === TTFT ===
+        ttft_min, ttft_max = get_metric_range("ttft", st.session_state.ttft_percentile)
+        if 'input_ttft' not in st.session_state:
+            st.session_state.input_ttft = ttft_max
+
+        st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
+        ttft_val_col, ttft_pct_col = st.columns([2, 1])
+        with ttft_val_col:
+            st.number_input("TTFT value", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
             st.session_state.custom_ttft = st.session_state.input_ttft
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
-        elif primary_metric == "ITL":
-            st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
+        with ttft_pct_col:
+            ttft_pct_display = reverse_map.get(st.session_state.ttft_percentile, "P95")
+            selected_ttft_pct = st.selectbox("TTFT percentile", percentile_options, index=percentile_options.index(ttft_pct_display), key="ttft_pct_selector", label_visibility="collapsed")
+            st.session_state.ttft_percentile = percentile_map[selected_ttft_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
+
+        # === ITL ===
+        itl_min, itl_max = get_metric_range("itl", st.session_state.itl_percentile)
+        if 'input_itl' not in st.session_state:
+            st.session_state.input_itl = itl_max
+
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
+        itl_val_col, itl_pct_col = st.columns([2, 1])
+        with itl_val_col:
+            st.number_input("ITL value", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
             st.session_state.custom_itl = st.session_state.input_itl
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min} - {itl_max} ms</div>', unsafe_allow_html=True)
-        else:  # E2E
-            st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
+        with itl_pct_col:
+            itl_pct_display = reverse_map.get(st.session_state.itl_percentile, "P95")
+            selected_itl_pct = st.selectbox("ITL percentile", percentile_options, index=percentile_options.index(itl_pct_display), key="itl_pct_selector", label_visibility="collapsed")
+            st.session_state.itl_percentile = percentile_map[selected_itl_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min:,} - {itl_max:,} ms</div>', unsafe_allow_html=True)
+
+        # === E2E ===
+        e2e_min, e2e_max = get_metric_range("e2e", st.session_state.e2e_percentile)
+        if 'input_e2e' not in st.session_state:
+            st.session_state.input_e2e = e2e_max
+
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
+        e2e_val_col, e2e_pct_col = st.columns([2, 1])
+        with e2e_val_col:
+            st.number_input("E2E value", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
             st.session_state.custom_e2e = st.session_state.input_e2e
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
-        
-        # === OPTIONAL SECONDARY FILTERS ===
-        st.markdown('''<div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.15);">
-            <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Additional filters (click to enable):</span>
-        </div>''', unsafe_allow_html=True)
-        
-        # Show checkboxes + number inputs for non-primary metrics
-        # Initialize secondary input keys
-        if 'input_ttft_sec' not in st.session_state:
-            st.session_state.input_ttft_sec = ttft_max
-        if 'input_itl_sec' not in st.session_state:
-            st.session_state.input_itl_sec = itl_max
-        if 'input_e2e_sec' not in st.session_state:
-            st.session_state.input_e2e_sec = e2e_max
-        
-        if primary_metric != "TTFT":
-            filter_ttft = st.checkbox(f"TTFT ({percentile_display})", value=st.session_state.filter_ttft, key="chk_ttft")
-            st.session_state.filter_ttft = filter_ttft
-            if filter_ttft:
-                st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft_sec", label_visibility="collapsed")
-                st.session_state.custom_ttft = st.session_state.input_ttft_sec
-            else:
-                st.session_state.custom_ttft = ttft_max
-        
-        if primary_metric != "ITL":
-            filter_itl = st.checkbox(f"ITL ({percentile_display})", value=st.session_state.filter_itl, key="chk_itl")
-            st.session_state.filter_itl = filter_itl
-            if filter_itl:
-                st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl_sec", label_visibility="collapsed")
-                st.session_state.custom_itl = st.session_state.input_itl_sec
-            else:
-                st.session_state.custom_itl = itl_max
-        
-        if primary_metric != "E2E":
-            filter_e2e = st.checkbox(f"E2E ({percentile_display})", value=st.session_state.filter_e2e, key="chk_e2e")
-            st.session_state.filter_e2e = filter_e2e
-            if filter_e2e:
-                st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e_sec", label_visibility="collapsed")
-                st.session_state.custom_e2e = st.session_state.input_e2e_sec
-            else:
-                st.session_state.custom_e2e = e2e_max
-        
+        with e2e_pct_col:
+            e2e_pct_display = reverse_map.get(st.session_state.e2e_percentile, "P95")
+            selected_e2e_pct = st.selectbox("E2E percentile", percentile_options, index=percentile_options.index(e2e_pct_display), key="e2e_pct_selector", label_visibility="collapsed")
+            st.session_state.e2e_percentile = percentile_map[selected_e2e_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
+
         # Check if SLO values changed - if so, clear recommendation cache
         curr_ttft = st.session_state.get("custom_ttft")
         curr_itl = st.session_state.get("custom_itl")
         curr_e2e = st.session_state.get("custom_e2e")
-        
+
         if (curr_ttft != prev_ttft or curr_itl != prev_itl or curr_e2e != prev_e2e):
             # SLO values changed - invalidate recommendation cache
             if st.session_state.get("recommendation_result"):
