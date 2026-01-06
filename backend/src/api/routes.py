@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from ..context_intent.extractor import IntentExtractor
 from ..context_intent.schema import (
     ConversationMessage,
     DeploymentRecommendation,
@@ -113,6 +114,12 @@ class DeploymentStatusResponse(BaseModel):
     cost_analysis: dict
     traffic_patterns: dict
     recommendations: list[str] | None = None
+
+
+class ExtractRequest(BaseModel):
+    """Request for intent extraction from natural language."""
+
+    text: str
 
 
 # Health check endpoint
@@ -244,6 +251,191 @@ async def list_use_cases():
         }
     except Exception as e:
         logger.error(f"Failed to list use cases: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/v1/extract")
+async def extract_intent(request: ExtractRequest):
+    """Extract business context from natural language using LLM.
+
+    Takes a user's natural language description of their deployment needs
+    and extracts structured intent using Ollama (Qwen 2.5 7B).
+
+    Args:
+        request: ExtractRequest with 'text' field containing user input
+
+    Returns:
+        Structured intent with use_case, user_count, priority, etc.
+    """
+    logger.info("=" * 60)
+    logger.info("EXTRACT INTENT REQUEST")
+    logger.info("=" * 60)
+    logger.info(f"  Input text: {request.text[:200]}{'...' if len(request.text) > 200 else ''}")
+
+    try:
+        # Create intent extractor (uses workflow's LLM client)
+        intent_extractor = IntentExtractor(workflow.llm_client)
+
+        # Extract intent from natural language
+        intent = intent_extractor.extract_intent(request.text)
+
+        # Infer any missing fields based on use case
+        intent = intent_extractor.infer_missing_fields(intent)
+
+        logger.info(f"  Extracted use_case: {intent.use_case}")
+        logger.info(f"  Extracted user_count: {intent.user_count}")
+        logger.info(f"  Extracted priority: {intent.latency_requirement}")
+        logger.info("=" * 60)
+
+        # Return as dict for JSON serialization
+        # Map latency_requirement to 'priority' for UI compatibility
+        result = intent.model_dump()
+        result["priority"] = intent.latency_requirement
+        return result
+
+    except ValueError as e:
+        logger.error(f"Intent extraction failed: {e}")
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Unexpected error during intent extraction: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+def _round_to_nearest(value: float, nearest: int = 5) -> int:
+    """Round a value to the nearest multiple of `nearest`."""
+    return int(round(value / nearest) * nearest)
+
+
+def _calculate_percentile_value(min_val: int, max_val: int, percentile: float = 0.75) -> int:
+    """Calculate value at given percentile between min and max, rounded to nearest 5."""
+    value = min_val + (max_val - min_val) * percentile
+    return _round_to_nearest(value, 5)
+
+
+@app.get("/api/v1/slo-defaults/{use_case}")
+async def get_slo_defaults(use_case: str):
+    """Get default SLO values for a use case.
+
+    Returns SLO targets at the 75th percentile between min and max,
+    rounded to the nearest 5.
+    """
+    try:
+        import json
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+
+        if not json_path.exists():
+            logger.error(f"SLO workload config not found at: {json_path}")
+            raise HTTPException(status_code=404, detail="SLO workload configuration not found")
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        use_case_data = data.get("use_case_slo_workload", {}).get(use_case)
+        if not use_case_data:
+            raise HTTPException(status_code=404, detail=f"Use case '{use_case}' not found")
+
+        slo_targets = use_case_data.get("slo_targets", {})
+
+        # Get SLO ranges - fail if data is missing
+        ttft = slo_targets["ttft_ms"]
+        itl = slo_targets["itl_ms"]
+        e2e = slo_targets["e2e_ms"]
+
+        defaults = {
+            "use_case": use_case,
+            "description": use_case_data.get("description", ""),
+            "ttft_ms": {
+                "min": ttft["min"],
+                "max": ttft["max"],
+                "default": _calculate_percentile_value(ttft["min"], ttft["max"], 0.75)
+            },
+            "itl_ms": {
+                "min": itl["min"],
+                "max": itl["max"],
+                "default": _calculate_percentile_value(itl["min"], itl["max"], 0.75)
+            },
+            "e2e_ms": {
+                "min": e2e["min"],
+                "max": e2e["max"],
+                "default": _calculate_percentile_value(e2e["min"], e2e["max"], 0.75)
+            }
+        }
+
+        return {"success": True, "slo_defaults": defaults}
+
+    except HTTPException:
+        raise
+    except KeyError as e:
+        logger.error(f"Missing SLO data for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=f"Missing SLO data: {e}") from e
+    except Exception as e:
+        logger.error(f"Failed to get SLO defaults for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.get("/api/v1/expected-rps/{use_case}")
+async def get_expected_rps(use_case: str, user_count: int = 1000):
+    """Calculate expected RPS for a use case based on workload patterns.
+
+    Uses research-backed workload distribution parameters:
+    - active_fraction: percentage of users active at any time
+    - requests_per_active_user_per_min: request rate per active user
+
+    Formula: expected_rps = (user_count * active_fraction * requests_per_min) / 60
+    """
+    try:
+        import json
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+
+        if not json_path.exists():
+            logger.error(f"SLO workload config not found at: {json_path}")
+            raise HTTPException(status_code=404, detail="SLO workload configuration not found")
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        use_case_data = data.get("use_case_slo_workload", {}).get(use_case)
+        if not use_case_data:
+            raise HTTPException(status_code=404, detail=f"Use case '{use_case}' not found")
+
+        workload = use_case_data.get("workload", {})
+
+        # Get workload parameters - fail if missing
+        active_fraction = workload["active_fraction"]
+        requests_per_min = workload["requests_per_active_user_per_min"]
+        peak_multiplier = workload.get("peak_multiplier", 2.0)
+        distribution = workload.get("distribution", "poisson")
+
+        # Calculate expected RPS using research-based formula
+        expected_concurrent = int(user_count * active_fraction)
+        expected_rps = (expected_concurrent * requests_per_min) / 60
+        expected_rps = max(1, round(expected_rps, 2))  # Minimum 1 RPS, round to 2 decimals
+
+        # Calculate peak RPS for capacity planning
+        peak_rps = expected_rps * peak_multiplier
+
+        return {
+            "success": True,
+            "use_case": use_case,
+            "user_count": user_count,
+            "workload_params": {
+                "active_fraction": active_fraction,
+                "requests_per_active_user_per_min": requests_per_min,
+                "peak_multiplier": peak_multiplier,
+                "distribution": distribution
+            },
+            "expected_rps": expected_rps,
+            "expected_concurrent_users": expected_concurrent,
+            "peak_rps": round(peak_rps, 2)
+        }
+
+    except HTTPException:
+        raise
+    except KeyError as e:
+        logger.error(f"Missing workload data for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=f"Missing workload data: {e}") from e
+    except Exception as e:
+        logger.error(f"Failed to calculate expected RPS for {use_case}: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
@@ -589,23 +781,40 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         itl_target = request.get_itl_target()
         e2e_target = request.get_e2e_target()
         percentile = request.percentile
-        
-        logger.info(
-            f"Received ranked recommendation from spec: use_case={request.use_case}, "
-            f"user_count={request.user_count}, qps={request.expected_qps}"
-        )
-        logger.info(
-            f"  SLO targets ({percentile}): TTFT={ttft_target}ms, "
-            f"ITL={itl_target}ms, E2E={e2e_target}ms"
-        )
-        logger.info(
-            f"  Token config: {request.prompt_tokens} -> {request.output_tokens}"
-        )
+
+        # Log complete request for debugging
+        logger.info("=" * 60)
+        logger.info("RANKED-RECOMMEND-FROM-SPEC REQUEST")
+        logger.info("=" * 60)
+        logger.info(f"  use_case: {request.use_case}")
+        logger.info(f"  user_count: {request.user_count}")
+        logger.info(f"  latency_requirement: {request.latency_requirement}")
+        logger.info(f"  budget_constraint: {request.budget_constraint}")
+        logger.info(f"  hardware_preference: {request.hardware_preference}")
+        logger.info(f"  prompt_tokens: {request.prompt_tokens}")
+        logger.info(f"  output_tokens: {request.output_tokens}")
+        logger.info(f"  expected_qps: {request.expected_qps}")
+        logger.info(f"  percentile: {percentile}")
+        logger.info(f"  ttft_target_ms (raw): {request.ttft_target_ms}")
+        logger.info(f"  itl_target_ms (raw): {request.itl_target_ms}")
+        logger.info(f"  e2e_target_ms (raw): {request.e2e_target_ms}")
+        logger.info(f"  ttft_p95_target_ms (legacy): {request.ttft_p95_target_ms}")
+        logger.info(f"  itl_p95_target_ms (legacy): {request.itl_p95_target_ms}")
+        logger.info(f"  e2e_p95_target_ms (legacy): {request.e2e_p95_target_ms}")
+        logger.info(f"  -> Resolved TTFT: {ttft_target}ms")
+        logger.info(f"  -> Resolved ITL: {itl_target}ms")
+        logger.info(f"  -> Resolved E2E: {e2e_target}ms")
+        logger.info(f"  min_accuracy: {request.min_accuracy}")
+        logger.info(f"  max_cost: {request.max_cost}")
+        logger.info(f"  include_near_miss: {request.include_near_miss}")
         if request.weights:
             logger.info(
-                f"  Weights: A={request.weights.accuracy}, P={request.weights.price}, "
-                f"L={request.weights.latency}, C={request.weights.complexity}"
+                f"  weights: accuracy={request.weights.accuracy}, price={request.weights.price}, "
+                f"latency={request.weights.latency}, complexity={request.weights.complexity}"
             )
+        else:
+            logger.info("  weights: None (using defaults)")
+        logger.info("=" * 60)
 
         # Build specifications dict for workflow
         specifications = {

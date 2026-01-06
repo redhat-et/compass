@@ -2020,6 +2020,55 @@ def _get_hardware_selection_reason(priority: str, hw_option: dict, slo_targets: 
 # RANKED RECOMMENDATIONS (Backend API Integration)
 # =============================================================================
 
+@st.cache_data(ttl=300)
+def fetch_slo_defaults(use_case: str) -> dict | None:
+    """Fetch default SLO values for a use case from the backend API.
+
+    Returns dict with ttft_ms, itl_ms, e2e_ms each containing min, max, default.
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/slo-defaults/{use_case}",
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data.get("slo_defaults")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch SLO defaults for {use_case}: {e}")
+        return None
+
+
+@st.cache_data(ttl=300)
+def fetch_expected_rps(use_case: str, user_count: int) -> dict | None:
+    """Fetch expected RPS for a use case from the backend API.
+
+    Uses research-backed workload patterns to calculate:
+    - expected_rps: average requests per second
+    - peak_rps: peak capacity needed
+    - workload_params: active_fraction, requests_per_min, etc.
+
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/expected-rps/{use_case}",
+            params={"user_count": user_count},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch expected RPS for {use_case}: {e}")
+        return None
+
+
 def fetch_ranked_recommendations(
     use_case: str,
     user_count: int,
@@ -3157,13 +3206,13 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
         # Extract values from business_context for the API
         use_case = business_context.get("use_case", "chatbot_conversational")
         priority = business_context.get("priority", "balanced")
-        user_count = business_context.get("user_count", 30)
+        user_count = business_context.get("user_count", 1000)
         prompt_tokens = business_context.get("prompt_tokens", 512)
         output_tokens = business_context.get("output_tokens", 256)
-        expected_qps = business_context.get("expected_qps", user_count)
-        ttft_target = business_context.get("ttft_p95_target_ms", 5000)
-        itl_target = business_context.get("itl_p95_target_ms", 200)
-        e2e_target = business_context.get("e2e_p95_target_ms", 60000)
+        expected_qps = business_context.get("expected_qps", 1)  # Default to 1 RPS, not user_count!
+        ttft_target = business_context.get("ttft_p95_target_ms", 500)
+        itl_target = business_context.get("itl_p95_target_ms", 50)
+        e2e_target = business_context.get("e2e_p95_target_ms", 10000)
         percentile = business_context.get("percentile", "p95")
         
         # Use the ranked-recommend-from-spec endpoint with proper fields
@@ -4747,10 +4796,27 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     ttft_default = int(ttft_max_raw * ttft_factor)
     itl_default = int(itl_max_raw * itl_factor)
     e2e_default = int(e2e_max_raw * e2e_factor)
-    
-    # Calculate QPS based on user count
-    estimated_qps = max(1, user_count // 50)
-    
+
+    # Fetch expected RPS from backend using research-based workload patterns
+    rps_data = fetch_expected_rps(use_case, user_count)
+    if rps_data:
+        estimated_qps = int(rps_data.get("expected_rps", 1))
+    else:
+        # Fallback to simple heuristic if API fails
+        estimated_qps = max(1, user_count // 50)
+
+    # Track if use_case or user_count changed - if so, reset custom_qps to use new default
+    last_use_case = st.session_state.get("_last_rps_use_case")
+    last_user_count = st.session_state.get("_last_rps_user_count")
+    if last_use_case != use_case or last_user_count != user_count:
+        # Use case or user count changed - reset to new calculated default
+        st.session_state.custom_qps = None
+        st.session_state._last_rps_use_case = use_case
+        st.session_state._last_rps_user_count = user_count
+        # Clear the widget key to force re-render with new value
+        if "edit_qps" in st.session_state:
+            del st.session_state["edit_qps"]
+
     # Use custom values if set, otherwise use MAX as default (shows all configs)
     # Ensure all values are integers for slider compatibility
     ttft = int(st.session_state.custom_ttft) if st.session_state.custom_ttft else ttft_default
@@ -4780,7 +4846,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         # CSS for SLO inputs - white borders, white text, red arrows
         st.markdown("""
         <style>
@@ -4844,63 +4910,9 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             [data-baseweb="menu"] li:hover {
                 background: rgba(238, 0, 0, 0.3) !important;
             }
-            /* Checkbox text - BOLD WHITE */
-            .stCheckbox label p, .stCheckbox label span {
-                color: white !important;
-                font-weight: 700 !important;
-            }
-            .stCheckbox label {
-                color: white !important;
-            }
         </style>
         """, unsafe_allow_html=True)
-        
-        # === ROW 1: Metric + Percentile dropdowns side by side ===
-        metric_col, percentile_col = st.columns(2)
-        
-        with metric_col:
-            metric_options = ["TTFT", "ITL", "E2E"]
-            # Use the widget key directly as the source of truth
-            if 'metric_selector_val' not in st.session_state:
-                st.session_state.metric_selector_val = "TTFT"
-            
-            # Get current index safely
-            current_metric = st.session_state.metric_selector_val
-            if current_metric not in metric_options:
-                current_metric = "TTFT"
-            
-            primary_metric = st.selectbox(
-                "Filter by Metric",
-                metric_options,
-                index=metric_options.index(current_metric),
-                key="metric_selector",
-                help="Primary latency metric to filter configurations"
-            )
-            # Update our tracking variable
-            st.session_state.metric_selector_val = primary_metric
-            st.session_state.slo_primary_metric = primary_metric
-        
-        with percentile_col:
-            percentile_options = ["Mean", "P90", "P95", "P99"]
-            percentile_map = {"Mean": "mean", "P90": "p90", "P95": "p95", "P99": "p99"}
-            percentile_help = {
-                "Mean": "Mean = Average of all requests",
-                "P90": "P90 = 90% of requests meet target",
-                "P95": "P95 = 95% of requests meet target (default)",
-                "P99": "P99 = 99% of requests meet target (strictest)"
-            }
-            reverse_map = {"mean": "Mean", "p90": "P90", "p95": "P95", "p99": "P99"}
-            current_percentile_display = reverse_map.get(st.session_state.slo_percentile, "P95")
-            
-            selected_percentile = st.selectbox(
-                "Percentile",
-                percentile_options,
-                index=percentile_options.index(current_percentile_display),
-                key="percentile_selector",
-                help=percentile_help.get(current_percentile_display, "Select percentile")
-            )
-            st.session_state.slo_percentile = percentile_map[selected_percentile]
-        
+
         # Load research data and get use-case specific ranges
         research_data = load_research_slo_ranges()
         use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
@@ -4908,106 +4920,102 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         prompt_tokens = token_config.get('prompt', 512)
         output_tokens = token_config.get('output', 256)
         benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
-        
-        percentile_key = st.session_state.slo_percentile
-        percentile_display = selected_percentile.upper() if selected_percentile != "Mean" else "Mean"
-        
-        # Get ranges for this percentile
-        ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
-        ttft_max = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
-        itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
-        itl_max = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
-        e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
-        e2e_max = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
-        
-        # Initialize filter checkboxes
-        if 'filter_ttft' not in st.session_state:
-            st.session_state.filter_ttft = False
-        if 'filter_itl' not in st.session_state:
-            st.session_state.filter_itl = False
-        if 'filter_e2e' not in st.session_state:
-            st.session_state.filter_e2e = False
-        
-        # === PRIMARY METRIC INPUT (number input with +/-) ===
-        # Initialize widget keys DIRECTLY - Streamlit manages state via keys
-        # DO NOT use 'value' parameter when using 'key' - causes reset bug!
-        if 'input_ttft' not in st.session_state:
-            st.session_state.input_ttft = ttft_max
-        if 'input_itl' not in st.session_state:
-            st.session_state.input_itl = itl_max
-        if 'input_e2e' not in st.session_state:
-            st.session_state.input_e2e = e2e_max
-        
-        st.markdown(f'''<div style="margin-top: 1rem; margin-bottom: 0.25rem;">
-            <span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">● {primary_metric} ({percentile_display}) &lt;</span>
-            <span style="color: rgba(255,255,255,0.5); font-size: 0.75rem; float: right;">Primary filter</span>
-        </div>''', unsafe_allow_html=True)
-        
+
+        # Percentile options
+        percentile_options = ["P50", "P90", "P95", "P99"]
+        percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
+        reverse_map = {"p50": "P50", "p90": "P90", "p95": "P95", "p99": "P99"}
+
+        # Initialize percentile states for each metric
+        if 'ttft_percentile' not in st.session_state:
+            st.session_state.ttft_percentile = "p95"
+        if 'itl_percentile' not in st.session_state:
+            st.session_state.itl_percentile = "p95"
+        if 'e2e_percentile' not in st.session_state:
+            st.session_state.e2e_percentile = "p95"
+
         # Track previous SLO values to detect changes
         prev_ttft = st.session_state.get("_last_ttft")
         prev_itl = st.session_state.get("_last_itl")
         prev_e2e = st.session_state.get("_last_e2e")
-        
-        if primary_metric == "TTFT":
-            # Let Streamlit manage via key - no 'value' parameter!
-            st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
+
+        # Fetch use-case specific SLO defaults from backend API
+        slo_defaults = fetch_slo_defaults(use_case)
+        default_ttft = slo_defaults["ttft_ms"]["default"] if slo_defaults else 500
+        default_itl = slo_defaults["itl_ms"]["default"] if slo_defaults else 50
+        default_e2e = slo_defaults["e2e_ms"]["default"] if slo_defaults else 10000
+
+        # Helper function to get range for a metric and percentile
+        def get_metric_range(metric: str, percentile_key: str) -> tuple:
+            if metric == "ttft":
+                return (
+                    int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15)),
+                    int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
+                )
+            elif metric == "itl":
+                return (
+                    int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3)),
+                    int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
+                )
+            else:  # e2e
+                return (
+                    int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800)),
+                    int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
+                )
+
+        # === TTFT ===
+        ttft_min, ttft_max = get_metric_range("ttft", st.session_state.ttft_percentile)
+        if 'input_ttft' not in st.session_state:
+            st.session_state.input_ttft = default_ttft
+
+        st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
+        ttft_val_col, ttft_pct_col = st.columns([2, 1])
+        with ttft_val_col:
+            st.number_input("TTFT value", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
             st.session_state.custom_ttft = st.session_state.input_ttft
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
-        elif primary_metric == "ITL":
-            st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
+        with ttft_pct_col:
+            ttft_pct_display = reverse_map.get(st.session_state.ttft_percentile, "P95")
+            selected_ttft_pct = st.selectbox("TTFT percentile", percentile_options, index=percentile_options.index(ttft_pct_display), key="ttft_pct_selector", label_visibility="collapsed")
+            st.session_state.ttft_percentile = percentile_map[selected_ttft_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
+
+        # === ITL ===
+        itl_min, itl_max = get_metric_range("itl", st.session_state.itl_percentile)
+        if 'input_itl' not in st.session_state:
+            st.session_state.input_itl = default_itl
+
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
+        itl_val_col, itl_pct_col = st.columns([2, 1])
+        with itl_val_col:
+            st.number_input("ITL value", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
             st.session_state.custom_itl = st.session_state.input_itl
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min} - {itl_max} ms</div>', unsafe_allow_html=True)
-        else:  # E2E
-            st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
+        with itl_pct_col:
+            itl_pct_display = reverse_map.get(st.session_state.itl_percentile, "P95")
+            selected_itl_pct = st.selectbox("ITL percentile", percentile_options, index=percentile_options.index(itl_pct_display), key="itl_pct_selector", label_visibility="collapsed")
+            st.session_state.itl_percentile = percentile_map[selected_itl_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min:,} - {itl_max:,} ms</div>', unsafe_allow_html=True)
+
+        # === E2E ===
+        e2e_min, e2e_max = get_metric_range("e2e", st.session_state.e2e_percentile)
+        if 'input_e2e' not in st.session_state:
+            st.session_state.input_e2e = default_e2e
+
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
+        e2e_val_col, e2e_pct_col = st.columns([2, 1])
+        with e2e_val_col:
+            st.number_input("E2E value", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
             st.session_state.custom_e2e = st.session_state.input_e2e
-            st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
-        
-        # === OPTIONAL SECONDARY FILTERS ===
-        st.markdown('''<div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.15);">
-            <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Additional filters (click to enable):</span>
-        </div>''', unsafe_allow_html=True)
-        
-        # Show checkboxes + number inputs for non-primary metrics
-        # Initialize secondary input keys
-        if 'input_ttft_sec' not in st.session_state:
-            st.session_state.input_ttft_sec = ttft_max
-        if 'input_itl_sec' not in st.session_state:
-            st.session_state.input_itl_sec = itl_max
-        if 'input_e2e_sec' not in st.session_state:
-            st.session_state.input_e2e_sec = e2e_max
-        
-        if primary_metric != "TTFT":
-            filter_ttft = st.checkbox(f"TTFT ({percentile_display})", value=st.session_state.filter_ttft, key="chk_ttft")
-            st.session_state.filter_ttft = filter_ttft
-            if filter_ttft:
-                st.number_input("TTFT", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft_sec", label_visibility="collapsed")
-                st.session_state.custom_ttft = st.session_state.input_ttft_sec
-            else:
-                st.session_state.custom_ttft = ttft_max
-        
-        if primary_metric != "ITL":
-            filter_itl = st.checkbox(f"ITL ({percentile_display})", value=st.session_state.filter_itl, key="chk_itl")
-            st.session_state.filter_itl = filter_itl
-            if filter_itl:
-                st.number_input("ITL", min_value=itl_min, max_value=itl_max, step=10, key="input_itl_sec", label_visibility="collapsed")
-                st.session_state.custom_itl = st.session_state.input_itl_sec
-            else:
-                st.session_state.custom_itl = itl_max
-        
-        if primary_metric != "E2E":
-            filter_e2e = st.checkbox(f"E2E ({percentile_display})", value=st.session_state.filter_e2e, key="chk_e2e")
-            st.session_state.filter_e2e = filter_e2e
-            if filter_e2e:
-                st.number_input("E2E", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e_sec", label_visibility="collapsed")
-                st.session_state.custom_e2e = st.session_state.input_e2e_sec
-            else:
-                st.session_state.custom_e2e = e2e_max
-        
+        with e2e_pct_col:
+            e2e_pct_display = reverse_map.get(st.session_state.e2e_percentile, "P95")
+            selected_e2e_pct = st.selectbox("E2E percentile", percentile_options, index=percentile_options.index(e2e_pct_display), key="e2e_pct_selector", label_visibility="collapsed")
+            st.session_state.e2e_percentile = percentile_map[selected_e2e_pct]
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
+
         # Check if SLO values changed - if so, clear recommendation cache
         curr_ttft = st.session_state.get("custom_ttft")
         curr_itl = st.session_state.get("custom_itl")
         curr_e2e = st.session_state.get("custom_e2e")
-        
+
         if (curr_ttft != prev_ttft or curr_itl != prev_itl or curr_e2e != prev_e2e):
             # SLO values changed - invalidate recommendation cache
             if st.session_state.get("recommendation_result"):
@@ -5036,13 +5044,21 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         workload_data = load_research_workload_patterns()
         pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
         peak_mult = pattern.get('peak_multiplier', 2.0)
-        
+
+        # Store workload profile values in session state for Recommendations tab
+        st.session_state.spec_prompt_tokens = prompt_tokens
+        st.session_state.spec_output_tokens = output_tokens
+        st.session_state.spec_peak_multiplier = peak_mult
+
         # 1. Editable QPS - support up to 10M QPS for enterprise scale
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
         new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
         st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
-        
+
+        # Store the actual QPS value shown to user (not just custom override)
+        st.session_state.spec_expected_qps = new_qps
+
         if new_qps != qps:
             st.session_state.custom_qps = new_qps
         
@@ -5808,33 +5824,31 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     st.session_state.pop('ranked_response', None)
     
     if True:  # Always regenerate
-        # Get custom SLO values from session state (set in Tech Specs tab)
+        # Get all specification values from session state (set in Tech Specs tab)
+        # These are the EXACT values the user sees on the Technical Specifications tab
         use_case = final_extraction.get("use_case", "chatbot_conversational")
-        
-        # Get SLO targets - use custom values if set, otherwise use defaults
-        # Use explicit None check to handle 0 values correctly
-        ttft_target = st.session_state.get("custom_ttft") if st.session_state.get("custom_ttft") is not None else (st.session_state.get("input_ttft") if st.session_state.get("input_ttft") is not None else 15000)
-        itl_target = st.session_state.get("custom_itl") if st.session_state.get("custom_itl") is not None else (st.session_state.get("input_itl") if st.session_state.get("input_itl") is not None else 200)
-        e2e_target = st.session_state.get("custom_e2e") if st.session_state.get("custom_e2e") is not None else (st.session_state.get("input_e2e") if st.session_state.get("input_e2e") is not None else 60000)
-        qps_target = st.session_state.get("custom_qps") if st.session_state.get("custom_qps") is not None else (st.session_state.get("input_qps") if st.session_state.get("input_qps") is not None else final_extraction.get("user_count", 30))
-        
-        # Get token config for use case
-        token_configs = {
-            "chatbot_conversational": (512, 256),
-            "code_completion": (512, 256),
-            "code_generation_detailed": (1024, 1024),
-            "translation": (512, 256),
-            "content_generation": (512, 256),
-            "summarization_short": (4096, 512),
-            "document_analysis_rag": (4096, 512),
-            "long_document_summarization": (10240, 1536),
-            "research_legal_analysis": (10240, 1536),  # Fixed: was (4096, 1024)
-        }
-        prompt_tokens, output_tokens = token_configs.get(use_case, (512, 256))
-        
+        user_count = final_extraction.get("user_count", 1000)
+
+        # Get SLO targets from session state (set by number_input widgets)
+        ttft_target = st.session_state.get("custom_ttft") or st.session_state.get("input_ttft") or 500
+        itl_target = st.session_state.get("custom_itl") or st.session_state.get("input_itl") or 50
+        e2e_target = st.session_state.get("custom_e2e") or st.session_state.get("input_e2e") or 10000
+
+        # Get QPS from session state - this is the value shown in the Expected RPS input
+        qps_target = st.session_state.get("spec_expected_qps") or st.session_state.get("custom_qps") or 1
+
+        # Get token config from session state (set by render_slo_cards)
+        prompt_tokens = st.session_state.get("spec_prompt_tokens", 512)
+        output_tokens = st.session_state.get("spec_output_tokens", 256)
+
+        # Get percentile from session state (default to p95)
+        # Note: Currently we use a single percentile for all metrics for the backend query
+        # The UI allows per-metric percentiles but the backend uses one
+        percentile = st.session_state.get("slo_percentile", "p95")
+
         business_context = {
             "use_case": use_case,
-            "user_count": final_extraction.get("user_count", 1000),
+            "user_count": user_count,
             "priority": used_priority,
             "hardware_preference": final_extraction.get("hardware"),
             "prompt_tokens": prompt_tokens,
@@ -5843,6 +5857,7 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
             "ttft_p95_target_ms": int(ttft_target),
             "itl_p95_target_ms": int(itl_target),
             "e2e_p95_target_ms": int(e2e_target),
+            "percentile": percentile,
         }
         with st.spinner(f"Scoring {len(models_df)} models with MCDM..."):
             recommendation = get_enhanced_recommendation(business_context)
