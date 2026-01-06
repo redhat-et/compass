@@ -2020,6 +2020,55 @@ def _get_hardware_selection_reason(priority: str, hw_option: dict, slo_targets: 
 # RANKED RECOMMENDATIONS (Backend API Integration)
 # =============================================================================
 
+@st.cache_data(ttl=300)
+def fetch_slo_defaults(use_case: str) -> dict | None:
+    """Fetch default SLO values for a use case from the backend API.
+
+    Returns dict with ttft_ms, itl_ms, e2e_ms each containing min, max, default.
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/slo-defaults/{use_case}",
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data.get("slo_defaults")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch SLO defaults for {use_case}: {e}")
+        return None
+
+
+@st.cache_data(ttl=300)
+def fetch_expected_rps(use_case: str, user_count: int) -> dict | None:
+    """Fetch expected RPS for a use case from the backend API.
+
+    Uses research-backed workload patterns to calculate:
+    - expected_rps: average requests per second
+    - peak_rps: peak capacity needed
+    - workload_params: active_fraction, requests_per_min, etc.
+
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/expected-rps/{use_case}",
+            params={"user_count": user_count},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch expected RPS for {use_case}: {e}")
+        return None
+
+
 def fetch_ranked_recommendations(
     use_case: str,
     user_count: int,
@@ -4747,10 +4796,27 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     ttft_default = int(ttft_max_raw * ttft_factor)
     itl_default = int(itl_max_raw * itl_factor)
     e2e_default = int(e2e_max_raw * e2e_factor)
-    
-    # Calculate QPS based on user count
-    estimated_qps = max(1, user_count // 50)
-    
+
+    # Fetch expected RPS from backend using research-based workload patterns
+    rps_data = fetch_expected_rps(use_case, user_count)
+    if rps_data:
+        estimated_qps = int(rps_data.get("expected_rps", 1))
+    else:
+        # Fallback to simple heuristic if API fails
+        estimated_qps = max(1, user_count // 50)
+
+    # Track if use_case or user_count changed - if so, reset custom_qps to use new default
+    last_use_case = st.session_state.get("_last_rps_use_case")
+    last_user_count = st.session_state.get("_last_rps_user_count")
+    if last_use_case != use_case or last_user_count != user_count:
+        # Use case or user count changed - reset to new calculated default
+        st.session_state.custom_qps = None
+        st.session_state._last_rps_use_case = use_case
+        st.session_state._last_rps_user_count = user_count
+        # Clear the widget key to force re-render with new value
+        if "edit_qps" in st.session_state:
+            del st.session_state["edit_qps"]
+
     # Use custom values if set, otherwise use MAX as default (shows all configs)
     # Ensure all values are integers for slider compatibility
     ttft = int(st.session_state.custom_ttft) if st.session_state.custom_ttft else ttft_default
@@ -4873,6 +4939,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         prev_itl = st.session_state.get("_last_itl")
         prev_e2e = st.session_state.get("_last_e2e")
 
+        # Fetch use-case specific SLO defaults from backend API
+        slo_defaults = fetch_slo_defaults(use_case)
+        default_ttft = slo_defaults["ttft_ms"]["default"] if slo_defaults else 500
+        default_itl = slo_defaults["itl_ms"]["default"] if slo_defaults else 50
+        default_e2e = slo_defaults["e2e_ms"]["default"] if slo_defaults else 10000
+
         # Helper function to get range for a metric and percentile
         def get_metric_range(metric: str, percentile_key: str) -> tuple:
             if metric == "ttft":
@@ -4894,7 +4966,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # === TTFT ===
         ttft_min, ttft_max = get_metric_range("ttft", st.session_state.ttft_percentile)
         if 'input_ttft' not in st.session_state:
-            st.session_state.input_ttft = ttft_max
+            st.session_state.input_ttft = default_ttft
 
         st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
         ttft_val_col, ttft_pct_col = st.columns([2, 1])
@@ -4910,7 +4982,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # === ITL ===
         itl_min, itl_max = get_metric_range("itl", st.session_state.itl_percentile)
         if 'input_itl' not in st.session_state:
-            st.session_state.input_itl = itl_max
+            st.session_state.input_itl = default_itl
 
         st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
         itl_val_col, itl_pct_col = st.columns([2, 1])
@@ -4926,7 +4998,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         # === E2E ===
         e2e_min, e2e_max = get_metric_range("e2e", st.session_state.e2e_percentile)
         if 'input_e2e' not in st.session_state:
-            st.session_state.input_e2e = e2e_max
+            st.session_state.input_e2e = default_e2e
 
         st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
         e2e_val_col, e2e_pct_col = st.columns([2, 1])
