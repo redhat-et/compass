@@ -3206,13 +3206,13 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
         # Extract values from business_context for the API
         use_case = business_context.get("use_case", "chatbot_conversational")
         priority = business_context.get("priority", "balanced")
-        user_count = business_context.get("user_count", 30)
+        user_count = business_context.get("user_count", 1000)
         prompt_tokens = business_context.get("prompt_tokens", 512)
         output_tokens = business_context.get("output_tokens", 256)
-        expected_qps = business_context.get("expected_qps", user_count)
-        ttft_target = business_context.get("ttft_p95_target_ms", 5000)
-        itl_target = business_context.get("itl_p95_target_ms", 200)
-        e2e_target = business_context.get("e2e_p95_target_ms", 60000)
+        expected_qps = business_context.get("expected_qps", 1)  # Default to 1 RPS, not user_count!
+        ttft_target = business_context.get("ttft_p95_target_ms", 500)
+        itl_target = business_context.get("itl_p95_target_ms", 50)
+        e2e_target = business_context.get("e2e_p95_target_ms", 10000)
         percentile = business_context.get("percentile", "p95")
         
         # Use the ranked-recommend-from-spec endpoint with proper fields
@@ -5044,13 +5044,21 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         workload_data = load_research_workload_patterns()
         pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
         peak_mult = pattern.get('peak_multiplier', 2.0)
-        
+
+        # Store workload profile values in session state for Recommendations tab
+        st.session_state.spec_prompt_tokens = prompt_tokens
+        st.session_state.spec_output_tokens = output_tokens
+        st.session_state.spec_peak_multiplier = peak_mult
+
         # 1. Editable QPS - support up to 10M QPS for enterprise scale
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
         new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
         st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
-        
+
+        # Store the actual QPS value shown to user (not just custom override)
+        st.session_state.spec_expected_qps = new_qps
+
         if new_qps != qps:
             st.session_state.custom_qps = new_qps
         
@@ -5816,33 +5824,31 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     st.session_state.pop('ranked_response', None)
     
     if True:  # Always regenerate
-        # Get custom SLO values from session state (set in Tech Specs tab)
+        # Get all specification values from session state (set in Tech Specs tab)
+        # These are the EXACT values the user sees on the Technical Specifications tab
         use_case = final_extraction.get("use_case", "chatbot_conversational")
-        
-        # Get SLO targets - use custom values if set, otherwise use defaults
-        # Use explicit None check to handle 0 values correctly
-        ttft_target = st.session_state.get("custom_ttft") if st.session_state.get("custom_ttft") is not None else (st.session_state.get("input_ttft") if st.session_state.get("input_ttft") is not None else 15000)
-        itl_target = st.session_state.get("custom_itl") if st.session_state.get("custom_itl") is not None else (st.session_state.get("input_itl") if st.session_state.get("input_itl") is not None else 200)
-        e2e_target = st.session_state.get("custom_e2e") if st.session_state.get("custom_e2e") is not None else (st.session_state.get("input_e2e") if st.session_state.get("input_e2e") is not None else 60000)
-        qps_target = st.session_state.get("custom_qps") if st.session_state.get("custom_qps") is not None else (st.session_state.get("input_qps") if st.session_state.get("input_qps") is not None else final_extraction.get("user_count", 30))
-        
-        # Get token config for use case
-        token_configs = {
-            "chatbot_conversational": (512, 256),
-            "code_completion": (512, 256),
-            "code_generation_detailed": (1024, 1024),
-            "translation": (512, 256),
-            "content_generation": (512, 256),
-            "summarization_short": (4096, 512),
-            "document_analysis_rag": (4096, 512),
-            "long_document_summarization": (10240, 1536),
-            "research_legal_analysis": (10240, 1536),  # Fixed: was (4096, 1024)
-        }
-        prompt_tokens, output_tokens = token_configs.get(use_case, (512, 256))
-        
+        user_count = final_extraction.get("user_count", 1000)
+
+        # Get SLO targets from session state (set by number_input widgets)
+        ttft_target = st.session_state.get("custom_ttft") or st.session_state.get("input_ttft") or 500
+        itl_target = st.session_state.get("custom_itl") or st.session_state.get("input_itl") or 50
+        e2e_target = st.session_state.get("custom_e2e") or st.session_state.get("input_e2e") or 10000
+
+        # Get QPS from session state - this is the value shown in the Expected RPS input
+        qps_target = st.session_state.get("spec_expected_qps") or st.session_state.get("custom_qps") or 1
+
+        # Get token config from session state (set by render_slo_cards)
+        prompt_tokens = st.session_state.get("spec_prompt_tokens", 512)
+        output_tokens = st.session_state.get("spec_output_tokens", 256)
+
+        # Get percentile from session state (default to p95)
+        # Note: Currently we use a single percentile for all metrics for the backend query
+        # The UI allows per-metric percentiles but the backend uses one
+        percentile = st.session_state.get("slo_percentile", "p95")
+
         business_context = {
             "use_case": use_case,
-            "user_count": final_extraction.get("user_count", 1000),
+            "user_count": user_count,
             "priority": used_priority,
             "hardware_preference": final_extraction.get("hardware"),
             "prompt_tokens": prompt_tokens,
@@ -5851,6 +5857,7 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
             "ttft_p95_target_ms": int(ttft_target),
             "itl_p95_target_ms": int(itl_target),
             "e2e_p95_target_ms": int(e2e_target),
+            "percentile": percentile,
         }
         with st.spinner(f"Scoring {len(models_df)} models with MCDM..."):
             recommendation = get_enhanced_recommendation(business_context)

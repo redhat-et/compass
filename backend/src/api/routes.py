@@ -727,23 +727,40 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         itl_target = request.get_itl_target()
         e2e_target = request.get_e2e_target()
         percentile = request.percentile
-        
-        logger.info(
-            f"Received ranked recommendation from spec: use_case={request.use_case}, "
-            f"user_count={request.user_count}, qps={request.expected_qps}"
-        )
-        logger.info(
-            f"  SLO targets ({percentile}): TTFT={ttft_target}ms, "
-            f"ITL={itl_target}ms, E2E={e2e_target}ms"
-        )
-        logger.info(
-            f"  Token config: {request.prompt_tokens} -> {request.output_tokens}"
-        )
+
+        # Log complete request for debugging
+        logger.info("=" * 60)
+        logger.info("RANKED-RECOMMEND-FROM-SPEC REQUEST")
+        logger.info("=" * 60)
+        logger.info(f"  use_case: {request.use_case}")
+        logger.info(f"  user_count: {request.user_count}")
+        logger.info(f"  latency_requirement: {request.latency_requirement}")
+        logger.info(f"  budget_constraint: {request.budget_constraint}")
+        logger.info(f"  hardware_preference: {request.hardware_preference}")
+        logger.info(f"  prompt_tokens: {request.prompt_tokens}")
+        logger.info(f"  output_tokens: {request.output_tokens}")
+        logger.info(f"  expected_qps: {request.expected_qps}")
+        logger.info(f"  percentile: {percentile}")
+        logger.info(f"  ttft_target_ms (raw): {request.ttft_target_ms}")
+        logger.info(f"  itl_target_ms (raw): {request.itl_target_ms}")
+        logger.info(f"  e2e_target_ms (raw): {request.e2e_target_ms}")
+        logger.info(f"  ttft_p95_target_ms (legacy): {request.ttft_p95_target_ms}")
+        logger.info(f"  itl_p95_target_ms (legacy): {request.itl_p95_target_ms}")
+        logger.info(f"  e2e_p95_target_ms (legacy): {request.e2e_p95_target_ms}")
+        logger.info(f"  -> Resolved TTFT: {ttft_target}ms")
+        logger.info(f"  -> Resolved ITL: {itl_target}ms")
+        logger.info(f"  -> Resolved E2E: {e2e_target}ms")
+        logger.info(f"  min_accuracy: {request.min_accuracy}")
+        logger.info(f"  max_cost: {request.max_cost}")
+        logger.info(f"  include_near_miss: {request.include_near_miss}")
         if request.weights:
             logger.info(
-                f"  Weights: A={request.weights.accuracy}, P={request.weights.price}, "
-                f"L={request.weights.latency}, C={request.weights.complexity}"
+                f"  weights: accuracy={request.weights.accuracy}, price={request.weights.price}, "
+                f"latency={request.weights.latency}, complexity={request.weights.complexity}"
             )
+        else:
+            logger.info("  weights: None (using defaults)")
+        logger.info("=" * 60)
 
         # Build specifications dict for workflow
         specifications = {
