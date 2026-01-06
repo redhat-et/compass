@@ -10,6 +10,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from ..context_intent.extractor import IntentExtractor
 from ..context_intent.schema import (
     ConversationMessage,
     DeploymentRecommendation,
@@ -113,6 +114,12 @@ class DeploymentStatusResponse(BaseModel):
     cost_analysis: dict
     traffic_patterns: dict
     recommendations: list[str] | None = None
+
+
+class ExtractRequest(BaseModel):
+    """Request for intent extraction from natural language."""
+
+    text: str
 
 
 # Health check endpoint
@@ -244,6 +251,53 @@ async def list_use_cases():
         }
     except Exception as e:
         logger.error(f"Failed to list use cases: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@app.post("/api/v1/extract")
+async def extract_intent(request: ExtractRequest):
+    """Extract business context from natural language using LLM.
+
+    Takes a user's natural language description of their deployment needs
+    and extracts structured intent using Ollama (Qwen 2.5 7B).
+
+    Args:
+        request: ExtractRequest with 'text' field containing user input
+
+    Returns:
+        Structured intent with use_case, user_count, priority, etc.
+    """
+    logger.info("=" * 60)
+    logger.info("EXTRACT INTENT REQUEST")
+    logger.info("=" * 60)
+    logger.info(f"  Input text: {request.text[:200]}{'...' if len(request.text) > 200 else ''}")
+
+    try:
+        # Create intent extractor (uses workflow's LLM client)
+        intent_extractor = IntentExtractor(workflow.llm_client)
+
+        # Extract intent from natural language
+        intent = intent_extractor.extract_intent(request.text)
+
+        # Infer any missing fields based on use case
+        intent = intent_extractor.infer_missing_fields(intent)
+
+        logger.info(f"  Extracted use_case: {intent.use_case}")
+        logger.info(f"  Extracted user_count: {intent.user_count}")
+        logger.info(f"  Extracted priority: {intent.latency_requirement}")
+        logger.info("=" * 60)
+
+        # Return as dict for JSON serialization
+        # Map latency_requirement to 'priority' for UI compatibility
+        result = intent.model_dump()
+        result["priority"] = intent.latency_requirement
+        return result
+
+    except ValueError as e:
+        logger.error(f"Intent extraction failed: {e}")
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        logger.error(f"Unexpected error during intent extraction: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
