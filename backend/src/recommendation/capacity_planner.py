@@ -127,8 +127,8 @@ class CapacityPlanner:
         slo_targets: SLOTargets,
         intent: DeploymentIntent,
         model_evaluator: "ModelEvaluator | None" = None,
-        include_near_miss: bool = True,
-        near_miss_tolerance: float = 0.2,
+        include_near_miss: bool = False,  # Strict SLO filtering - no tolerance
+        near_miss_tolerance: float = 0.0,  # No near-miss tolerance
     ) -> list[DeploymentRecommendation]:
         """
         Plan GPU capacity and return ALL viable configurations meeting SLO.
@@ -163,6 +163,9 @@ class CapacityPlanner:
             query_itl = slo_targets.itl_p95_target_ms
             query_e2e = slo_targets.e2e_p95_target_ms
 
+        # Get percentile from SLO targets (default to p95 for backwards compatibility)
+        percentile = getattr(slo_targets, 'percentile', 'p95')
+        
         # Query PostgreSQL for configurations meeting relaxed SLO targets
         matching_configs = self.benchmark_repo.find_configurations_meeting_slo(
             prompt_tokens=traffic_profile.prompt_tokens,
@@ -171,6 +174,7 @@ class CapacityPlanner:
             itl_p95_max_ms=query_itl,
             e2e_p95_max_ms=query_e2e,
             min_qps=0,
+            percentile=percentile,
         )
 
         if not matching_configs:
@@ -195,17 +199,18 @@ class CapacityPlanner:
                 bench.requests_per_second, traffic_profile.expected_qps or 1.0
             )
 
-            # Create GPU config
+            # Create GPU config - gpu_count is PER REPLICA, not total
             gpu_config = GPUConfig(
                 gpu_type=bench.hardware,
-                gpu_count=bench.hardware_count * replicas,
+                gpu_count=bench.hardware_count,  # Per-replica GPU count
                 tensor_parallel=bench.hardware_count,
                 replicas=replicas,
             )
 
-            # Calculate cost
+            # Calculate cost using TOTAL GPUs (per-replica * replicas)
+            total_gpus = bench.hardware_count * replicas
             cost_per_hour = self.catalog.calculate_gpu_cost(
-                bench.hardware, gpu_config.gpu_count, hours_per_month=1
+                bench.hardware, total_gpus, hours_per_month=1
             )
 
             if cost_per_hour is None:
@@ -218,6 +223,8 @@ class CapacityPlanner:
             predicted_ttft = int(bench.ttft_p95) if bench.ttft_p95 else 0
             predicted_itl = int(bench.itl_p95) if bench.itl_p95 else 0
             predicted_e2e = int(bench.e2e_p95) if bench.e2e_p95 else 0
+            # Use tps_mean for throughput, fallback to tokens_per_second
+            throughput_tps = float(bench.tps_mean) if bench.tps_mean else (float(bench.tokens_per_second) if bench.tokens_per_second else 0)
 
             latency_score, slo_status = scorer.score_latency(
                 predicted_ttft_ms=predicted_ttft,
@@ -226,27 +233,60 @@ class CapacityPlanner:
                 target_ttft_ms=slo_targets.ttft_p95_target_ms,
                 target_itl_ms=slo_targets.itl_p95_target_ms,
                 target_e2e_ms=slo_targets.e2e_p95_target_ms,
+                throughput_tps=throughput_tps,
+                use_case=intent.use_case,  # Dynamic benchmarks per use case
             )
 
             # Skip if exceeds SLO and we're not including near-miss
             if slo_status == "exceeds" and not include_near_miss:
                 continue
 
-            # Calculate accuracy score
-            # If model is in catalog and we have an evaluator, use score_model()
-            # Otherwise, accuracy = 0
-            if model and model_evaluator:
-                accuracy_score = int(model_evaluator.score_model(model, intent))
-            else:
-                accuracy_score = 0
+            # Calculate accuracy score - USE RAW AA BENCHMARK SCORE
+            # This is the actual model accuracy from Artificial Analysis benchmarks
+            # NOT a composite score with latency/budget bonuses
+            from .usecase_quality_scorer import score_model_quality
+            
+            # Try to get raw AA score using the benchmark model name
+            model_name_for_scoring = model.name if model else bench.model_hf_repo
+            raw_accuracy = score_model_quality(model_name_for_scoring, intent.use_case)
+            
+            # If no score found, try with benchmark's model_hf_repo
+            if raw_accuracy == 0 and bench.model_hf_repo:
+                raw_accuracy = score_model_quality(bench.model_hf_repo, intent.use_case)
+            
+            accuracy_score = int(raw_accuracy)
 
-            complexity_score = scorer.score_complexity(gpu_config.gpu_count)
+            complexity_score = scorer.score_complexity(total_gpus)  # Use total GPUs for complexity
 
             # Determine model_id and model_name
             # Use catalog info if available, otherwise use benchmark model_hf_repo
             model_id = model.model_id if model else bench.model_hf_repo
             model_name = model.name if model else bench.model_hf_repo
 
+            # Build benchmark_metrics with all percentile values for UI display
+            benchmark_metrics = {
+                "ttft_mean": int(bench.ttft_mean) if bench.ttft_mean else 0,
+                "ttft_p90": int(bench.ttft_p90) if bench.ttft_p90 else 0,
+                "ttft_p95": int(bench.ttft_p95) if bench.ttft_p95 else 0,
+                "ttft_p99": int(bench.ttft_p99) if bench.ttft_p99 else 0,
+                "itl_mean": int(bench.itl_mean) if bench.itl_mean else 0,
+                "itl_p90": int(bench.itl_p90) if bench.itl_p90 else 0,
+                "itl_p95": int(bench.itl_p95) if bench.itl_p95 else 0,
+                "itl_p99": int(bench.itl_p99) if bench.itl_p99 else 0,
+                "e2e_mean": int(bench.e2e_mean) if bench.e2e_mean else 0,
+                "e2e_p90": int(bench.e2e_p90) if bench.e2e_p90 else 0,
+                "e2e_p95": int(bench.e2e_p95) if bench.e2e_p95 else 0,
+                "e2e_p99": int(bench.e2e_p99) if bench.e2e_p99 else 0,
+                "tps_mean": float(bench.tps_mean) if bench.tps_mean else 0,
+                "tps_p90": float(bench.tps_p90) if bench.tps_p90 else 0,
+                "tps_p95": float(bench.tps_p95) if bench.tps_p95 else 0,
+                "tps_p99": float(bench.tps_p99) if bench.tps_p99 else 0,
+                # RPS per replica from benchmark (for card display)
+                "requests_per_second": float(bench.requests_per_second) if bench.requests_per_second else 0,
+                # Data validation flag: True = estimated/interpolated, False = real benchmark
+                "estimated": getattr(bench, 'estimated', False),
+            }
+            
             # Build recommendation (price score calculated later after we know min/max)
             recommendation = DeploymentRecommendation(
                 intent=intent,
@@ -263,6 +303,7 @@ class CapacityPlanner:
                 cost_per_month_usd=cost_per_month,
                 meets_slo=(slo_status == "compliant"),
                 reasoning=self._generate_reasoning_from_bench(bench, gpu_config, intent, model),
+                benchmark_metrics=benchmark_metrics,  # All percentile data for UI
                 # Temporary scores without price (will be updated below)
                 scores=ConfigurationScores(
                     accuracy_score=accuracy_score,
@@ -294,13 +335,31 @@ class CapacityPlanner:
                     )
                     rec.scores.price_score = price_score
 
-                    # Calculate balanced score
-                    rec.scores.balanced_score = scorer.score_balanced(
+                    # Calculate base balanced score
+                    base_balanced = scorer.score_balanced(
                         accuracy_score=rec.scores.accuracy_score,
                         price_score=price_score,
                         latency_score=rec.scores.latency_score,
                         complexity_score=rec.scores.complexity_score,
                     )
+                    
+                    # Apply scalability penalty based on replica count
+                    # Configs needing many replicas are less efficient for high workloads
+                    replicas = rec.gpu_config.replicas if rec.gpu_config else 1
+                    if replicas <= 1:
+                        scalability_factor = 1.0  # No penalty
+                    elif replicas <= 3:
+                        scalability_factor = 0.98  # 2% penalty
+                    elif replicas <= 6:
+                        scalability_factor = 0.95  # 5% penalty
+                    elif replicas <= 10:
+                        scalability_factor = 0.90  # 10% penalty
+                    elif replicas <= 20:
+                        scalability_factor = 0.80  # 20% penalty
+                    else:
+                        scalability_factor = 0.65  # 35% penalty for very large deployments
+                    
+                    rec.scores.balanced_score = round(base_balanced * scalability_factor, 1)
 
         # Count unique models in configurations
         unique_models = {rec.model_id for rec in all_configs}

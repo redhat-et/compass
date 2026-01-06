@@ -1282,82 +1282,104 @@
       "aliases": ["NVIDIA-L4", "L4"],
       "memory_gb": 24,
       "compute_capability": "8.9",
-      "typical_use_cases": [
-        "inference"
-      ],
-      "cost_per_hour_usd": 0.8,
-      "availability": "high"
+      "typical_use_cases": ["inference"],
+      "cost_per_hour_usd": 0.65,
+      "cost_per_hour_aws": 0.80,
+      "cost_per_hour_gcp": 0.70,
+      "cost_per_hour_azure": 0.85,
+      "availability": "high",
+      "notes": "Entry-level inference GPU, cost-effective for small models"
     },
     {
       "gpu_type": "A10G",
       "aliases": ["NVIDIA-A10G", "A10G"],
       "memory_gb": 24,
       "compute_capability": "8.6",
-      "typical_use_cases": [
-        "inference"
-      ],
-      "cost_per_hour_usd": 1.0,
-      "availability": "high"
+      "typical_use_cases": ["inference"],
+      "cost_per_hour_usd": 1.00,
+      "cost_per_hour_aws": 1.20,
+      "cost_per_hour_gcp": 1.10,
+      "cost_per_hour_azure": 1.25,
+      "availability": "high",
+      "notes": "Good balance of cost and performance for medium models"
     },
     {
       "gpu_type": "A100-40",
       "aliases": ["NVIDIA-A100-40GB", "A100-40", "A100-40GB"],
       "memory_gb": 40,
       "compute_capability": "8.0",
-      "typical_use_cases": [
-        "inference",
-        "training"
-      ],
-      "cost_per_hour_usd": 3.5,
-      "availability": "medium"
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 1.50,
+      "cost_per_hour_aws": 3.06,
+      "cost_per_hour_gcp": 2.93,
+      "cost_per_hour_azure": 3.40,
+      "availability": "medium",
+      "notes": "Production inference, market minimum ~$1.50/hr (Artificial Analysis)"
     },
     {
       "gpu_type": "A100-80",
       "aliases": ["NVIDIA-A100-80GB", "A100-80", "A100-80GB"],
       "memory_gb": 80,
       "compute_capability": "8.0",
-      "typical_use_cases": [
-        "inference",
-        "training"
-      ],
-      "cost_per_hour_usd": 5.0,
-      "availability": "medium"
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 2.00,
+      "cost_per_hour_aws": 4.10,
+      "cost_per_hour_gcp": 3.67,
+      "cost_per_hour_azure": 4.00,
+      "availability": "medium",
+      "notes": "Large model inference, 2x memory of A100-40"
     },
     {
       "gpu_type": "H100",
       "aliases": ["NVIDIA-H100", "H100", "H100-80GB"],
       "memory_gb": 80,
       "compute_capability": "9.0",
-      "typical_use_cases": [
-        "inference",
-        "training"
-      ],
-      "cost_per_hour_usd": 8.5,
-      "availability": "low"
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 2.70,
+      "cost_per_hour_aws": 4.90,
+      "cost_per_hour_gcp": 4.23,
+      "cost_per_hour_azure": 5.50,
+      "availability": "medium",
+      "notes": "Flagship inference GPU, market minimum ~$2.70/hr (Artificial Analysis)"
     },
     {
       "gpu_type": "H200",
-      "aliases": ["NVIDIA-H200", "H200"],
+      "aliases": ["NVIDIA-H200", "H200", "H200-141GB"],
       "memory_gb": 141,
       "compute_capability": "9.0",
-      "typical_use_cases": [
-        "inference",
-        "training"
-      ],
-      "cost_per_hour_usd": 12.0,
-      "availability": "low"
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 3.50,
+      "cost_per_hour_aws": 6.50,
+      "cost_per_hour_gcp": 5.80,
+      "cost_per_hour_azure": 7.00,
+      "availability": "low",
+      "notes": "Extended memory H100, ideal for 70B+ models"
     },
     {
       "gpu_type": "B200",
       "aliases": ["NVIDIA-B200", "B200"],
       "memory_gb": 192,
       "compute_capability": "10.0",
-      "typical_use_cases": [
-        "inference",
-        "training"
-      ],
-      "cost_per_hour_usd": 15.0,
-      "availability": "very_low"
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 5.50,
+      "cost_per_hour_aws": 8.50,
+      "cost_per_hour_gcp": 7.50,
+      "cost_per_hour_azure": 9.00,
+      "availability": "very_low",
+      "notes": "Next-gen Blackwell architecture, market minimum ~$5.50/hr"
+    },
+    {
+      "gpu_type": "MI300X",
+      "aliases": ["AMD-MI300X", "MI300X", "AMD-Instinct-MI300X"],
+      "memory_gb": 192,
+      "compute_capability": "N/A",
+      "typical_use_cases": ["inference", "training"],
+      "cost_per_hour_usd": 2.00,
+      "cost_per_hour_aws": null,
+      "cost_per_hour_gcp": null,
+      "cost_per_hour_azure": null,
+      "availability": "low",
+      "notes": "AMD competitor to H100, good value at ~$2.00/hr"
     }
   ]
 }

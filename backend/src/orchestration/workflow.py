@@ -338,13 +338,15 @@ class RecommendationWorkflow:
             )
 
         # Generate ranked lists (top 10 solutions per criterion)
+        # Pass use_case for task-specific bonuses on Balanced card
         ranking_service = RankingService()
         ranked_lists = ranking_service.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
-            top_n=10,
+            top_n=5,  # Top 5 accuracy models only
             weights=weights,
+            use_case=intent.use_case,  # Task bonuses for Balanced
         )
 
         # Count configs after filtering
@@ -465,13 +467,15 @@ class RecommendationWorkflow:
             )
 
         # Generate ranked lists (top 10 solutions per criterion)
+        # Pass use_case for task-specific bonuses on Balanced card
         ranking_service = RankingService()
         ranked_lists = ranking_service.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
-            top_n=10,
+            top_n=5,  # Top 5 accuracy models only
             weights=weights,
+            use_case=intent.use_case,  # Task bonuses for Balanced
         )
 
         # Count configs after filtering

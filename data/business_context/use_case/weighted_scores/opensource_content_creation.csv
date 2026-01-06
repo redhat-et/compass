@@ -1,0 +1,51 @@
+Model Name,Provider,Dataset,Use Case Score
+RedHatAI/DeepSeek-R1-0528-quantized.w4a16,RedHatAI,DeepSeek training dataset,88.49%
+RedHatAI/Kimi-K2-Instruct-quantized.w4a16,RedHatAI,Moonshot AI training dataset,86.66%
+openai/gpt-oss-120b,openai,OpenAI training dataset,73.53%
+openai/gpt-oss-120b,openai,OpenAI training dataset,73.53%
+Qwen/Qwen2.5-7B-Instruct,Qwen,Qwen Training,63.11%
+qwen/qwen2.5-7b-instruct,qwen,Qwen Training,63.11%
+RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic,RedHatAI,Qwen Training,62.79%
+RedHatAI/Qwen2.5-7B-Instruct-quantized.w4a16,RedHatAI,Qwen Training,61.85%
+openai/gpt-oss-20b,openai,OpenAI training dataset,59.98%
+openai/gpt-oss-20b,openai,OpenAI training dataset,59.98%
+RedHatAI/Qwen3-Coder-480B-A35B-Instruct-FP8,RedHatAI,Alibaba training dataset,59.56%
+meta-llama/Llama-4-Maverick-17B-128E-Instruct,meta-llama,Meta training dataset,49.75%
+meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8,meta-llama,Meta training dataset,49.75%
+RedHatAI/NVIDIA-Nemotron-Nano-9B-v2-FP8-dynamic,RedHatAI,NVIDIA training dataset,47.23%
+mistralai/Mistral-Small-3.1-24B-Instruct-2503,mistralai,Mistral Training,47.21%
+RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-FP8-dynamic,RedHatAI,Mistral Training,47.21%
+RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w4a16,RedHatAI,Mistral Training,47.21%
+RedHatAI/Mistral-Small-3.1-24B-Instruct-2503-quantized.w8a8,RedHatAI,Mistral Training,47.21%
+mistralai/mistral-small-3.1-24b-instruct-2503,mistralai,N/A,47.21%
+meta-llama/Llama-3.3-70B-Instruct,meta-llama,Meta training dataset,46.88%
+RedHatAI/Llama-3.3-70B-Instruct-FP8-dynamic,RedHatAI,Meta training dataset,46.88%
+RedHatAI/Llama-3.3-70B-Instruct-quantized.w4a16,RedHatAI,Meta training dataset,46.88%
+RedHatAI/Llama-3.3-70B-Instruct-quantized.w8a8,RedHatAI,Meta training dataset,46.88%
+meta-llama/llama-3.3-70b-instruct,meta-llama,N/A,46.88%
+mistralai/Mistral-Small-24B-Instruct-2501,mistralai,Mistral Training,45.54%
+mistralai/mistral-small-24b-instruct-2501,mistralai,Mistral Training,45.54%
+meta-llama/Llama-4-Scout-17B-16E-Instruct,meta-llama,Meta training dataset,45.04%
+RedHatAI/Llama-4-Scout-17B-16E-Instruct-FP8-dynamic,RedHatAI,Meta training dataset,45.04%
+RedHatAI/Llama-4-Scout-17B-16E-Instruct-quantized.w4a16,RedHatAI,Meta training dataset,45.04%
+nvidia/Llama-3.1-Nemotron-70B-Instruct-HF,nvidia,NVIDIA training dataset,43.84%
+RedHatAI/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic,RedHatAI,NVIDIA training dataset,43.84%
+Qwen/Qwen3-8B-FP8,Qwen,Alibaba training dataset,42.75%
+RedHatAI/Qwen3-8B-FP8-dynamic,RedHatAI,Alibaba training dataset,42.75%
+microsoft/phi-4,microsoft,Microsoft Azure training dataset,36.49%
+RedHatAI/phi-4-FP8-dynamic,RedHatAI,Microsoft Azure training dataset,36.49%
+RedHatAI/phi-4-quantized.w4a16,RedHatAI,Microsoft Azure training dataset,36.49%
+RedHatAI/phi-4-quantized.w8a8,RedHatAI,Microsoft Azure training dataset,36.49%
+microsoft/phi-4,microsoft,Microsoft Azure training dataset,36.49%
+RedHatAI/Qwen2.5-7B-Instruct-quantized.w8a8,RedHatAI,Qwen Training,36.32%
+mistralai/Mixtral-8x7B-Instruct-v0.1,mistralai,Mistral training dataset,35.25%
+mistralai/mixtral-8x7b-instruct-v0.1,mistralai,N/A,35.25%
+meta-llama/Llama-3.1-8B-Instruct,meta-llama,Meta training dataset,29.22%
+RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8-dynamic,RedHatAI,Meta training dataset,29.22%
+meta-llama/llama-3.1-8b-instruct,meta-llama,N/A,29.22%
+RedHatAI/gemma-3n-E4B-it-FP8-dynamic,RedHatAI,Google training dataset,25.25%
+ibm-granite/granite-3.1-8b-instruct,ibm-granite,Granite Training,16.25%
+ibm-granite/granite-3.1-8b-instruct,ibm-granite,Granite Training,16.25%
+RedHatAI/granite-3.1-8b-instruct-fp8-dynamic,RedHatAI,Granite Training,16.20%
+RedHatAI/granite-3.1-8b-instruct-quantized.w4a16,RedHatAI,Granite Training,16.06%
+RedHatAI/SmolLM3-3B-FP8-dynamic,RedHatAI,N/A,0.00%
