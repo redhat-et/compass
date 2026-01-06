@@ -3654,8 +3654,8 @@ def mock_recommendation(context: dict) -> dict:
     
     # Load use-case-specific weighted scores (the QUALITY component)
     weighted_df = load_weighted_scores(use_case)
-    # Also load 204-model benchmark for validation
-    all_models_df = load_204_models()
+    # Also load 206-model benchmark for validation
+    all_models_df = load_206_models()
     # Load REAL pricing and latency data
     pricing_df = load_model_pricing()
     
@@ -5539,7 +5539,7 @@ def main():
     
     # Load models
     if st.session_state.models_df is None:
-        st.session_state.models_df = load_204_models()
+        st.session_state.models_df = load_206_models()
     models_df = st.session_state.models_df
     
     # Default priority
