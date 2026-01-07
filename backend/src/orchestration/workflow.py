@@ -447,12 +447,14 @@ class RecommendationWorkflow:
 
         # Get ALL configurations with scores
         logger.info("Planning capacity for all model/GPU combinations")
+        logger.info(f"Using weights for balanced scoring: {weights}")
         all_configs = self.capacity_planner.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
             model_evaluator=self.model_evaluator,
             include_near_miss=include_near_miss,
+            weights=weights,
         )
 
         if not all_configs:

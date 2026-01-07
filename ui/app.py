@@ -1514,15 +1514,10 @@ if "custom_qps" not in st.session_state:
 if "slo_percentile" not in st.session_state:
     st.session_state.slo_percentile = "p95"  # Default to P95
 
-# Ranking weights (for balanced score calculation)
-if "weight_accuracy" not in st.session_state:
-    st.session_state.weight_accuracy = 4
-if "weight_cost" not in st.session_state:
-    st.session_state.weight_cost = 4
-if "weight_latency" not in st.session_state:
-    st.session_state.weight_latency = 1
-if "weight_simplicity" not in st.session_state:
-    st.session_state.weight_simplicity = 1
+# Ranking weights are initialized in the PRIORITIES section of the Tech Spec tab
+# using values from priority_weights.json. Do NOT hardcode defaults here.
+# See fetch_priority_weights() and the PRIORITIES section around line 5317.
+
 if "include_near_miss" not in st.session_state:
     st.session_state.include_near_miss = False
 
@@ -2071,6 +2066,36 @@ def fetch_expected_rps(use_case: str, user_count: int) -> dict | None:
         return None
 
 
+@st.cache_data(ttl=3600)
+def fetch_priority_weights() -> dict | None:
+    """Fetch priority weights configuration from the backend API.
+
+    Returns dict with priority_weights mapping and defaults.
+    Cached for 1 hour (config rarely changes).
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/priority-weights",
+            timeout=5,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data.get("priority_weights")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch priority weights: {e}")
+        # Return hardcoded fallback defaults (complexity removed from UI, weight=0)
+        return {
+            "priority_weights": {
+                "accuracy": {"low": 3, "medium": 5, "high": 7},
+                "cost": {"low": 2, "medium": 4, "high": 6},
+                "latency": {"low": 1, "medium": 2, "high": 3},
+            },
+            "defaults": {"priority": "medium", "weights": {"accuracy": 5, "cost": 4, "latency": 2}}
+        }
+
+
 def fetch_ranked_recommendations(
     use_case: str,
     user_count: int,
@@ -2155,8 +2180,9 @@ def render_weight_controls() -> None:
     """Render weight controls and configuration options in a collapsible section.
 
     Updates session state directly:
-    - weight_accuracy, weight_cost, weight_latency, weight_simplicity (0-10 each)
+    - weight_accuracy, weight_cost, weight_latency (0-10 each)
     - include_near_miss (bool)
+    Note: weight_complexity removed from UI (hardcoded to 0)
     """
     with st.expander("⚙️ Configuration", expanded=False):
         col1, col2 = st.columns([3, 1])
@@ -2168,18 +2194,18 @@ def render_weight_controls() -> None:
             </div>
             """, unsafe_allow_html=True)
 
-            wcol1, wcol2, wcol3, wcol4 = st.columns(4)
+            wcol1, wcol2, wcol3 = st.columns(3)
 
             with wcol1:
                 accuracy = st.number_input(
                     "Accuracy",
                     min_value=0,
                     max_value=10,
-                    value=st.session_state.weight_accuracy,
+                    value=st.session_state.get("weight_accuracy", 5),
                     key="input_accuracy",
                     help="Higher = prefer more capable models"
                 )
-                if accuracy != st.session_state.weight_accuracy:
+                if accuracy != st.session_state.get("weight_accuracy", 5):
                     st.session_state.weight_accuracy = accuracy
 
             with wcol2:
@@ -2187,11 +2213,11 @@ def render_weight_controls() -> None:
                     "Cost",
                     min_value=0,
                     max_value=10,
-                    value=st.session_state.weight_cost,
+                    value=st.session_state.get("weight_cost", 4),
                     key="input_cost",
                     help="Higher = prefer cheaper configurations"
                 )
-                if cost != st.session_state.weight_cost:
+                if cost != st.session_state.get("weight_cost", 4):
                     st.session_state.weight_cost = cost
 
             with wcol3:
@@ -2199,24 +2225,12 @@ def render_weight_controls() -> None:
                     "Latency",
                     min_value=0,
                     max_value=10,
-                    value=st.session_state.weight_latency,
+                    value=st.session_state.get("weight_latency", 2),
                     key="input_latency",
                     help="Higher = prefer lower latency"
                 )
-                if latency != st.session_state.weight_latency:
+                if latency != st.session_state.get("weight_latency", 2):
                     st.session_state.weight_latency = latency
-
-            with wcol4:
-                simplicity = st.number_input(
-                    "Simplicity",
-                    min_value=0,
-                    max_value=10,
-                    value=st.session_state.weight_simplicity,
-                    key="input_simplicity",
-                    help="Higher = prefer simpler deployments"
-                )
-                if simplicity != st.session_state.weight_simplicity:
-                    st.session_state.weight_simplicity = simplicity
 
         with col2:
             st.markdown("""
@@ -3053,17 +3067,27 @@ from typing import Optional, Dict, List
 def extract_business_context(user_input: str) -> Optional[dict]:
     """Extract business context using Qwen 2.5 7B."""
     try:
+        logger.info(f"Calling LLM extraction API at {API_BASE_URL}/api/v1/extract")
         response = requests.post(
             f"{API_BASE_URL}/api/v1/extract",
             json={"text": user_input},
             timeout=60,
         )
         if response.status_code == 200:
-            return response.json()
-    except Exception:
-        pass
-    
+            result = response.json()
+            logger.info(f"LLM extraction successful: {result.get('use_case')}, priorities: acc={result.get('accuracy_priority')}, cost={result.get('cost_priority')}, lat={result.get('latency_priority')}, comp={result.get('complexity_priority')}")
+            return result
+        else:
+            logger.warning(f"LLM extraction API returned status {response.status_code}: {response.text[:200]}")
+    except requests.exceptions.ConnectionError as e:
+        logger.warning(f"Backend not reachable: {e}")
+    except requests.exceptions.Timeout as e:
+        logger.warning(f"LLM extraction timed out: {e}")
+    except Exception as e:
+        logger.warning(f"LLM extraction failed: {type(e).__name__}: {e}")
+
     # Mock response for demo
+    logger.info("Falling back to mock extraction")
     return mock_extraction(user_input)
 
 
@@ -3078,6 +3102,10 @@ def mock_extraction(user_input: str) -> dict:
             "user_count": 100,
             "hardware": None,
             "priority": "balanced",
+            "accuracy_priority": "medium",
+            "cost_priority": "medium",
+            "latency_priority": "medium",
+            "complexity_priority": "medium",
         }
     
     # Clean and normalize input
@@ -3191,17 +3219,56 @@ def mock_extraction(user_input: str) -> dict:
     elif any(kw in text_lower for kw in throughput_keywords):
         priority = "high_throughput"
     
+    # Detect priority hints for each dimension (default to "medium")
+    accuracy_priority = "medium"
+    cost_priority = "medium"
+    latency_priority = "medium"
+    complexity_priority = "medium"
+
+    # Accuracy priority detection
+    if any(kw in text_lower for kw in ["accuracy is important", "quality matters", "best model",
+                                        "highest accuracy", "accuracy critical", "top quality"]):
+        accuracy_priority = "high"
+    elif any(kw in text_lower for kw in ["accuracy less important", "good enough", "accuracy not critical"]):
+        accuracy_priority = "low"
+
+    # Cost priority detection
+    if any(kw in text_lower for kw in ["cost is important", "budget constrained", "cost-efficient",
+                                        "cost critical", "minimize cost", "budget is tight"]):
+        cost_priority = "high"
+    elif any(kw in text_lower for kw in ["not cost sensitive", "budget flexible", "money not an issue",
+                                          "cost doesn't matter"]):
+        cost_priority = "low"
+
+    # Latency priority detection
+    if any(kw in text_lower for kw in ["latency is a concern", "speed matters", "fast response",
+                                        "low latency critical", "real-time", "instant"]):
+        latency_priority = "high"
+    elif any(kw in text_lower for kw in ["latency less important", "can wait", "latency not critical"]):
+        latency_priority = "low"
+
+    # Complexity priority detection
+    if any(kw in text_lower for kw in ["simple deployment", "easy to manage", "minimal complexity",
+                                        "simple setup", "straightforward"]):
+        complexity_priority = "high"
+    elif any(kw in text_lower for kw in ["complexity is fine", "advanced setup ok", "complex ok"]):
+        complexity_priority = "low"
+
     return {
         "use_case": use_case,
         "user_count": user_count,
         "hardware": hardware,
         "priority": priority,
+        "accuracy_priority": accuracy_priority,
+        "cost_priority": cost_priority,
+        "latency_priority": latency_priority,
+        "complexity_priority": complexity_priority,
     }
 
 
 def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
     """Get enhanced recommendation with explainability.
-    
+
     ALL logic is in backend - UI only fetches data.
     """
     try:
@@ -3216,7 +3283,15 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
         itl_target = business_context.get("itl_p95_target_ms", 50)
         e2e_target = business_context.get("e2e_p95_target_ms", 10000)
         percentile = business_context.get("percentile", "p95")
-        
+
+        # Get weights from session state (set in PRIORITIES section of Tech Spec tab)
+        weights = {
+            "accuracy": st.session_state.get("weight_accuracy", 5),
+            "price": st.session_state.get("weight_cost", 4),
+            "latency": st.session_state.get("weight_latency", 2),
+            "complexity": 0,  # Complexity scoring disabled in UI (backend logic preserved)
+        }
+
         # Use the ranked-recommend-from-spec endpoint with proper fields
         response = requests.post(
             f"{API_BASE_URL}/api/ranked-recommend-from-spec",
@@ -3234,6 +3309,7 @@ def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
                 "percentile": percentile,
                 "include_near_miss": False,  # Strict filtering!
                 "min_accuracy": 35,
+                "weights": weights,  # Pass user-configured weights for balanced scoring
             },
             timeout=60,
         )
@@ -4826,10 +4902,10 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     e2e = int(st.session_state.custom_e2e) if st.session_state.custom_e2e else e2e_default
     qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
     
-    # Section header - Technical Specifications
+    # Section header - Technical Specification
     st.markdown("""
     <div class="section-header" style="background: #000000; border: 1px solid rgba(255,255,255,0.2);">
-        Set Technical Specifications
+        Set Technical Specification
     </div>
     """, unsafe_allow_html=True)
     
@@ -5131,7 +5207,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             st.markdown(f'<div style="font-size: 0.85rem; color: white; padding: 0.4rem 0.5rem; line-height: 1.4; background: #000000; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
     
     with col3:
-        # Task Datasets - show which benchmarks are used for this use case
+        # Accuracy Benchmarks - show which benchmarks are used for this use case
         # Each entry: (name, weight, color, tooltip_description) - all black background
         # Updated based on USE_CASE_METHODOLOGY.md (December 2024)
         # Focus on TOP 3 benchmarks: τ²-Bench (91%), LiveCodeBench (84%), MMLU-Pro (83%), GPQA (82%)
@@ -5188,11 +5264,11 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         st.markdown("""
         <div class="slo-card">
             <div class="slo-header">
-                <span class="slo-title">Task Datasets</span>
+                <span class="slo-title">Accuracy Benchmarks</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        
+
         # Display datasets with weights - black background, white text for visibility
         datasets_html = '<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">'
         for item in datasets:
@@ -5211,34 +5287,111 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         st.markdown(datasets_html, unsafe_allow_html=True)
 
     with col4:
-        # Priority Settings card - shows detected priority and hardware
+        # PRIORITIES card - interactive priority dropdowns with weights
         st.markdown("""
         <div class="slo-card">
             <div class="slo-header">
-                <span class="slo-title">Priority Settings</span>
-        </div>
+                <span class="slo-title">Priorities</span>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-    
-        # Build items - always show priority
-        items = []
-    
-        # Always show priority (including balanced) - black background, white text
-        priority_display = priority.replace('_', ' ').title() if priority else "Balanced"
-        items.append(("", "Priority", priority_display))
-    
-        # Hardware - only show if user explicitly mentioned it
-        if hardware and hardware not in ["Any GPU", "Any", None, ""]:
-            items.append(("", "Hardware", hardware))
-    
-        # Build content HTML - black background with white text
-        items_html = "".join([
-            f'<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">{icon} {label}</span><span style="color: white; font-weight: 700; font-size: 0.9rem; background: #000000; padding: 4px 10px; border-radius: 6px;">{value}</span></div>'
-            for icon, label, value in items
-        ])
-        
-        full_html = f'<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">{items_html}</div>'
-        st.markdown(full_html, unsafe_allow_html=True)
+
+        # Load priority weights config from backend (cached)
+        priority_config = fetch_priority_weights()
+        # priority_config structure: {priority_weights: {accuracy: {low: 3, ...}, ...}, defaults: {...}}
+        priority_weights_map = priority_config.get("priority_weights", {}) if priority_config else {}
+        defaults_config = priority_config.get("defaults", {}) if priority_config else {}
+        logger.debug(f"Priority config loaded: weights_map keys={list(priority_weights_map.keys())}, defaults={defaults_config}")
+
+        # Priority options for dropdowns
+        priority_options = ["Low", "Medium", "High"]
+        priority_to_value = {"Low": "low", "Medium": "medium", "High": "high"}
+        value_to_priority = {"low": "Low", "medium": "Medium", "high": "High"}
+
+        # Helper to get weight for a priority level
+        def get_weight_for_priority(dimension: str, priority_level: str) -> int:
+            pw = priority_weights_map.get(dimension, {})
+            default_weights = defaults_config.get("weights", {"accuracy": 5, "cost": 4, "latency": 2, "complexity": 2})
+            weight = pw.get(priority_level, default_weights.get(dimension, 5))
+            logger.info(f"get_weight_for_priority({dimension}, {priority_level}): pw={pw}, weight={weight}")
+            return weight
+
+        # Get extraction result to check for LLM-detected priorities
+        extraction = st.session_state.get('extraction_result', {})
+
+        # Initialize session state for priorities if not set
+        if 'accuracy_priority' not in st.session_state:
+            st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
+        if 'cost_priority' not in st.session_state:
+            st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
+        if 'latency_priority' not in st.session_state:
+            st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
+        # Note: complexity_priority removed from UI (backend still extracts it)
+
+        # Initialize weights based on priorities
+        if 'weight_accuracy' not in st.session_state:
+            st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
+        if 'weight_cost' not in st.session_state:
+            st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
+        if 'weight_latency' not in st.session_state:
+            st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
+        # Note: weight_complexity removed from UI (hardcoded to 0 in get_enhanced_recommendation)
+
+        # Container for the priority rows
+        st.markdown('<div style="background: rgba(255,255,255,0.03); padding: 0.5rem; border-radius: 8px; margin-top: 0.5rem;">', unsafe_allow_html=True)
+
+        # Row 1: Accuracy
+        acc_col1, acc_col2, acc_col3 = st.columns([2, 1.5, 1])
+        with acc_col1:
+            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Accuracy</span>', unsafe_allow_html=True)
+        with acc_col2:
+            acc_priority_display = value_to_priority.get(st.session_state.accuracy_priority, "Medium")
+            new_acc_priority = st.selectbox("Accuracy", priority_options, index=priority_options.index(acc_priority_display), key="acc_priority_select", label_visibility="collapsed")
+            new_acc_priority_val = priority_to_value[new_acc_priority]
+            if new_acc_priority_val != st.session_state.accuracy_priority:
+                st.session_state.accuracy_priority = new_acc_priority_val
+                st.session_state.weight_accuracy = get_weight_for_priority("accuracy", new_acc_priority_val)
+        with acc_col3:
+            new_acc_weight = st.number_input("Accuracy weight", min_value=0, max_value=10, value=st.session_state.weight_accuracy, key="acc_weight_input", label_visibility="collapsed")
+            if new_acc_weight != st.session_state.weight_accuracy:
+                st.session_state.weight_accuracy = new_acc_weight
+
+        # Row 2: Cost
+        cost_col1, cost_col2, cost_col3 = st.columns([2, 1.5, 1])
+        with cost_col1:
+            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Cost</span>', unsafe_allow_html=True)
+        with cost_col2:
+            cost_priority_display = value_to_priority.get(st.session_state.cost_priority, "Medium")
+            new_cost_priority = st.selectbox("Cost", priority_options, index=priority_options.index(cost_priority_display), key="cost_priority_select", label_visibility="collapsed")
+            new_cost_priority_val = priority_to_value[new_cost_priority]
+            if new_cost_priority_val != st.session_state.cost_priority:
+                st.session_state.cost_priority = new_cost_priority_val
+                st.session_state.weight_cost = get_weight_for_priority("cost", new_cost_priority_val)
+        with cost_col3:
+            new_cost_weight = st.number_input("Cost weight", min_value=0, max_value=10, value=st.session_state.weight_cost, key="cost_weight_input", label_visibility="collapsed")
+            if new_cost_weight != st.session_state.weight_cost:
+                st.session_state.weight_cost = new_cost_weight
+
+        # Row 3: Latency
+        lat_col1, lat_col2, lat_col3 = st.columns([2, 1.5, 1])
+        with lat_col1:
+            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Latency</span>', unsafe_allow_html=True)
+        with lat_col2:
+            lat_priority_display = value_to_priority.get(st.session_state.latency_priority, "Medium")
+            new_lat_priority = st.selectbox("Latency", priority_options, index=priority_options.index(lat_priority_display), key="lat_priority_select", label_visibility="collapsed")
+            new_lat_priority_val = priority_to_value[new_lat_priority]
+            if new_lat_priority_val != st.session_state.latency_priority:
+                st.session_state.latency_priority = new_lat_priority_val
+                st.session_state.weight_latency = get_weight_for_priority("latency", new_lat_priority_val)
+        with lat_col3:
+            new_lat_weight = st.number_input("Latency weight", min_value=0, max_value=10, value=st.session_state.weight_latency, key="lat_weight_input", label_visibility="collapsed")
+            if new_lat_weight != st.session_state.weight_latency:
+                st.session_state.weight_latency = new_lat_weight
+
+        # Note: Complexity row removed from UI but scoring logic preserved in backend
+        # Complexity weight is hardcoded to 0 in get_enhanced_recommendation()
+
+        st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =============================================================================
@@ -5634,7 +5787,7 @@ def main():
     render_hero()
     
     # Tab-based navigation (4 tabs)
-    tab1, tab2, tab3, tab4 = st.tabs(["Define Use Case", "Technical Specifications", "Recommendations", "About"])
+    tab1, tab2, tab3, tab4 = st.tabs(["Define Use Case", "Technical Specification", "Recommendations", "About"])
     
     with tab1:
         render_use_case_input_tab(priority, models_df)
@@ -5781,9 +5934,40 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
                 st.session_state.slo_approved = None
                 st.session_state.edited_extraction = None
                 st.session_state.ranked_response = None
-                
+
+                # Reset priority weights from extraction (LLM-detected priorities)
+                # Note: complexity_priority and weight_complexity removed from UI
+                for key in ['accuracy_priority', 'cost_priority', 'latency_priority',
+                           'weight_accuracy', 'weight_cost', 'weight_latency']:
+                    if key in st.session_state:
+                        del st.session_state[key]
+
                 # Store new extraction
                 st.session_state.extraction_result = extraction
+
+                # Initialize priorities and weights immediately from extraction
+                # This ensures weights are set before the recommendation API is called
+                priority_config = fetch_priority_weights()
+                pw_map = priority_config.get("priority_weights", {}) if priority_config else {}
+                defaults_cfg = priority_config.get("defaults", {}) if priority_config else {}
+                default_weights = defaults_cfg.get("weights", {"accuracy": 5, "cost": 4, "latency": 2})
+
+                # Set priorities from extraction (LLM-detected) or default to medium
+                # Note: complexity_priority removed from UI (backend still extracts it)
+                st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
+                st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
+                st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
+
+                # Set weights based on priorities using the JSON config mapping
+                # Note: weight_complexity removed from UI (hardcoded to 0 in API call)
+                st.session_state.weight_accuracy = pw_map.get("accuracy", {}).get(st.session_state.accuracy_priority, default_weights["accuracy"])
+                st.session_state.weight_cost = pw_map.get("cost", {}).get(st.session_state.cost_priority, default_weights["cost"])
+                st.session_state.weight_latency = pw_map.get("latency", {}).get(st.session_state.latency_priority, default_weights["latency"])
+
+                logger.info(f"Initialized priorities from extraction: accuracy={st.session_state.accuracy_priority}, "
+                           f"cost={st.session_state.cost_priority}, latency={st.session_state.latency_priority}")
+                logger.info(f"Initialized weights: accuracy={st.session_state.weight_accuracy}, "
+                           f"cost={st.session_state.weight_cost}, latency={st.session_state.weight_latency}")
                 st.session_state.used_priority = extraction.get("priority", priority)
                 st.session_state.detected_use_case = extraction.get("use_case", "chatbot_conversational")
                 progress_bar.progress(100, text="Ready!")
@@ -5805,7 +5989,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     
     # Show extraction with approval if extraction exists but not approved
     if st.session_state.extraction_result and st.session_state.extraction_approved is None:
-        render_extraction_with_approval(st.session_state.extraction_result, used_priority, models_df)
+        render_extraction_with_approval(st.session_state.extraction_result, models_df)
         return
     
     # If editing, show edit form
@@ -5822,7 +6006,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         with col_btns:
             st.markdown("""
             <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem;">
-                <strong>Step 1 Complete</strong> · Go to Technical Specifications
+                <strong>Step 1 Complete</strong> · Go to Technical Specification
             </div>
             """, unsafe_allow_html=True)
             if st.button("Next Tab →", key="next_tab_1", type="primary", use_container_width=True):
@@ -5836,7 +6020,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
 
 
 def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
-    """Tab 2: Technical Specifications (SLO targets and workload settings)."""
+    """Tab 2: Technical Specification (SLO targets and workload settings)."""
     used_priority = st.session_state.get("used_priority", priority)
     
     # Check if extraction is approved first
@@ -5885,14 +6069,14 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
             <div style="background: #1a1a1a; color: white; padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">
                 <strong style="font-size: 1.1rem;">Complete Previous Steps First</strong><br>
                 <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">1. Go to <strong>Define Use Case</strong> tab to describe your use case<br>
-                2. Then go to <strong>Technical Specifications</strong> tab to set your SLO targets</span>
+                2. Then go to <strong>Technical Specification</strong> tab to set your SLO targets</span>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
             <div style="background: #1a1a1a; color: white; padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">
                 <strong style="font-size: 1.1rem;">Complete Step 2 First</strong><br>
-                <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">Go to the <strong>Technical Specifications</strong> tab to set your SLO targets and workload parameters.</span>
+                <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">Go to the <strong>Technical Specification</strong> tab to set your SLO targets and workload parameters.</span>
             </div>
             """, unsafe_allow_html=True)
         return
@@ -5910,7 +6094,7 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     
     if True:  # Always regenerate
         # Get all specification values from session state (set in Tech Specs tab)
-        # These are the EXACT values the user sees on the Technical Specifications tab
+        # These are the EXACT values the user sees on the Technical Specification tab
         use_case = final_extraction.get("use_case", "chatbot_conversational")
         user_count = final_extraction.get("user_count", 1000)
 
@@ -5978,12 +6162,6 @@ def render_extraction_result(extraction: dict, priority: str):
             </div>
             <div class="extraction-item">
                 <div>
-                    <div class="extraction-label">Priority</div>
-                    <div class="extraction-value"><span class="priority-badge priority-{priority}">{priority.replace("_", " ").title()}</span></div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
                     <div class="extraction-label">Hardware</div>
                     <div class="extraction-value">{hardware if hardware else "Any GPU"}</div>
                 </div>
@@ -5993,7 +6171,7 @@ def render_extraction_result(extraction: dict, priority: str):
     """, unsafe_allow_html=True)
 
 
-def render_extraction_with_approval(extraction: dict, priority: str, models_df: pd.DataFrame):
+def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
     """Render extraction results with YES/NO approval buttons."""
     st.markdown('<div class="section-header">Extracted Business Context</div>', unsafe_allow_html=True)
     
@@ -6014,12 +6192,6 @@ def render_extraction_with_approval(extraction: dict, priority: str, models_df: 
                 <div>
                     <div class="extraction-label">Expected Users</div>
                     <div class="extraction-value">{user_count:,}</div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Priority</div>
-                    <div class="extraction-value"><span class="priority-badge priority-{priority}">{priority.replace("_", " ").title()}</span></div>
                 </div>
             </div>
             <div class="extraction-item">
@@ -6061,6 +6233,11 @@ def render_extraction_with_approval(extraction: dict, priority: str, models_df: 
             st.session_state.extraction_approved = None
             st.session_state.recommendation_result = None
             st.session_state.user_input = ""
+            # Reset priority weights (complexity removed from UI)
+            for key in ['accuracy_priority', 'cost_priority', 'latency_priority',
+                       'weight_accuracy', 'weight_cost', 'weight_latency']:
+                if key in st.session_state:
+                    del st.session_state[key]
             st.rerun()
 
 
@@ -6397,7 +6574,7 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
             st.session_state.explore_category = None
             # Keep slo_approved as True - user can adjust SLOs and click "Generate Recommendations" again
             # The Recommendations tab will regenerate with new values when they return
-            # Use JavaScript to switch to Technical Specifications tab
+            # Use JavaScript to switch to Technical Specification tab
             import streamlit.components.v1 as components
             components.html("""
             <script>

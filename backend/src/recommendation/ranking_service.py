@@ -168,9 +168,9 @@ class RankingService:
         # Apply filters
         filtered = self._apply_filters(configurations, min_accuracy, max_cost)
 
-        # Recalculate balanced scores with custom weights and task bonuses
-        if filtered:
-            self._recalculate_balanced_scores(filtered, weights or {}, use_case)
+        # # Recalculate balanced scores with custom weights and task bonuses
+        # if filtered:
+        #     self._recalculate_balanced_scores(filtered, weights or {}, use_case)
 
         if not filtered:
             logger.warning("No configurations remain after filtering")
@@ -198,7 +198,7 @@ class RankingService:
             ),
             reverse=True,
         )
-        
+
         for config in sorted_by_accuracy:
             model_name = config.model_name or config.model_id or "Unknown"
             if model_name not in seen_models:
@@ -206,10 +206,10 @@ class RankingService:
                 unique_accuracy_configs.append(config)
                 if len(unique_accuracy_configs) >= top_n:
                     break
-        
+
         # Get the model names of top accuracy models
         top_accuracy_model_names = {c.model_name or c.model_id for c in unique_accuracy_configs}
-        
+
         logger.info(
             f"ACCURACY-FIRST: Top {len(top_accuracy_model_names)} models by accuracy: "
             f"{list(top_accuracy_model_names)[:5]}"
@@ -220,10 +220,10 @@ class RankingService:
         # This ensures Best Latency and Best Cost show HIGH QUALITY models
         # =====================================================================
         high_quality_configs = [
-            c for c in filtered 
+            c for c in filtered
             if (c.model_name or c.model_id) in top_accuracy_model_names
         ]
-        
+
         logger.info(
             f"ACCURACY-FIRST: {len(high_quality_configs)} configs from top {len(top_accuracy_model_names)} models"
         )
@@ -234,14 +234,14 @@ class RankingService:
         ranked_lists = {
             # Best Accuracy: Top N unique models (one config per model)
             "best_accuracy": unique_accuracy_configs[:top_n],
-            
+
             # Best Cost: Cheapest hardware among high-quality models
             # Sort by actual cost (lower is better), not price_score
             "lowest_cost": sorted(
                 high_quality_configs,
                 key=lambda x: x.cost_per_month_usd or float('inf'),
             )[:top_n],
-            
+
             # Best Latency: Fastest hardware among high-quality models
             # Sort by latency score (higher is better = lower latency)
             "lowest_latency": sorted(
@@ -249,14 +249,14 @@ class RankingService:
                 key=lambda x: (x.scores.latency_score if x.scores else 0),
                 reverse=True,
             )[:top_n],
-            
+
             # Simplest: Fewest GPUs among high-quality models
             "simplest": sorted(
                 high_quality_configs,
                 key=lambda x: (x.scores.complexity_score if x.scores else 0),
                 reverse=True,
             )[:top_n],
-            
+
             # Balanced: Best weighted score among high-quality models
             "balanced": sorted(
                 high_quality_configs,

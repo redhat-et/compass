@@ -129,6 +129,7 @@ class CapacityPlanner:
         model_evaluator: "ModelEvaluator | None" = None,
         include_near_miss: bool = False,  # Strict SLO filtering - no tolerance
         near_miss_tolerance: float = 0.0,  # No near-miss tolerance
+        weights: dict[str, int] | None = None,  # Custom weights for balanced score
     ) -> list[DeploymentRecommendation]:
         """
         Plan GPU capacity and return ALL viable configurations meeting SLO.
@@ -143,6 +144,8 @@ class CapacityPlanner:
             model_evaluator: Model evaluator for accuracy scoring (optional)
             include_near_miss: Whether to include configs within tolerance of SLO
             near_miss_tolerance: How much over SLO to allow (0.2 = 20%)
+            weights: Custom weights for balanced score (0-10 scale)
+                     Keys: accuracy, price, latency, complexity
 
         Returns:
             List of DeploymentRecommendations with scores attached
@@ -335,12 +338,21 @@ class CapacityPlanner:
                     )
                     rec.scores.price_score = price_score
 
-                    # Calculate base balanced score
+                    # Calculate base balanced score with user weights
+                    # Weights from UI are 0-10 integers, normalize to fractions
+                    normalized_weights = None
+                    if weights:
+                        total = sum(weights.values()) or 1  # Avoid division by zero
+                        normalized_weights = {
+                            k: v / total for k, v in weights.items()
+                        }
+
                     base_balanced = scorer.score_balanced(
                         accuracy_score=rec.scores.accuracy_score,
                         price_score=price_score,
                         latency_score=rec.scores.latency_score,
                         complexity_score=rec.scores.complexity_score,
+                        weights=normalized_weights,
                     )
                     
                     # Apply scalability penalty based on replica count

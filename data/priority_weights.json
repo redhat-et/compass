@@ -1,0 +1,19 @@
+{
+  "_description": "Priority to weight mapping for recommendation scoring. Weights are used to calculate the balanced score in recommendations.",
+  "_rationale": {
+    "accuracy": "Most users prioritize good model quality. Higher weights reflect this importance.",
+    "cost": "Cost is important but slightly less than accuracy. Reflects budget-conscious decision making.",
+    "latency": "Primarily handled by SLO targets. Acts as a tie-breaker in balanced scoring.",
+    "complexity": "Simpler deployments are easier to manage. Acts as a tie-breaker like latency."
+  },
+  "priority_weights": {
+    "accuracy": {"low": 3, "medium": 5, "high": 7},
+    "cost": {"low": 3, "medium": 5, "high": 7},
+    "latency": {"low": 1, "medium": 2, "high": 3},
+    "complexity": {"low": 1, "medium": 2, "high": 3}
+  },
+  "defaults": {
+    "priority": "medium",
+    "weights": {"accuracy": 5, "cost": 5, "latency": 2, "complexity": 2}
+  }
+}

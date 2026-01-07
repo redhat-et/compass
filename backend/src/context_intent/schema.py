@@ -83,6 +83,20 @@ class DeploymentIntent(BaseModel):
         description="Domain requirements (general, code, multilingual, enterprise)",
     )
 
+    # Priority hints extracted from natural language (used for weight calculation)
+    accuracy_priority: Literal["low", "medium", "high"] = Field(
+        default="medium", description="Accuracy/quality importance"
+    )
+    cost_priority: Literal["low", "medium", "high"] = Field(
+        default="medium", description="Cost sensitivity (high = very cost sensitive)"
+    )
+    latency_priority: Literal["low", "medium", "high"] = Field(
+        default="medium", description="Latency importance"
+    )
+    complexity_priority: Literal["low", "medium", "high"] = Field(
+        default="medium", description="Preference for simpler deployments"
+    )
+
     additional_context: str | None = Field(
         None, description="Any other relevant details from conversation"
     )
