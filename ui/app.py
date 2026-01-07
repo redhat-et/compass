@@ -1551,6 +1551,8 @@ if "explore_category" not in st.session_state:
     st.session_state.explore_category = "balanced"
 if "show_full_table_dialog" not in st.session_state:
     st.session_state.show_full_table_dialog = False
+if "show_options_list_expanded" not in st.session_state:
+    st.session_state.show_options_list_expanded = False
 if "top5_balanced" not in st.session_state:
     st.session_state.top5_balanced = []
 if "top5_accuracy" not in st.session_state:
@@ -5530,6 +5532,73 @@ def show_full_table_dialog():
         st.rerun()
 
 
+def render_options_list_inline():
+    """Render the expanded options list content inline on the page."""
+    ranked_response = st.session_state.get('ranked_response')
+
+    if not ranked_response:
+        st.warning("No recommendations available. Please run the recommendation process first.")
+        return
+
+    # Header
+    st.markdown('<div style="background: linear-gradient(135deg, #EE0000, #cc0000); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; margin-top: 1rem;"><h2 style="color: white; margin: 0; font-size: 1.5rem;">Configuration Options</h2><p style="color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;">All viable deployment configurations ranked by category</p></div>', unsafe_allow_html=True)
+
+    total_configs = ranked_response.get("total_configs_evaluated", 0)
+    configs_after_filters = ranked_response.get("configs_after_filters", 0)
+
+    st.markdown(f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
+
+    # Define categories
+    categories = [
+        ("balanced", "Balanced", "#EE0000"),
+        ("best_accuracy", "Best Accuracy", "#ffffff"),
+        ("lowest_cost", "Lowest Cost", "#f59e0b"),
+        ("lowest_latency", "Lowest Latency", "#ffffff"),
+    ]
+
+    # Helper function to format GPU config
+    def format_gpu_config(gpu_config: dict) -> str:
+        if not isinstance(gpu_config, dict):
+            return "Unknown"
+        gpu_type = gpu_config.get("gpu_type", "Unknown")
+        gpu_count = gpu_config.get("gpu_count", 1)
+        tp = gpu_config.get("tensor_parallel", 1)
+        replicas = gpu_config.get("replicas", 1)
+        return f"{gpu_count}x {gpu_type} (TP={tp}, R={replicas})"
+
+    # Build table rows
+    all_rows = []
+    for cat_key, cat_name, cat_color in categories:
+        recs = ranked_response.get(cat_key, [])
+        if not recs:
+            all_rows.append(f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td></tr>')
+        else:
+            for i, rec in enumerate(recs[:5]):  # Show top 5 per category
+                model_name = format_display_name(rec.get("model_name", "Unknown"))
+                gpu_config = rec.get("gpu_config", {})
+                gpu_str = format_gpu_config(gpu_config)
+                ttft = rec.get("predicted_ttft_p95_ms", 0)
+                cost = rec.get("cost_per_month_usd", 0)
+                scores = rec.get("scores", {}) or {}
+                accuracy = scores.get("accuracy_score", 0)
+                balanced = scores.get("balanced_score", 0)
+                meets_slo = rec.get("meets_slo", False)
+                slo_icon = "Yes" if meets_slo else "No"
+
+                cat_display = f'<span style="color: {cat_color}; font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
+
+                row = f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
+                all_rows.append(row)
+
+    # Table header
+    header = '<thead><tr style="border-bottom: 2px solid rgba(255,255,255,0.2);"><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th></tr></thead>'
+
+    # Render table
+    table_html = f'<table style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">{header}<tbody>{"".join(all_rows)}</tbody></table>'
+
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
 # =============================================================================
 # MAIN APP
 # =============================================================================
@@ -5582,57 +5651,73 @@ def main():
     
 def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     """Tab 1: Use case input interface."""
-    
+
+    def clear_dialog_states():
+        """Clear all dialog and expanded states when starting a new use case."""
+        st.session_state.show_full_table_dialog = False
+        st.session_state.show_category_dialog = False
+        st.session_state.show_winner_dialog = False
+        st.session_state.show_options_list_expanded = False
+
     st.markdown('<div class="section-header">Describe your use case or select from 9 predefined scenarios</div>', unsafe_allow_html=True)
-    
+
     # Row 1: 5 task buttons
     col1, col2, col3, col4, col5 = st.columns(5)
-    
+
     with col1:
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "Customer service chatbot for 30 users."
-    
+
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "IDE code completion tool for 30 developers."
-    
+
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 30 users."
-    
+
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
+            clear_dialog_states()
             # With priority (cost-effective) to show filtering
             st.session_state.user_input = "News article summarization for 30 users, cost-effective solution preferred."
-    
+
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
+            clear_dialog_states()
             # With priority (accuracy) to show filtering
             st.session_state.user_input = "Legal document analysis for 30 lawyers, accuracy is critical."
-    
+
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
-    
+
     with col6:
         if st.button("Translation", use_container_width=True, key="task_trans"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "Multi-language translation service for 30 users."
-    
+
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "Content generation tool for marketing team, 30 users."
-    
+
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
+            clear_dialog_states()
             # With priority (accuracy) to show filtering
             st.session_state.user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
-    
+
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
+            clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
             st.session_state.user_input = "Full code generation tool for implementing features, 30 developers."
     
@@ -6210,10 +6295,10 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     ranked_response = result
     
     if ranked_response:
-        # NOTE: Table removed from main view - now only shown in "Explore More Options" dialog
+        # NOTE: Table removed from main view - now only shown in "List Options" expandable section
         # render_ranked_recommendations(ranked_response)
-        
-        # Store ranked response for winner details and for the Explore More Options dialog
+
+        # Store ranked response for winner details and for the List Options section
         st.session_state.ranked_response = ranked_response
         
         # Get the Balanced winner for the Explore button
@@ -6269,18 +6354,22 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     if unique_recs:
         render_top5_table(unique_recs, priority)
     
-    # === EXPLORE MORE OPTIONS BUTTON (centered) ===
+    # === LIST OPTIONS SECTION (inline expandable) ===
     st.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
     col_left, col_center, col_right = st.columns([1, 2, 1])
     with col_center:
-        if st.button("Explore More Options", key="explore_more_options_btn", use_container_width=True):
-            # Reset other dialogs first
-            st.session_state.show_category_dialog = False
-            st.session_state.show_winner_dialog = False
-            # Then open this dialog
-            st.session_state.show_full_table_dialog = True
+        # Toggle button text based on expanded state
+        is_expanded = st.session_state.get('show_options_list_expanded', False)
+        button_text = "Hide Option List" if is_expanded else "List Options"
+        if st.button(button_text, key="list_options_btn", use_container_width=True):
+            # Toggle the expanded state
+            st.session_state.show_options_list_expanded = not is_expanded
             st.rerun()
-    
+
+    # Render inline expanded content if expanded
+    if st.session_state.get('show_options_list_expanded', False):
+        render_options_list_inline()
+
     # === MODIFY SLOs & RE-RUN SECTION ===
     st.markdown("---")
     st.markdown("""
@@ -6300,22 +6389,14 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     col_back, col_new, col_spacer = st.columns([1, 1, 2])
     with col_back:
         if st.button("← Back to Technical Specs", key="back_to_slo", type="primary", use_container_width=True):
-            # Reset ALL dialog states first to prevent popups
+            # Reset dialog states to prevent popups
             st.session_state.show_category_dialog = False
             st.session_state.show_full_table_dialog = False
             st.session_state.show_winner_dialog = False
+            st.session_state.show_options_list_expanded = False
             st.session_state.explore_category = None
-            # Reset slo_approved to go back to SLO editing
-            st.session_state.slo_approved = None
-            st.session_state.recommendation_result = None
-            # IMPORTANT: Clear cached ranked_response so recommendations are re-fetched with new SLOs
-            st.session_state.ranked_response = None
-            # Clear top5 caches to prevent stale data
-            st.session_state.top5_balanced = None
-            st.session_state.top5_accuracy = None
-            st.session_state.top5_latency = None
-            st.session_state.top5_cost = None
-            st.session_state.top5_simplest = None
+            # Keep slo_approved as True - user can adjust SLOs and click "Generate Recommendations" again
+            # The Recommendations tab will regenerate with new values when they return
             # Use JavaScript to switch to Technical Specifications tab
             import streamlit.components.v1 as components
             components.html("""
@@ -6324,7 +6405,6 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
                 if (tabs.length > 1) tabs[1].click();
             </script>
             """, height=0)
-            st.rerun()
     
     with col_new:
         if st.button("New Case", key="new_case_btn", type="secondary", use_container_width=True):
@@ -6335,7 +6415,8 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
                 'custom_ttft', 'custom_itl', 'custom_e2e', 'custom_qps', 'used_priority',
                 'ranked_response', 'show_category_dialog', 'show_full_table_dialog',
                 'show_winner_dialog', 'explore_category', 'detected_use_case',
-                'top5_balanced', 'top5_accuracy', 'top5_latency', 'top5_cost', 'top5_simplest'
+                'top5_balanced', 'top5_accuracy', 'top5_latency', 'top5_cost', 'top5_simplest',
+                'show_options_list_expanded'
             ]
             for key in keys_to_clear:
                 if key in st.session_state:
