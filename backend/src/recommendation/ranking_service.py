@@ -184,17 +184,37 @@ class RankingService:
 
         # =====================================================================
         # STEP 1: Get top N UNIQUE MODELS by raw accuracy (quality baseline)
-        # When accuracy is TIED, use latency_score as tie-breaker (faster = better)
+        # Tie-breakers follow priority order: Accuracy → Cost → Latency → Complexity
         # =====================================================================
+
+        # Helper functions for sort keys (higher score = better, lower cost = better)
+        def get_accuracy(x):
+            return x.scores.accuracy_score if x.scores else 0
+
+        def get_cost_inverted(x):
+            # Invert cost so lower cost sorts higher (better)
+            cost = x.cost_per_month_usd or float('inf')
+            return -cost
+
+        def get_latency(x):
+            return x.scores.latency_score if x.scores else 0
+
+        def get_complexity(x):
+            return x.scores.complexity_score if x.scores else 0
+
+        def get_balanced(x):
+            return x.scores.balanced_score if x.scores else 0.0
+
         seen_models = set()
         unique_accuracy_configs = []
+        # Primary: Accuracy, Tie-breakers: Cost → Latency → Complexity
         sorted_by_accuracy = sorted(
             filtered,
             key=lambda x: (
-                x.scores.accuracy_score if x.scores else 0,
-                # Tie-breaker: LOWEST TTFT wins (faster response)
-                # Negate TTFT so lower values sort higher
-                -(x.predicted_ttft_p95_ms or 999999),
+                get_accuracy(x),
+                get_cost_inverted(x),
+                get_latency(x),
+                get_complexity(x),
             ),
             reverse=True,
         )
@@ -230,37 +250,60 @@ class RankingService:
 
         # =====================================================================
         # STEP 3: Generate ranked lists from HIGH-QUALITY configs only
+        # Tie-breaker order: Accuracy → Cost → Latency → Complexity
+        # Each list excludes its primary criterion from tie-breakers
         # =====================================================================
         ranked_lists = {
             # Best Accuracy: Top N unique models (one config per model)
+            # Already sorted with tie-breakers: Cost → Latency → Complexity
             "best_accuracy": unique_accuracy_configs[:top_n],
 
-            # Best Cost: Cheapest hardware among high-quality models
-            # Sort by actual cost (lower is better), not price_score
+            # Best Cost: Primary=Cost, Tie-breakers: Accuracy → Latency → Complexity
             "lowest_cost": sorted(
                 high_quality_configs,
-                key=lambda x: x.cost_per_month_usd or float('inf'),
+                key=lambda x: (
+                    get_cost_inverted(x),
+                    get_accuracy(x),
+                    get_latency(x),
+                    get_complexity(x),
+                ),
+                reverse=True,
             )[:top_n],
 
-            # Best Latency: Fastest hardware among high-quality models
-            # Sort by latency score (higher is better = lower latency)
+            # Best Latency: Primary=Latency, Tie-breakers: Accuracy → Cost → Complexity
             "lowest_latency": sorted(
                 high_quality_configs,
-                key=lambda x: (x.scores.latency_score if x.scores else 0),
+                key=lambda x: (
+                    get_latency(x),
+                    get_accuracy(x),
+                    get_cost_inverted(x),
+                    get_complexity(x),
+                ),
                 reverse=True,
             )[:top_n],
 
-            # Simplest: Fewest GPUs among high-quality models
+            # Simplest: Primary=Complexity, Tie-breakers: Accuracy → Cost → Latency
             "simplest": sorted(
                 high_quality_configs,
-                key=lambda x: (x.scores.complexity_score if x.scores else 0),
+                key=lambda x: (
+                    get_complexity(x),
+                    get_accuracy(x),
+                    get_cost_inverted(x),
+                    get_latency(x),
+                ),
                 reverse=True,
             )[:top_n],
 
-            # Balanced: Best weighted score among high-quality models
+            # Balanced: Primary=Balanced, Tie-breakers: Accuracy → Cost → Latency → Complexity
             "balanced": sorted(
                 high_quality_configs,
-                key=lambda x: (x.scores.balanced_score if x.scores else 0.0),
+                key=lambda x: (
+                    get_balanced(x),
+                    get_accuracy(x),
+                    get_cost_inverted(x),
+                    get_latency(x),
+                    get_complexity(x),
+                ),
                 reverse=True,
             )[:top_n],
         }

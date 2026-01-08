@@ -475,7 +475,7 @@ class RecommendationWorkflow:
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
-            top_n=5,  # Top 5 accuracy models only
+            top_n=10,  # Top 10 accuracy models only
             weights=weights,
             use_case=intent.use_case,  # Task bonuses for Balanced
         )
