@@ -31,7 +31,7 @@ def get_db_connection():
         print(f"❌ Error connecting to database: {e}")
         print(f"Database URL: {db_url}")
         print("\nMake sure PostgreSQL is running:")
-        print("  make postgres-start")
+        print("  make db-start")
         sys.exit(1)
 
 
@@ -64,15 +64,50 @@ def generate_config_id(benchmark):
     return hashlib.md5(config_str.encode()).hexdigest()
 
 
+def normalize_benchmark_fields(benchmark):
+    """Normalize field names from different JSON formats to match DB schema.
+
+    Handles field mapping for:
+    - benchmarks_BLIS.json (uses model_hf_repo, hardware)
+    - benchmarks_estimated_performance.json (uses model_id, hardware)
+    - benchmarks_interpolated_v2.json (uses model_id, hardware_type/gpu_type)
+    """
+    normalized = benchmark.copy()
+
+    # Map model_id -> model_hf_repo (estimated/interpolated files)
+    if 'model_hf_repo' not in normalized and 'model_id' in normalized:
+        normalized['model_hf_repo'] = normalized['model_id']
+
+    # Map hardware_type or gpu_type -> hardware (interpolated file)
+    if 'hardware' not in normalized:
+        if 'hardware_type' in normalized:
+            normalized['hardware'] = normalized['hardware_type']
+        elif 'gpu_type' in normalized:
+            normalized['hardware'] = normalized['gpu_type']
+
+    # Map tokens_per_second_mean -> tokens_per_second (estimated files)
+    if 'tokens_per_second' not in normalized and 'tokens_per_second_mean' in normalized:
+        normalized['tokens_per_second'] = normalized['tokens_per_second_mean']
+
+    # Map mean_input_tokens/mean_output_tokens from prompt_tokens/output_tokens if missing
+    if 'mean_input_tokens' not in normalized and 'prompt_tokens' in normalized:
+        normalized['mean_input_tokens'] = normalized['prompt_tokens']
+    if 'mean_output_tokens' not in normalized and 'output_tokens' in normalized:
+        normalized['mean_output_tokens'] = normalized['output_tokens']
+
+    return normalized
+
+
 def prepare_benchmark_for_insert(benchmark):
     """Prepare a benchmark record for database insertion."""
     from datetime import datetime
 
-    prepared = benchmark.copy()
+    # First normalize field names from different JSON formats
+    prepared = normalize_benchmark_fields(benchmark)
 
     # Generate UUID and config_id
     prepared['id'] = str(uuid.uuid4())
-    prepared['config_id'] = generate_config_id(benchmark)
+    prepared['config_id'] = generate_config_id(prepared)
 
     # Add required fields with defaults (matching real data schema)
     prepared['type'] = 'local'  # benchmark type
@@ -82,17 +117,21 @@ def prepare_benchmark_for_insert(benchmark):
     prepared['updated_at'] = datetime.now()
     prepared['loaded_at'] = None  # Optional field
 
-    # Optional fields that may not be in synthetic data
+    # Optional fields that may not be in all JSON formats
+    prepared.setdefault('framework', None)
+    prepared.setdefault('framework_version', None)
     prepared.setdefault('huggingface_prompt_dataset', None)
     prepared.setdefault('entrypoint', None)
     prepared.setdefault('docker_image', None)
-    prepared.setdefault('responses_per_second', None)  # Optional field
+    prepared.setdefault('responses_per_second', None)
     prepared.setdefault('tps_mean', None)
     prepared.setdefault('tps_p90', None)
     prepared.setdefault('tps_p95', None)
     prepared.setdefault('tps_p99', None)
+    prepared.setdefault('prompt_tokens_stdev', None)
     prepared.setdefault('prompt_tokens_min', None)
     prepared.setdefault('prompt_tokens_max', None)
+    prepared.setdefault('output_tokens_stdev', None)
     prepared.setdefault('output_tokens_min', None)
     prepared.setdefault('output_tokens_max', None)
     prepared.setdefault('profiler_type', None)
@@ -103,12 +142,20 @@ def prepare_benchmark_for_insert(benchmark):
 
 
 def insert_benchmarks(conn, benchmarks):
-    """Insert benchmarks into the database."""
+    """Insert benchmarks into the database (append mode).
+
+    Note: This function appends to existing data. Use `make db-reset` first
+    if you want to start with a clean database. Duplicates (same config_id)
+    are skipped.
+    """
     cursor = conn.cursor()
 
-    # Clear existing synthetic data
-    print("Clearing existing benchmark data...")
-    cursor.execute("TRUNCATE TABLE exported_summaries RESTART IDENTITY CASCADE;")
+    # Ensure unique constraint on config_id for duplicate detection
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_config_id_unique
+        ON exported_summaries(config_id);
+    """)
+    conn.commit()
 
     # Prepare benchmarks with required fields
     prepared_benchmarks = [prepare_benchmark_for_insert(b) for b in benchmarks]
@@ -213,7 +260,8 @@ def insert_benchmarks(conn, benchmarks):
             %(profiler_type)s,
             %(profiler_image)s,
             %(profiler_tag)s
-        );
+        )
+        ON CONFLICT (config_id) DO NOTHING;
     """
 
     print(f"Inserting {len(prepared_benchmarks)} benchmark records...")
@@ -292,9 +340,9 @@ def main():
     print("=" * 60)
     print()
     print("Next steps:")
-    print("  make postgres-query-traffic  # View traffic patterns")
-    print("  make postgres-query-models   # View available models")
-    print("  make postgres-shell          # Open PostgreSQL shell")
+    print("  make db-query-traffic  # View traffic patterns")
+    print("  make db-query-models   # View available models")
+    print("  make db-shell          # Open PostgreSQL shell")
 
 
 if __name__ == "__main__":

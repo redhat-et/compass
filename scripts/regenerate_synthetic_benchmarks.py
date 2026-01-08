@@ -201,7 +201,7 @@ def main():
     print()
     print("Next steps:")
     print("  1. Review the updated data/benchmarks.json")
-    print("  2. Reload into PostgreSQL: make postgres-load-synthetic")
+    print("  2. Reload into PostgreSQL: make db-load-synthetic")
     print("  3. Test recommendation flow")
 
 

@@ -32,6 +32,9 @@ SIMULATOR_FULL_IMAGE := $(REGISTRY)/$(REGISTRY_ORG)/$(SIMULATOR_IMAGE):$(SIMULAT
 OLLAMA_MODEL ?= qwen2.5:7b
 KIND_CLUSTER_NAME ?= compass-poc
 
+PGDUMP_INPUT ?= data/integ-oct-29.sql
+PGDUMP_OUTPUT ?= data/benchmarks_GuideLLM.json
+
 BACKEND_DIR := backend
 UI_DIR := ui
 SIMULATOR_DIR := simulator
@@ -391,41 +394,44 @@ db-init: db-start ## Initialize PostgreSQL schema
 	@docker exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
 	@printf "$(GREEN)✓ Schema initialized$(NC)\n"
 
-db-load-synthetic: db-init ## Load synthetic benchmark data from JSON
+db-load-synthetic: db-start ## Load synthetic benchmark data (appends)
 	@printf "$(BLUE)Loading synthetic benchmark data...$(NC)\n"
-	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_synthetic.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks_synthetic.json
 	@printf "$(GREEN)✓ Synthetic data loaded$(NC)\n"
 
-db-load-blis: db-init ## Load BLIS benchmark data from JSON
+db-load-blis: db-start ## Load BLIS benchmark data (appends)
 	@printf "$(BLUE)Loading BLIS benchmark data...$(NC)\n"
-	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_BLIS.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks_BLIS.json
 	@printf "$(GREEN)✓ BLIS data loaded$(NC)\n"
 
-db-load-real: db-init ## Load real benchmark data from SQL dump
-	@printf "$(BLUE)Loading real benchmark data from integ-oct-29.sql...$(NC)\n"
-	@if [ ! -f data/integ-oct-29.sql ]; then \
-		printf "$(RED)✗ data/integ-oct-29.sql not found$(NC)\n"; \
-		printf "$(YELLOW)This file is not in version control due to NDA restrictions$(NC)\n"; \
+db-load-estimated: db-start ## Load estimated performance benchmarks (appends)
+	@printf "$(BLUE)Loading estimated performance data...$(NC)\n"
+	@uv run python scripts/load_benchmarks.py data/benchmarks_estimated_performance.json
+	@printf "$(GREEN)✓ Estimated data loaded$(NC)\n"
+
+db-load-interpolated: db-start ## Load interpolated benchmark data (appends)
+	@printf "$(BLUE)Loading interpolated benchmark data...$(NC)\n"
+	@uv run python scripts/load_benchmarks.py data/benchmarks_interpolated_v2.json
+	@printf "$(GREEN)✓ Interpolated data loaded$(NC)\n"
+
+db-load-guidellm: db-start ## Load GuideLLM benchmark data (appends)
+	@printf "$(BLUE)Loading GuideLLM benchmark data...$(NC)\n"
+	@if [ ! -f data/benchmarks_GuideLLM.json ]; then \
+		printf "$(RED)✗ data/benchmarks_GuideLLM.json not found$(NC)\n"; \
+		printf "$(YELLOW)Run 'make db-convert-pgdump' first to create it from a pg_dump file$(NC)\n"; \
 		exit 1; \
 	fi
-	@# Copy dump file into container temporarily
-	@docker cp data/integ-oct-29.sql compass-postgres:/tmp/integ-oct-29.sql
-	@# Restore data only (schema already created by postgres-init)
-	@docker exec compass-postgres pg_restore -U postgres -d compass --data-only /tmp/integ-oct-29.sql 2>&1 | grep -v "ERROR.*cloudsqlsuperuser" || true
-	@# Clean up
-	@docker exec compass-postgres rm /tmp/integ-oct-29.sql
-	@# Show statistics
-	@printf "\n"
-	@printf "$(BLUE)📊 Database Statistics:$(NC)\n"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT COUNT(*) as total_benchmarks FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT COUNT(DISTINCT model_hf_repo) as num_models FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT COUNT(DISTINCT hardware) as num_hardware_types FROM exported_summaries;" | grep -v "^-" | grep -v "row"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT COUNT(DISTINCT (prompt_tokens, output_tokens)) as num_traffic_profiles FROM exported_summaries WHERE prompt_tokens IS NOT NULL;" | grep -v "^-" | grep -v "row"
-	@printf "$(GREEN)✓ Real benchmark data loaded$(NC)\n"
+	@uv run python scripts/load_benchmarks.py data/benchmarks_GuideLLM.json
+	@printf "$(GREEN)✓ GuideLLM data loaded$(NC)\n"
+
+db-convert-pgdump: db-start ## Convert PostgreSQL dump to JSON format
+	@printf "$(BLUE)Converting PostgreSQL dump to JSON...$(NC)\n"
+	@if [ ! -f $(PGDUMP_INPUT) ]; then \
+		printf "$(RED)✗ $(PGDUMP_INPUT) not found$(NC)\n"; \
+		exit 1; \
+	fi
+	@uv run python scripts/convert_pgdump_to_json.py $(PGDUMP_INPUT) -o $(PGDUMP_OUTPUT)
+	@printf "$(GREEN)✓ Created $(PGDUMP_OUTPUT)$(NC)\n"
 
 db-shell: ## Open PostgreSQL shell
 	@docker exec -it compass-postgres psql -U postgres -d compass
