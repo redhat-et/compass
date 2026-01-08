@@ -355,7 +355,7 @@ clean-deployments: ## Delete all InferenceServices from cluster
 
 ##@ PostgreSQL Database
 
-postgres-start: ## Start PostgreSQL container for benchmark data
+db-start: ## Start PostgreSQL container for benchmark data
 	@printf "$(BLUE)Starting PostgreSQL...$(NC)\n"
 	@if docker ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
 		if docker ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
@@ -375,33 +375,33 @@ postgres-start: ## Start PostgreSQL container for benchmark data
 	fi
 	@printf "$(BLUE)Database URL:$(NC) postgresql://postgres:compass@localhost:5432/compass\n"
 
-postgres-stop: ## Stop PostgreSQL container
+db-stop: ## Stop PostgreSQL container
 	@printf "$(BLUE)Stopping PostgreSQL...$(NC)\n"
 	@docker stop compass-postgres 2>/dev/null || true
 	@printf "$(GREEN)✓ PostgreSQL stopped$(NC)\n"
 
-postgres-remove: postgres-stop ## Stop and remove PostgreSQL container
+db-remove: db-stop ## Stop and remove PostgreSQL container
 	@printf "$(BLUE)Removing PostgreSQL container...$(NC)\n"
 	@docker rm compass-postgres 2>/dev/null || true
 	@printf "$(GREEN)✓ PostgreSQL container removed$(NC)\n"
 
-postgres-init: postgres-start ## Initialize PostgreSQL schema
+db-init: db-start ## Initialize PostgreSQL schema
 	@printf "$(BLUE)Initializing PostgreSQL schema...$(NC)\n"
 	@sleep 2
 	@docker exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
 	@printf "$(GREEN)✓ Schema initialized$(NC)\n"
 
-postgres-load-synthetic: postgres-init ## Load synthetic benchmark data from JSON
+db-load-synthetic: db-init ## Load synthetic benchmark data from JSON
 	@printf "$(BLUE)Loading synthetic benchmark data...$(NC)\n"
 	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_synthetic.json
 	@printf "$(GREEN)✓ Synthetic data loaded$(NC)\n"
 
-postgres-load-blis: postgres-init ## Load BLIS benchmark data from JSON
+db-load-blis: db-init ## Load BLIS benchmark data from JSON
 	@printf "$(BLUE)Loading BLIS benchmark data...$(NC)\n"
 	@uv run $(PYTHON) scripts/load_benchmarks.py data/benchmarks_BLIS.json
 	@printf "$(GREEN)✓ BLIS data loaded$(NC)\n"
 
-postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
+db-load-real: db-init ## Load real benchmark data from SQL dump
 	@printf "$(BLUE)Loading real benchmark data from integ-oct-29.sql...$(NC)\n"
 	@if [ ! -f data/integ-oct-29.sql ]; then \
 		printf "$(RED)✗ data/integ-oct-29.sql not found$(NC)\n"; \
@@ -427,10 +427,10 @@ postgres-load-real: postgres-init ## Load real benchmark data from SQL dump
 		"SELECT COUNT(DISTINCT (prompt_tokens, output_tokens)) as num_traffic_profiles FROM exported_summaries WHERE prompt_tokens IS NOT NULL;" | grep -v "^-" | grep -v "row"
 	@printf "$(GREEN)✓ Real benchmark data loaded$(NC)\n"
 
-postgres-shell: ## Open PostgreSQL shell
+db-shell: ## Open PostgreSQL shell
 	@docker exec -it compass-postgres psql -U postgres -d compass
 
-postgres-query-traffic: ## Query unique traffic patterns from database
+db-query-traffic: ## Query unique traffic patterns from database
 	@printf "$(BLUE)Querying unique traffic patterns...$(NC)\n"
 	@docker exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT DISTINCT prompt_tokens, output_tokens, COUNT(*) as num_benchmarks \
@@ -438,7 +438,7 @@ postgres-query-traffic: ## Query unique traffic patterns from database
 		GROUP BY prompt_tokens, output_tokens \
 		ORDER BY prompt_tokens, output_tokens;"
 
-postgres-query-models: ## Query available models in database
+db-query-models: ## Query available models in database
 	@printf "$(BLUE)Querying available models...$(NC)\n"
 	@docker exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT DISTINCT model_hf_repo, hardware, hardware_count, COUNT(*) as num_benchmarks \
@@ -446,7 +446,7 @@ postgres-query-models: ## Query available models in database
 		GROUP BY model_hf_repo, hardware, hardware_count \
 		ORDER BY model_hf_repo, hardware, hardware_count;"
 
-postgres-reset: postgres-remove postgres-init ## Reset PostgreSQL (remove and reinitialize)
+db-reset: db-remove db-init ## Reset PostgreSQL (remove and reinitialize)
 	@printf "$(GREEN)✓ PostgreSQL reset complete$(NC)\n"
 
 ##@ Testing
