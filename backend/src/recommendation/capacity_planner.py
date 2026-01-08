@@ -30,6 +30,7 @@ from ..context_intent.schema import (
 )
 from ..knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
+from .ranking_service import get_task_bonus
 from .solution_scorer import SolutionScorer
 
 logger = logging.getLogger(__name__)
@@ -258,6 +259,11 @@ class CapacityPlanner:
                 raw_accuracy = score_model_quality(bench.model_hf_repo, intent.use_case)
             
             accuracy_score = int(raw_accuracy)
+
+            # Apply task-specific bonus to accuracy score
+            # This boosts models that are well-suited for the specific use case
+            task_bonus = get_task_bonus(model_name_for_scoring, intent.use_case)
+            accuracy_score = min(accuracy_score + task_bonus, 100)  # Cap at 100
 
             complexity_score = scorer.score_complexity(total_gpus)  # Use total GPUs for complexity
 
