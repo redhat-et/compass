@@ -219,6 +219,21 @@ class IntentExtractor:
                     d.strip() for d in cleaned["domain_specialization"].split("|")
                 ]
 
+        # Ensure priority fields have valid values (default to "medium" if invalid/missing)
+        valid_priorities = ["low", "medium", "high"]
+        for priority_field in ["accuracy_priority", "cost_priority", "latency_priority", "complexity_priority"]:
+            if priority_field in cleaned:
+                # Normalize to lowercase and validate
+                priority_value = str(cleaned[priority_field]).lower().strip()
+                if priority_value not in valid_priorities:
+                    logger.info(f"Invalid {priority_field}='{cleaned[priority_field]}', defaulting to 'medium'")
+                    cleaned[priority_field] = "medium"
+                else:
+                    cleaned[priority_field] = priority_value
+            else:
+                # Field not provided by LLM, default to medium
+                cleaned[priority_field] = "medium"
+
         # Remove any unexpected fields that aren't in the schema
         valid_fields = DeploymentIntent.model_fields.keys()
         cleaned = {k: v for k, v in cleaned.items() if k in valid_fields}

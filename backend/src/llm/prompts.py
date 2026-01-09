@@ -10,6 +10,10 @@ Expected JSON schema:
   "throughput_priority": "very_high|high|medium|low",
   "budget_constraint": "strict|moderate|flexible|none",
   "domain_specialization": ["general"|"code"|"multilingual"|"enterprise"],
+  "accuracy_priority": "low|medium|high",
+  "cost_priority": "low|medium|high",
+  "latency_priority": "low|medium|high",
+  "complexity_priority": "low|medium|high",
   "additional_context": "<any other relevant details mentioned>"
 }
 
@@ -79,6 +83,13 @@ Be intelligent about inference:
 - "RAG" or "retrieval" → use_case: document_analysis_rag
 - "chatbot" or "customer service" or "conversational" → use_case: chatbot_conversational
 - "summarize document" or "summarization" → use_case: summarization_short or long_document_summarization
+
+Priority extraction (for scoring weights - use "medium" as baseline, adjust based on context):
+- accuracy_priority: "high" if accuracy/quality seems important for the use case, "low" if user indicates good-enough is fine
+- cost_priority: Default to "medium". Only set "high" if user explicitly mentions budget constraints or cost sensitivity. Only set "low" if user explicitly says cost doesn't matter or budget is unlimited.
+- latency_priority: "high" if the use case requires fast responses (e.g., real-time, interactive), "low" if async/batch is acceptable
+- complexity_priority: "high" if user wants simple deployment, "low" if they're okay with complex setups
+Explicit user statements override inferences (e.g., "cost is critical" → cost_priority: high)
 
 {INTENT_EXTRACTION_SCHEMA}
 """

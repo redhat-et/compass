@@ -474,6 +474,34 @@ async def get_benchmarks():
         raise HTTPException(status_code=500, detail=f"Failed to load benchmarks: {str(e)}") from e
 
 
+# Get priority weights configuration
+@app.get("/api/v1/priority-weights")
+async def get_priority_weights():
+    """Get priority to weight mapping configuration.
+
+    Returns the priority_weights.json data for UI to use
+    when setting initial weights based on priority dropdowns.
+    """
+    try:
+        import json
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "priority_weights.json"
+
+        if not json_path.exists():
+            logger.error(f"Priority weights config not found at: {json_path}")
+            raise HTTPException(status_code=404, detail="Priority weights configuration not found")
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        return {"success": True, "priority_weights": data}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to load priority weights: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 # Get weighted scores for a use case
 @app.get("/api/v1/weighted-scores/{use_case}")
 async def get_weighted_scores(use_case: str):
