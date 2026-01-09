@@ -69,3 +69,4 @@ logs/
 *.sql
 !scripts/schema.sql
 data/benchmarks_redhat_performance.json
+data/benchmarks_GuideLLM.json

@@ -47,20 +47,19 @@ The code in this repository implements the **Compass Phase 2 MVP** with producti
 
 ## Quick Start
 
-**Get up and running in 6 commands:**
+**Get up and running in 5 commands:**
 
 ```bash
-make setup                    # Install dependencies, pull Ollama model
-make postgres-start           # Start PostgreSQL container (Phase 2)
-make postgres-init            # Initialize schema
-make postgres-load-blis       # Load synthetic benchmark data (Created via BLIS-based vLLM simulation)
-make cluster-start            # Create local KIND cluster with vLLM simulator
-make dev                      # Start all services (Ollama + Backend + UI)
+make setup          # Install dependencies, pull Ollama model
+make db-init        # Start PostgreSQL and initialize schema
+make db-load-blis   # Load BLIS benchmark data
+make dev            # Start all services (Ollama + Backend + UI)
+make cluster-start  # Optional: Create local KIND cluster with vLLM simulator for testing deployments
 ```
 
 Then open [http://localhost:8501](http://localhost:8501) in your browser.
 
-**Note**: PostgreSQL runs as a Docker container (`compass-postgres`) with benchmark data. 
+**Note**: PostgreSQL runs as a Docker container (`compass-postgres`) with benchmark data. All `db-load-*` commands append to existing data. Use `make db-reset` first for a clean database. 
 
 **Stop everything:**
 ```bash
@@ -144,11 +143,17 @@ make restart                 # Restart all services
 make logs-backend            # Tail backend logs
 make logs-ui                 # Tail UI logs
 
-# PostgreSQL
-make postgres-start          # Start PostgreSQL container
-make postgres-init           # Initialize schema
-make postgres-load-synthetic # Load synthetic benchmark data
-make postgres-shell          # Open PostgreSQL shell
+# Database (PostgreSQL)
+make db-start                # Start PostgreSQL container
+make db-init                 # Initialize schema (also starts container)
+make db-load-blis            # Load BLIS benchmark data (appends)
+make db-load-estimated       # Load estimated performance data (appends)
+make db-load-interpolated    # Load interpolated benchmark data (appends)
+make db-load-guidellm        # Load benchmark data created with GuideLLM (not included in repo yet) (appends)
+make db-reset                # Reset database (remove all data and reinitialize)
+make db-shell                # Open PostgreSQL shell
+make db-query-models         # Query available models in database
+make db-query-traffic        # Query traffic patterns in database
 
 # Kubernetes
 make cluster-status          # Check Kubernetes cluster status
