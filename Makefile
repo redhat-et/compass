@@ -22,7 +22,21 @@ else
     $(error Unsupported platform: $(UNAME_S). Please use macOS or Linux (or WSL2 on Windows))
 endif
 
-CONTAINER_TOOL := $(shell if command -v docker >/dev/null 2>&1; then echo docker; elif command -v podman >/dev/null 2>&1; then echo podman; else echo ""; fi)
+# Container runtime detection
+# - CONTAINER_TOOL: Used for PostgreSQL, simulator builds, and general container operations
+#   Can be overridden: CONTAINER_TOOL=podman make db-start
+# - KIND always requires Docker (it creates containers to simulate K8s nodes)
+#
+# Auto-detection prefers docker if running (for KIND compatibility), falls back to podman if running
+# Only selects a runtime if its daemon is actually running
+CONTAINER_TOOL ?= $(shell \
+	if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+		echo docker; \
+	elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then \
+		echo podman; \
+	else \
+		echo ""; \
+	fi)
 
 # Configuration
 REGISTRY ?= quay.io
@@ -74,8 +88,14 @@ help: ## Display this help message
 check-prereqs: ## Check if required tools are installed
 	@printf "$(BLUE)Checking prerequisites...$(NC)\n"
 	@[ -n "$(CONTAINER_TOOL)" ] || (printf "$(RED)✗ Docker or Podman not found$(NC).\n" && exit 1)
-	@printf "$(GREEN)✓ $(CONTAINER_TOOL) found$(NC)\n"
-    @[ "$(CONTAINER_TOOL)" == "podman" ] || (printf "$(YELLOW)✗ ⚠ Docker is required for kind cluster support. $(NC).\n")
+	@printf "$(GREEN)✓ $(CONTAINER_TOOL) found (container runtime)$(NC)\n"
+	@if [ "$(CONTAINER_TOOL)" = "podman" ]; then \
+		if command -v docker >/dev/null 2>&1; then \
+			printf "$(GREEN)✓ docker also found (required for KIND cluster)$(NC)\n"; \
+		else \
+			printf "$(YELLOW)⚠ Docker not found - KIND cluster commands will not work$(NC)\n"; \
+		fi; \
+	fi
 	@command -v kubectl >/dev/null 2>&1 || (printf "$(RED)✗ kubectl not found$(NC). Run: brew install kubectl\n" && exit 1)
 	@printf "$(GREEN)✓ kubectl found$(NC)\n"
 	@command -v kind >/dev/null 2>&1 || (printf "$(RED)✗ kind not found$(NC). Run: brew install kind\n" && exit 1)
@@ -93,7 +113,7 @@ check-prereqs: ## Check if required tools are installed
 		printf "$(YELLOW)  Recommend using Python 3.13 for best compatibility.$(NC)\n"; \
 	fi
 	@$(CONTAINER_TOOL) info >/dev/null 2>&1 || (printf "$(RED)✗ Docker or Podman daemon not running$(NC).\n" && exit 1)
-	@printf "$(GREEN)✓ Docker daemon running$(NC)\n"
+	@printf "$(GREEN)✓ $(CONTAINER_TOOL) daemon running$(NC)\n"
 	@command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1 || (printf "$(RED)✗ docker compose not found$(NC). Install Docker Compose or update Docker Desktop\n" && exit 1)
 	@printf "$(GREEN)✓ docker compose found$(NC)\n"
 	@printf "$(GREEN)All prerequisites satisfied!$(NC)\n"
@@ -368,7 +388,7 @@ db-start: ## Start PostgreSQL container for benchmark data
 			printf "$(YELLOW)PostgreSQL already running$(NC)\n"; \
 		else \
 			$(CONTAINER_TOOL) start compass-postgres; \
-			ecprintfho "$(GREEN)✓ PostgreSQL started$(NC)\n"; \
+			printf "$(GREEN)✓ PostgreSQL started$(NC)\n"; \
 		fi \
 	else \
 		$(CONTAINER_TOOL) run --name compass-postgres -d \
