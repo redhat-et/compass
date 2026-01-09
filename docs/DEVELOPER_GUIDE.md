@@ -33,11 +33,124 @@ make check-prereqs
 ```
 
 This checks for:
-- Docker Desktop (running)
+- Docker or Podman (running)
 - Python 3.11+
 - Ollama
 - kubectl
 - KIND
+
+### Container Runtime Support
+
+Compass supports both **Docker** and **Podman** as container runtimes.
+
+#### Compatibility Matrix
+
+| Component | Docker | Podman | Notes |
+|-----------|--------|--------|-------|
+| PostgreSQL (`db-*` targets) | ✅ | ✅ | Works with either |
+| Simulator build/push/pull | ✅ | ✅ | Works with either |
+| KIND cluster (`cluster-*` targets) | ✅ | ❌ | KIND requires Docker |
+| Docker Compose (`docker-*` targets) | ✅ | ⚠️ | Requires `podman-compose` |
+
+#### Auto-Detection Behavior
+
+The Makefile automatically detects which container runtime is available **and running**:
+- **If Docker daemon is running:** Docker is used (for KIND compatibility)
+- **If only Podman daemon is running:** Podman is used automatically
+- **If neither daemon is running:** Commands will fail with a helpful error
+
+This means if you quit Docker Desktop, the Makefile will automatically use Podman (if its machine is running), and vice versa.
+
+#### Setting the Container Tool
+
+**Option 1: Per-command override**
+```bash
+CONTAINER_TOOL=podman make db-start
+CONTAINER_TOOL=podman make db-init
+CONTAINER_TOOL=podman make db-load-guidellm
+```
+
+**Option 2: Export for your shell session**
+```bash
+export CONTAINER_TOOL=podman
+make db-start
+make db-init
+make db-load-guidellm
+# All commands in this session will use Podman
+```
+
+**Option 3: Create a `.env` file (persistent)**
+```bash
+echo "CONTAINER_TOOL=podman" >> .env
+```
+The Makefile automatically loads `.env`, so all subsequent `make` commands will use Podman. The `.env` file is in `.gitignore` so it won't affect other developers.
+
+#### Using Podman on macOS
+
+Podman on macOS requires a Linux VM to run containers:
+
+```bash
+# First time setup - initialize the Podman machine
+podman machine init
+
+# Start the Podman machine (required before each use, or after reboot)
+podman machine start
+```
+
+**Important:** When starting the Podman machine, you may see this message:
+```
+Another process was listening on the default Docker API socket address.
+You can still connect Docker API clients by setting DOCKER_HOST using the
+following command in your terminal session:
+
+    export DOCKER_HOST='unix:///var/folders/.../podman-machine-default-api.sock'
+```
+
+**Do NOT set `DOCKER_HOST`** - this redirects the Docker CLI to Podman, which causes confusion. Instead, use `CONTAINER_TOOL=podman` as described above.
+
+#### Port Conflicts
+
+If you switch between Docker and Podman, you may encounter port conflicts:
+
+```
+Error: listen tcp :5432: bind: address already in use
+```
+
+**To resolve:**
+1. Stop and remove the container in the other runtime:
+   ```bash
+   # If switching TO Podman, clean up Docker first:
+   docker stop compass-postgres && docker rm compass-postgres
+
+   # If switching TO Docker, clean up Podman first:
+   podman stop compass-postgres && podman rm compass-postgres
+   ```
+
+2. If the port is still in use, check what's holding it:
+   ```bash
+   lsof -i :5432
+   ```
+
+3. You may need to restart Docker Desktop if it has a stale port binding.
+
+#### Mixed Docker/Podman Setup
+
+You can use Podman for simple containers while keeping Docker for KIND:
+
+1. Keep Docker Desktop installed (required for KIND clusters)
+2. Use `CONTAINER_TOOL=podman` or `.env` for database operations
+3. KIND cluster commands (`make cluster-*`) will use Docker automatically via `scripts/kind-cluster.sh`
+
+Example workflow:
+```bash
+# Use Podman for database
+export CONTAINER_TOOL=podman
+make db-init
+make db-load-guidellm
+
+# KIND still uses Docker (no change needed)
+make cluster-start
+```
 
 ### Initial Setup
 
@@ -504,6 +617,7 @@ Creates `vllm-simulator:latest` Docker image.
 ### Testing the Simulator Locally
 
 ```bash
+# Can use podman instead of docker
 docker run -p 8080:8080 \
   -e MODEL_NAME=mistralai/Mistral-7B-Instruct-v0.3 \
   -e GPU_TYPE=NVIDIA-L4 \

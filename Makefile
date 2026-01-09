@@ -22,6 +22,22 @@ else
     $(error Unsupported platform: $(UNAME_S). Please use macOS or Linux (or WSL2 on Windows))
 endif
 
+# Container runtime detection
+# - CONTAINER_TOOL: Used for PostgreSQL, simulator builds, and general container operations
+#   Can be overridden: CONTAINER_TOOL=podman make db-start
+# - KIND always requires Docker (it creates containers to simulate K8s nodes)
+#
+# Auto-detection prefers docker if running (for KIND compatibility), falls back to podman if running
+# Only selects a runtime if its daemon is actually running
+CONTAINER_TOOL ?= $(shell \
+	if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then \
+		echo docker; \
+	elif command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then \
+		echo podman; \
+	else \
+		echo ""; \
+	fi)
+
 # Configuration
 REGISTRY ?= quay.io
 REGISTRY_ORG ?= vllm-assistant
@@ -71,8 +87,15 @@ help: ## Display this help message
 
 check-prereqs: ## Check if required tools are installed
 	@printf "$(BLUE)Checking prerequisites...$(NC)\n"
-	@command -v docker >/dev/null 2>&1 || (ecprintfho "$(RED)✗ docker not found$(NC). Install from https://www.docker.com/products/docker-desktop\n" && exit 1)
-	@printf "$(GREEN)✓ docker found$(NC)\n"
+	@[ -n "$(CONTAINER_TOOL)" ] || (printf "$(RED)✗ Docker or Podman not found$(NC).\n" && exit 1)
+	@printf "$(GREEN)✓ $(CONTAINER_TOOL) found (container runtime)$(NC)\n"
+	@if [ "$(CONTAINER_TOOL)" = "podman" ]; then \
+		if command -v docker >/dev/null 2>&1; then \
+			printf "$(GREEN)✓ docker also found (required for KIND cluster)$(NC)\n"; \
+		else \
+			printf "$(YELLOW)⚠ Docker not found - KIND cluster commands will not work$(NC)\n"; \
+		fi; \
+	fi
 	@command -v kubectl >/dev/null 2>&1 || (printf "$(RED)✗ kubectl not found$(NC). Run: brew install kubectl\n" && exit 1)
 	@printf "$(GREEN)✓ kubectl found$(NC)\n"
 	@command -v kind >/dev/null 2>&1 || (printf "$(RED)✗ kind not found$(NC). Run: brew install kind\n" && exit 1)
@@ -89,8 +112,8 @@ check-prereqs: ## Check if required tools are installed
 		printf "$(YELLOW)⚠ Warning: Python $$PY_VERSION detected. Some dependencies (psycopg2-binary) may not have wheels yet.$(NC)\n"; \
 		printf "$(YELLOW)  Recommend using Python 3.13 for best compatibility.$(NC)\n"; \
 	fi
-	@docker info >/dev/null 2>&1 || (printf "$(RED)✗ Docker daemon not running$(NC). Start Docker Desktop\n" && exit 1)
-	@printf "$(GREEN)✓ Docker daemon running$(NC)\n"
+	@$(CONTAINER_TOOL) info >/dev/null 2>&1 || (printf "$(RED)✗ Docker or Podman daemon not running$(NC).\n" && exit 1)
+	@printf "$(GREEN)✓ $(CONTAINER_TOOL) daemon running$(NC)\n"
 	@command -v docker-compose >/dev/null 2>&1 || docker compose version >/dev/null 2>&1 || (printf "$(RED)✗ docker compose not found$(NC). Install Docker Compose or update Docker Desktop\n" && exit 1)
 	@printf "$(GREEN)✓ docker compose found$(NC)\n"
 	@printf "$(GREEN)All prerequisites satisfied!$(NC)\n"
@@ -232,7 +255,7 @@ open-backend: ## Open backend API docs in browser
 
 build-simulator: ## Build vLLM simulator Docker image
 	@printf "$(BLUE)Building simulator image...$(NC)\n"
-	cd $(SIMULATOR_DIR) && docker build -t vllm-simulator:latest -t $(SIMULATOR_FULL_IMAGE) .
+	cd $(SIMULATOR_DIR) && $(CONTAINER_TOOL) build -t vllm-simulator:latest -t $(SIMULATOR_FULL_IMAGE) .
 	@printf "$(GREEN)✓ Simulator image built:$(NC)\n"
 	@printf "  - vllm-simulator:latest\n"
 	@printf "  - $(SIMULATOR_FULL_IMAGE)\n"
@@ -240,20 +263,20 @@ build-simulator: ## Build vLLM simulator Docker image
 push-simulator: build-simulator ## Push simulator image to Quay.io
 	@printf "$(BLUE)Pushing simulator image to $(SIMULATOR_FULL_IMAGE)...$(NC)\n"
 	@# Check if logged in to Quay.io
-	@if ! docker login quay.io --get-login > /dev/null 2>&1; then \
+	@if ! $(CONTAINER_TOOL) login quay.io --get-login > /dev/null 2>&1; then \
 		printf "$(YELLOW)Not logged in to Quay.io. Please login:$(NC)\n"; \
-		docker login quay.io || (printf "$(RED)✗ Login failed$(NC)\n" && exit 1); \
+		$(CONTAINER_TOOL) login quay.io || (printf "$(RED)✗ Login failed$(NC)\n" && exit 1); \
 	else \
 		printf "$(GREEN)✓ Already logged in to Quay.io$(NC)\n"; \
 	fi
 	@printf "$(BLUE)Pushing image...$(NC)\n"
-	docker push $(SIMULATOR_FULL_IMAGE)
+	$(CONTAINER_TOOL) push $(SIMULATOR_FULL_IMAGE)
 	@printf "$(GREEN)✓ Image pushed to $(SIMULATOR_FULL_IMAGE)$(NC)\n"
 
 pull-simulator: ## Pull simulator image from Quay.io
 	@printf "$(BLUE)Pulling simulator image from $(SIMULATOR_FULL_IMAGE)...$(NC)\n"
-	docker pull $(SIMULATOR_FULL_IMAGE)
-	docker tag $(SIMULATOR_FULL_IMAGE) vllm-simulator:latest
+	$(CONTAINER_TOOL) pull $(SIMULATOR_FULL_IMAGE)
+	$(CONTAINER_TOOL) tag $(SIMULATOR_FULL_IMAGE) vllm-simulator:latest
 	@printf "$(GREEN)✓ Image pulled and tagged as vllm-simulator:latest$(NC)\n"
 
 docker-build: ## Build all Docker images
@@ -360,15 +383,15 @@ clean-deployments: ## Delete all InferenceServices from cluster
 
 db-start: ## Start PostgreSQL container for benchmark data
 	@printf "$(BLUE)Starting PostgreSQL...$(NC)\n"
-	@if docker ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
-		if docker ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+	@if $(CONTAINER_TOOL) ps -a --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
+		if $(CONTAINER_TOOL) ps --format '{{.Names}}' | grep -q '^compass-postgres$$'; then \
 			printf "$(YELLOW)PostgreSQL already running$(NC)\n"; \
 		else \
-			docker start compass-postgres; \
+			$(CONTAINER_TOOL) start compass-postgres; \
 			printf "$(GREEN)✓ PostgreSQL started$(NC)\n"; \
 		fi \
 	else \
-		docker run --name compass-postgres -d \
+		$(CONTAINER_TOOL) run --name compass-postgres -d \
 			-e POSTGRES_PASSWORD=compass \
 			-e POSTGRES_DB=compass \
 			-p 5432:5432 \
@@ -380,18 +403,18 @@ db-start: ## Start PostgreSQL container for benchmark data
 
 db-stop: ## Stop PostgreSQL container
 	@printf "$(BLUE)Stopping PostgreSQL...$(NC)\n"
-	@docker stop compass-postgres 2>/dev/null || true
+	@$(CONTAINER_TOOL) stop compass-postgres 2>/dev/null || true
 	@printf "$(GREEN)✓ PostgreSQL stopped$(NC)\n"
 
 db-remove: db-stop ## Stop and remove PostgreSQL container
 	@printf "$(BLUE)Removing PostgreSQL container...$(NC)\n"
-	@docker rm compass-postgres 2>/dev/null || true
+	@$(CONTAINER_TOOL) rm compass-postgres 2>/dev/null || true
 	@printf "$(GREEN)✓ PostgreSQL container removed$(NC)\n"
 
 db-init: db-start ## Initialize PostgreSQL schema
 	@printf "$(BLUE)Initializing PostgreSQL schema...$(NC)\n"
 	@sleep 2
-	@docker exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass < scripts/schema.sql
 	@printf "$(GREEN)✓ Schema initialized$(NC)\n"
 
 db-load-synthetic: db-start ## Load synthetic benchmark data (appends)
@@ -434,19 +457,19 @@ db-convert-pgdump: db-start ## Convert PostgreSQL dump to JSON format
 	@printf "$(GREEN)✓ Created $(PGDUMP_OUTPUT)$(NC)\n"
 
 db-shell: ## Open PostgreSQL shell
-	@docker exec -it compass-postgres psql -U postgres -d compass
+	@$(CONTAINER_TOOL) exec -it compass-postgres psql -U postgres -d compass
 
 db-query-traffic: ## Query unique traffic patterns from database
 	@printf "$(BLUE)Querying unique traffic patterns...$(NC)\n"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
-		"SELECT DISTINCT prompt_tokens, output_tokens, COUNT(*) as num_benchmarks \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
+		"SELECT DISTINCT mean_input_tokens, mean_output_tokens, COUNT(*) as num_benchmarks \
 		FROM exported_summaries \
 		GROUP BY prompt_tokens, output_tokens \
 		ORDER BY prompt_tokens, output_tokens;"
 
 db-query-models: ## Query available models in database
 	@printf "$(BLUE)Querying available models...$(NC)\n"
-	@docker exec -i compass-postgres psql -U postgres -d compass -c \
+	@$(CONTAINER_TOOL) exec -i compass-postgres psql -U postgres -d compass -c \
 		"SELECT DISTINCT model_hf_repo, hardware, hardware_count, COUNT(*) as num_benchmarks \
 		FROM exported_summaries \
 		GROUP BY model_hf_repo, hardware, hardware_count \
