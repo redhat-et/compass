@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide provides step-by-step instructions for developing and testing Compass.
+This guide provides step-by-step instructions for developing and testing NeuralNav.
 
 ## Table of Contents
 
@@ -41,7 +41,7 @@ This checks for:
 
 ### Container Runtime Support
 
-Compass supports both **Docker** and **Podman** as container runtimes.
+NeuralNav supports both **Docker** and **Podman** as container runtimes.
 
 #### Compatibility Matrix
 
@@ -120,10 +120,10 @@ Error: listen tcp :5432: bind: address already in use
 1. Stop and remove the container in the other runtime:
    ```bash
    # If switching TO Podman, clean up Docker first:
-   docker stop compass-postgres && docker rm compass-postgres
+   docker stop neuralnav-postgres && docker rm neuralnav-postgres
 
    # If switching TO Docker, clean up Podman first:
-   podman stop compass-postgres && podman rm compass-postgres
+   podman stop neuralnav-postgres && podman rm neuralnav-postgres
    ```
 
 2. If the port is still in use, check what's holding it:
@@ -388,18 +388,18 @@ make test-watch
 
 ### Logging
 
-Compass implements comprehensive logging to help you debug and monitor the system. For complete logging documentation, see [docs/LOGGING.md](LOGGING.md).
+NeuralNav implements comprehensive logging to help you debug and monitor the system. For complete logging documentation, see [docs/LOGGING.md](LOGGING.md).
 
 **Quick Start:**
 
 Enable debug logging to see full LLM prompts and responses:
 ```bash
 # Enable debug mode
-export COMPASS_DEBUG=true
+export NEURALNAV_DEBUG=true
 make start-backend
 
 # Or inline:
-COMPASS_DEBUG=true make start-backend
+NEURALNAV_DEBUG=true make start-backend
 ```
 
 **Log Levels:**
@@ -409,7 +409,7 @@ COMPASS_DEBUG=true make start-backend
 **Log Locations:**
 - Console output (stdout/stderr)
 - `logs/backend.log` - Main application logs
-- `logs/compass.log` - Structured detailed logs
+- `logs/neuralnav.log` - Structured detailed logs
 
 **Common Log Searches:**
 ```bash
@@ -659,7 +659,7 @@ make cluster-stop
 
 ### Linting and Formatting
 
-Compass uses [Ruff](https://docs.astral.sh/ruff/) for linting and code formatting.
+NeuralNav uses [Ruff](https://docs.astral.sh/ruff/) for linting and code formatting.
 
 **Run linter:**
 ```bash
@@ -772,7 +772,7 @@ ollama list  # Should show llama3.1:8b
 
 ### Option 1: Run Full Stack with UI (Recommended)
 
-The easiest way to use Compass:
+The easiest way to use NeuralNav:
 
 ```bash
 # Terminal 1 - Start Ollama (if not already running)

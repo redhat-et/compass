@@ -1,4 +1,4 @@
-# <img src="docs/compass-logo.ico" alt="Compass" width="32" style="vertical-align: middle;"/> Compass
+# <img src="docs/neuralnav-logo.ico" alt="NeuralNav" width="32" style="vertical-align: middle;"/> NeuralNav
 
 **Confidently navigate LLM deployments from concept to production.**
 
@@ -8,9 +8,9 @@
 
 The system addresses a critical challenge: **how do you translate business requirements into the right model and infrastructure choices without expensive trial-and-error?**
 
-Compass guides you from concept to production LLM deployments through SLO-driven capacity planning. Conversationally define your requirements—Compass translates them into traffic profiles, performance targets, and cost constraints. Get intelligent model and GPU recommendations based on real benchmarks. Explore alternatives, compare tradeoffs, deploy with one click, and monitor actual performance—staying on course as your needs evolve.
+NeuralNav guides you from concept to production LLM deployments through SLO-driven capacity planning. Conversationally define your requirements—NeuralNav translates them into traffic profiles, performance targets, and cost constraints. Get intelligent model and GPU recommendations based on real benchmarks. Explore alternatives, compare tradeoffs, deploy with one click, and monitor actual performance—staying on course as your needs evolve.
 
-The code in this repository implements the **Compass Phase 2 MVP** with production-grade data management. Phase 1 (POC) demonstrated the end-to-end workflow with synthetic data. Phase 2 adds PostgreSQL for benchmark storage, a traffic profile framework aligned with GuideLLM standards, experience-driven SLO mapping, and p95 percentile targets for conservative guarantees.
+The code in this repository implements the **NeuralNav Phase 2 MVP** with production-grade data management. Phase 1 (POC) demonstrated the end-to-end workflow with synthetic data. Phase 2 adds PostgreSQL for benchmark storage, a traffic profile framework aligned with GuideLLM standards, experience-driven SLO mapping, and p95 percentile targets for conservative guarantees.
 
 ### Key Features
 
@@ -59,7 +59,7 @@ make cluster-start  # Optional: Create local KIND cluster with vLLM simulator fo
 
 Then open [http://localhost:8501](http://localhost:8501) in your browser.
 
-**Note**: PostgreSQL runs as a Docker container (`compass-postgres`) with benchmark data. All `db-load-*` commands append to existing data. Use `make db-reset` first for a clean database. 
+**Note**: PostgreSQL runs as a Docker container (`neuralnav-postgres`) with benchmark data. All `db-load-*` commands append to existing data. Use `make db-reset` first for a clean database. 
 
 **Stop everything:**
 ```bash
@@ -67,7 +67,7 @@ make stop           # Stop services
 make cluster-stop   # Delete cluster (optional)
 ```
 
-### Using Compass
+### Using NeuralNav
 
 1. **Describe your use case** in the chat interface
    - Example: "I need a customer service chatbot for 5000 users with low latency"
@@ -93,7 +93,7 @@ The POC includes 3 pre-configured scenarios (see [data/demo_scenarios.json](data
 
 ## Architecture Highlights
 
-Compass implements an **8-component architecture** with:
+NeuralNav implements an **8-component architecture** with:
 
 - **Conversational Interface** (Streamlit) - Chat-based requirement gathering with interactive exploration
 - **Context & Intent Engine** - LLM-powered extraction of deployment specs
@@ -169,7 +169,7 @@ make clean                   # Remove generated files
 
 ## vLLM Simulator Mode
 
-Compass includes a **GPU-free simulator** for local development:
+NeuralNav includes a **GPU-free simulator** for local development:
 
 - **No GPU required** - Run deployments on any laptop
 - **OpenAI-compatible API** - `/v1/completions` and `/v1/chat/completions`

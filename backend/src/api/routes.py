@@ -1,4 +1,4 @@
-"""FastAPI routes for the Compass API."""
+"""FastAPI routes for the NeuralNav API."""
 
 import csv
 import logging
@@ -24,7 +24,7 @@ from ..knowledge_base.slo_templates import SLOTemplateRepository
 from ..orchestration.workflow import RecommendationWorkflow
 
 # Configure logging - check for DEBUG environment variable
-debug_mode = os.getenv("COMPASS_DEBUG", "false").lower() == "true"
+debug_mode = os.getenv("NEURALNAV_DEBUG", "false").lower() == "true"
 log_level = logging.DEBUG if debug_mode else logging.INFO
 logging.basicConfig(
     level=log_level,
@@ -32,11 +32,11 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger(__name__)
-logger.info(f"Compass API starting with log level: {logging.getLevelName(log_level)}")
+logger.info(f"NeuralNav API starting with log level: {logging.getLevelName(log_level)}")
 
 # Create FastAPI app
 app = FastAPI(
-    title="Compass API", description="API for LLM deployment recommendations", version="0.1.0"
+    title="NeuralNav API", description="API for LLM deployment recommendations", version="0.1.0"
 )
 
 # Add CORS middleware
@@ -126,7 +126,7 @@ class ExtractRequest(BaseModel):
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "service": "compass"}
+    return {"status": "healthy", "service": "neuralnav"}
 
 
 # Main recommendation endpoint

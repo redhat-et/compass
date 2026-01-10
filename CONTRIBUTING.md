@@ -1,6 +1,6 @@
-# Contributing to Compass
+# Contributing to NeuralNav
 
-Thank you for your interest in contributing to Compass! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to NeuralNav! This document provides guidelines for contributing to the project.
 
 ## Table of Contents
 
@@ -26,24 +26,24 @@ This section describes the complete workflow from setup to submitting a pull req
 
 **2. Clone your fork locally:**
 ```bash
-git clone https://github.com/YOUR_USERNAME/compass.git
-cd compass
+git clone https://github.com/YOUR_USERNAME/neuralnav.git
+cd neuralnav
 ```
 
 **3. Set up remotes:**
 ```bash
 # Your fork is already set as 'origin' by the clone
 # Add the main repository as 'upstream'
-git remote add upstream https://github.com/redhat-et/compass.git
+git remote add upstream https://github.com/redhat-et/neuralnav.git
 ```
 
 Verify your remotes:
 ```bash
 git remote -v
-# origin    https://github.com/YOUR_USERNAME/compass.git (fetch)
-# origin    https://github.com/YOUR_USERNAME/compass.git (push)
-# upstream  https://github.com/redhat-et/compass.git (fetch)
-# upstream  https://github.com/redhat-et/compass.git (push)
+# origin    https://github.com/YOUR_USERNAME/neuralnav.git (fetch)
+# origin    https://github.com/YOUR_USERNAME/neuralnav.git (push)
+# upstream  https://github.com/redhat-et/neuralnav.git (fetch)
+# upstream  https://github.com/redhat-et/neuralnav.git (push)
 ```
 
 **4. Set up your development environment** by following the [Quick Start guide](README.md#quick-start).
@@ -334,7 +334,7 @@ make format
 
 ## License
 
-By contributing to Compass, you agree that your contributions will be licensed under the same license as the project (see [LICENSE](LICENSE)).
+By contributing to NeuralNav, you agree that your contributions will be licensed under the same license as the project (see [LICENSE](LICENSE)).
 
 ## Questions?
 
@@ -343,4 +343,4 @@ If you have questions not covered here, please:
 2. Open a new issue with the "question" label
 3. Reach out to maintainers
 
-Thank you for contributing to Compass!
+Thank you for contributing to NeuralNav!
