@@ -65,19 +65,6 @@ class DeploymentIntent(BaseModel):
 
     user_count: int = Field(..., description="Number of users or scale")
 
-    latency_requirement: Literal["very_high", "high", "medium", "low"] = Field(
-        ...,
-        description="Latency sensitivity (very_high=sub-500ms, high=sub-2s, medium=2-5s, low=>5s)",
-    )
-
-    throughput_priority: Literal["very_high", "high", "medium", "low"] = Field(
-        default="medium", description="Importance of high request volume"
-    )
-
-    budget_constraint: Literal["strict", "moderate", "flexible", "none"] = Field(
-        default="moderate", description="Cost sensitivity"
-    )
-
     domain_specialization: list[str] = Field(
         default_factory=lambda: ["general"],
         description="Domain requirements (general, code, multilingual, enterprise)",

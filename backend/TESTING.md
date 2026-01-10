@@ -46,8 +46,8 @@ intent = extractor.extract_intent(
 print('Extracted Intent:')
 print(f'  Use Case: {intent.use_case}')
 print(f'  Users: {intent.user_count}')
-print(f'  Latency: {intent.latency_requirement}')
-print(f'  Budget: {intent.budget_constraint}')
+print(f'  Latency Priority: {intent.latency_priority}')
+print(f'  Cost Priority: {intent.cost_priority}')
 "
 ```
 
@@ -59,9 +59,10 @@ from src.context_intent.schema import DeploymentIntent
 from src.recommendation.traffic_profile import TrafficProfileGenerator
 
 intent = DeploymentIntent(
-    use_case='chatbot',
+    use_case='chatbot_conversational',
+    experience_class='conversational',
     user_count=1000,
-    latency_requirement='high'
+    latency_priority='high'
 )
 
 generator = TrafficProfileGenerator()
@@ -88,9 +89,10 @@ from src.context_intent.schema import DeploymentIntent
 from src.recommendation.model_evaluator import ModelEvaluator
 
 intent = DeploymentIntent(
-    use_case='code_generation',
+    use_case='code_generation_detailed',
+    experience_class='conversational',
     user_count=500,
-    latency_requirement='medium',
+    latency_priority='medium',
     domain_specialization=['code']
 )
 
