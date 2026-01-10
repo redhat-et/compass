@@ -63,14 +63,14 @@ Choose the option that matches your development workflow:
 
 ```bash
 make docker-build
-docker-compose up --build -d
+make docker-up
 ```
 
 **Option B: Using standalone database**
 
 ```bash
 make db-init
-make db-load-blis  # Load benchmark data
+make db-load-blis   # Load benchmark data
 make dev            # Start all services (Ollama + Backend + UI)
 ```
 
@@ -78,7 +78,7 @@ make dev            # Start all services (Ollama + Backend + UI)
 
 ```bash
 make pull-simulator  # Pulls quay.io/neuralnav/vllm-simulator:latest
-make cluster-start        # Create KIND cluster and load simulator image
+make cluster-start   # Create KIND cluster and load simulator image
 ```
 
 ### 7. Update Environment Variables
