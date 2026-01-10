@@ -43,7 +43,7 @@ class TrafficProfileGenerator:
         expected_qps = self._estimate_qps(
             user_count=intent.user_count,
             requests_per_user_per_day=10,  # Default assumption
-            latency_requirement=intent.latency_requirement,
+            latency_priority=intent.latency_priority,
         )
 
         return TrafficProfile(
@@ -71,15 +71,15 @@ class TrafficProfileGenerator:
             logger.warning(f"No template found for use_case={intent.use_case}, using defaults")
             return self._generate_default_slo(intent)
 
-        # Adjust SLO targets based on latency requirement
+        # Adjust SLO targets based on latency priority
         ttft_target = self._adjust_slo_for_latency(
-            template.ttft_p95_target_ms, intent.latency_requirement
+            template.ttft_p95_target_ms, intent.latency_priority
         )
         itl_target = self._adjust_slo_for_latency(
-            template.itl_p95_target_ms, intent.latency_requirement
+            template.itl_p95_target_ms, intent.latency_priority
         )
         e2e_target = self._adjust_slo_for_latency(
-            template.e2e_p95_target_ms, intent.latency_requirement
+            template.e2e_p95_target_ms, intent.latency_priority
         )
 
         return SLOTargets(
@@ -89,7 +89,7 @@ class TrafficProfileGenerator:
         )
 
     def _estimate_qps(
-        self, user_count: int, requests_per_user_per_day: int, latency_requirement: str
+        self, user_count: int, requests_per_user_per_day: int, latency_priority: str
     ) -> float:
         """
         Estimate peak QPS based on user count and usage patterns.
@@ -97,7 +97,7 @@ class TrafficProfileGenerator:
         Args:
             user_count: Number of users
             requests_per_user_per_day: Average requests per user per day
-            latency_requirement: Latency sensitivity
+            latency_priority: Latency importance (low/medium/high)
 
         Returns:
             Estimated peak QPS
@@ -106,15 +106,14 @@ class TrafficProfileGenerator:
         total_requests_per_day = user_count * requests_per_user_per_day
 
         # Assume traffic is concentrated in peak hours (e.g., 8 hours)
-        # with a peak-to-average ratio
+        # with a peak-to-average ratio based on latency priority
         peak_hours = 8
         peak_ratio_map = {
-            "very_high": 3.0,  # High variability, need headroom
-            "high": 2.5,
+            "high": 2.5,    # High latency priority = need more headroom
             "medium": 2.0,
             "low": 1.5,
         }
-        peak_ratio = peak_ratio_map.get(latency_requirement, 2.0)
+        peak_ratio = peak_ratio_map.get(latency_priority, 2.0)
 
         # Calculate average QPS during peak hours
         avg_qps_peak = total_requests_per_day / (peak_hours * 3600)
@@ -127,25 +126,24 @@ class TrafficProfileGenerator:
 
         return round(peak_qps, 2)
 
-    def _adjust_slo_for_latency(self, base_target_ms: int, latency_requirement: str) -> int:
+    def _adjust_slo_for_latency(self, base_target_ms: int, latency_priority: str) -> int:
         """
-        Adjust SLO target based on user's latency requirement.
+        Adjust SLO target based on user's latency priority.
 
         Args:
             base_target_ms: Base SLO target from template
-            latency_requirement: User's latency sensitivity
+            latency_priority: User's latency importance (low/medium/high)
 
         Returns:
             Adjusted SLO target
         """
         adjustment_factors = {
-            "very_high": 0.9,  # 10% tighter than template (more realistic)
-            "high": 0.95,  # 5% tighter
+            "high": 0.9,    # High priority = 10% tighter targets
             "medium": 1.0,  # Use template as-is
-            "low": 1.2,  # 20% more relaxed
+            "low": 1.2,     # Low priority = 20% more relaxed
         }
 
-        factor = adjustment_factors.get(latency_requirement, 1.0)
+        factor = adjustment_factors.get(latency_priority, 1.0)
         return int(base_target_ms * factor)
 
     def _generate_default_profile(self, intent: DeploymentIntent) -> TrafficProfile:
@@ -161,14 +159,13 @@ class TrafficProfileGenerator:
 
     def _generate_default_slo(self, intent: DeploymentIntent) -> SLOTargets:
         """Generate default SLO targets when no template available."""
-        # Using p95 targets for different latency requirements
+        # Using p95 targets for different latency priorities
         slo_map = {
-            "very_high": (100, 20, 5000),  # ttft, itl, e2e
-            "high": (150, 25, 7000),
+            "high": (150, 25, 7000),    # High priority = tighter targets (ttft, itl, e2e)
             "medium": (300, 30, 25000),
             "low": (600, 40, 60000),
         }
 
-        ttft, itl, e2e = slo_map.get(intent.latency_requirement, (300, 30, 25000))
+        ttft, itl, e2e = slo_map.get(intent.latency_priority, (300, 30, 25000))
 
         return SLOTargets(ttft_p95_target_ms=ttft, itl_p95_target_ms=itl, e2e_p95_target_ms=e2e)

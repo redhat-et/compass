@@ -284,13 +284,12 @@ async def extract_intent(request: ExtractRequest):
 
         logger.info(f"  Extracted use_case: {intent.use_case}")
         logger.info(f"  Extracted user_count: {intent.user_count}")
-        logger.info(f"  Extracted priority: {intent.latency_requirement}")
+        logger.info(f"  Extracted latency_priority: {intent.latency_priority}")
         logger.info("=" * 60)
 
         # Return as dict for JSON serialization
-        # Map latency_requirement to 'priority' for UI compatibility
         result = intent.model_dump()
-        result["priority"] = intent.latency_requirement
+        result["priority"] = intent.latency_priority  # UI compatibility
         return result
 
     except ValueError as e:
@@ -677,8 +676,6 @@ class RankedRecommendationFromSpecRequest(BaseModel):
     # Intent fields
     use_case: str
     user_count: int
-    latency_requirement: str = "high"  # "very_high", "high", "medium", "low"
-    budget_constraint: str = "moderate"  # "strict", "moderate", "flexible"
     hardware_preference: str | None = None
 
     # Traffic profile fields
@@ -816,8 +813,6 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         logger.info("=" * 60)
         logger.info(f"  use_case: {request.use_case}")
         logger.info(f"  user_count: {request.user_count}")
-        logger.info(f"  latency_requirement: {request.latency_requirement}")
-        logger.info(f"  budget_constraint: {request.budget_constraint}")
         logger.info(f"  hardware_preference: {request.hardware_preference}")
         logger.info(f"  prompt_tokens: {request.prompt_tokens}")
         logger.info(f"  output_tokens: {request.output_tokens}")
@@ -849,9 +844,6 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
             "intent": {
                 "use_case": request.use_case,
                 "user_count": request.user_count,
-                "latency_requirement": request.latency_requirement,
-                "budget_constraint": request.budget_constraint,
-                "throughput_priority": "medium",
                 "domain_specialization": ["general"],
             },
             "traffic_profile": {

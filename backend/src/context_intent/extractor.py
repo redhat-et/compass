@@ -250,23 +250,6 @@ class IntentExtractor:
         Returns:
             Intent with inferred fields
         """
-        # If no throughput priority specified, infer from use case
-        throughput_map = {
-            "research_legal_analysis": "very_high",
-            "long_document_summarization": "high",
-            "document_analysis_rag": "high",
-            "summarization_short": "high",
-            "code_generation_detailed": "medium",
-            "chatbot_conversational": "medium",
-            "code_completion": "medium",
-            "content_generation": "low",
-            "translation": "medium",
-        }
-
-        if intent.throughput_priority == "medium":  # default value
-            inferred = throughput_map.get(intent.use_case, "medium")
-            intent.throughput_priority = inferred  # type: ignore
-
         # Infer domain specialization from use case if not specified
         if intent.domain_specialization == ["general"]:
             if intent.use_case in ["code_generation_detailed", "code_completion"]:

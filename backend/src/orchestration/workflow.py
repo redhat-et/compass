@@ -62,7 +62,7 @@ class RecommendationWorkflow:
         intent = self.intent_extractor.extract_intent(user_message, conversation_history)
         intent = self.intent_extractor.infer_missing_fields(intent)
         logger.info(
-            f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency"
+            f"Intent extracted: {intent.use_case}, {intent.user_count} users"
         )
 
         logger.info("Step 2: Generating traffic profile and SLO targets")
@@ -195,9 +195,7 @@ class RecommendationWorkflow:
                 f"No viable deployment configurations found meeting SLO targets.\n\n"
                 f"**Requirements:**\n"
                 f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
-                f"- Scale: {intent.user_count:,} users\n"
-                f"- Latency requirement: {intent.latency_requirement}\n"
-                f"- Budget: {intent.budget_constraint}\n\n"
+                f"- Scale: {intent.user_count:,} users\n\n"
                 f"**Traffic profile:**\n"
                 f"- {traffic_profile.prompt_tokens} prompt tokens -> {traffic_profile.output_tokens} output tokens\n"
                 f"- Expected load: {traffic_profile.expected_qps} queries/second\n\n"
@@ -206,7 +204,7 @@ class RecommendationWorkflow:
                 f"- ITL <= {slo_targets.itl_p95_target_ms}ms\n"
                 f"- E2E <= {slo_targets.e2e_p95_target_ms}ms\n\n"
                 f"No configurations can meet the SLO targets with available hardware configurations. "
-                f"Try relaxing latency requirements or considering a different use case."
+                f"Try relaxing SLO targets or considering a different use case."
             )
             raise ValueError(error_msg)
 
