@@ -683,34 +683,17 @@ class RankedRecommendationFromSpecRequest(BaseModel):
     output_tokens: int
     expected_qps: float
 
-    # SLO target fields (generic - works with any percentile)
-    ttft_target_ms: int | None = None
-    itl_target_ms: int | None = None
-    e2e_target_ms: int | None = None
+    # SLO target fields (required - explicit SLOs must always be provided)
+    ttft_target_ms: int
+    itl_target_ms: int
+    e2e_target_ms: int
     percentile: str = "p95"  # "mean", "p90", "p95", "p99"
-    
-    # Legacy p95 fields (for backwards compatibility)
-    ttft_p95_target_ms: int | None = None
-    itl_p95_target_ms: int | None = None
-    e2e_p95_target_ms: int | None = None
 
     # Ranking options
     min_accuracy: int | None = None
     max_cost: float | None = None
     include_near_miss: bool = True
     weights: BalancedWeights | None = None
-    
-    def get_ttft_target(self) -> int:
-        """Get TTFT target, preferring new field over legacy."""
-        return self.ttft_target_ms if self.ttft_target_ms is not None else (self.ttft_p95_target_ms or 500)
-    
-    def get_itl_target(self) -> int:
-        """Get ITL target, preferring new field over legacy."""
-        return self.itl_target_ms if self.itl_target_ms is not None else (self.itl_p95_target_ms or 50)
-    
-    def get_e2e_target(self) -> int:
-        """Get E2E target, preferring new field over legacy."""
-        return self.e2e_target_ms if self.e2e_target_ms is not None else (self.e2e_p95_target_ms or 5000)
 
 
 @app.post("/api/ranked-recommend")
@@ -801,12 +784,6 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         RankedRecommendationsResponse with 5 ranked lists
     """
     try:
-        # Get SLO targets using helper methods (supports both new and legacy fields)
-        ttft_target = request.get_ttft_target()
-        itl_target = request.get_itl_target()
-        e2e_target = request.get_e2e_target()
-        percentile = request.percentile
-
         # Log complete request for debugging
         logger.info("=" * 60)
         logger.info("RANKED-RECOMMEND-FROM-SPEC REQUEST")
@@ -817,16 +794,10 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         logger.info(f"  prompt_tokens: {request.prompt_tokens}")
         logger.info(f"  output_tokens: {request.output_tokens}")
         logger.info(f"  expected_qps: {request.expected_qps}")
-        logger.info(f"  percentile: {percentile}")
-        logger.info(f"  ttft_target_ms (raw): {request.ttft_target_ms}")
-        logger.info(f"  itl_target_ms (raw): {request.itl_target_ms}")
-        logger.info(f"  e2e_target_ms (raw): {request.e2e_target_ms}")
-        logger.info(f"  ttft_p95_target_ms (legacy): {request.ttft_p95_target_ms}")
-        logger.info(f"  itl_p95_target_ms (legacy): {request.itl_p95_target_ms}")
-        logger.info(f"  e2e_p95_target_ms (legacy): {request.e2e_p95_target_ms}")
-        logger.info(f"  -> Resolved TTFT: {ttft_target}ms")
-        logger.info(f"  -> Resolved ITL: {itl_target}ms")
-        logger.info(f"  -> Resolved E2E: {e2e_target}ms")
+        logger.info(f"  percentile: {request.percentile}")
+        logger.info(f"  ttft_target_ms: {request.ttft_target_ms}ms")
+        logger.info(f"  itl_target_ms: {request.itl_target_ms}ms")
+        logger.info(f"  e2e_target_ms: {request.e2e_target_ms}ms")
         logger.info(f"  min_accuracy: {request.min_accuracy}")
         logger.info(f"  max_cost: {request.max_cost}")
         logger.info(f"  include_near_miss: {request.include_near_miss}")
@@ -852,10 +823,10 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
                 "expected_qps": request.expected_qps,
             },
             "slo_targets": {
-                "ttft_p95_target_ms": ttft_target,
-                "itl_p95_target_ms": itl_target,
-                "e2e_p95_target_ms": e2e_target,
-                "percentile": percentile,
+                "ttft_p95_target_ms": request.ttft_target_ms,
+                "itl_p95_target_ms": request.itl_target_ms,
+                "e2e_p95_target_ms": request.e2e_target_ms,
+                "percentile": request.percentile,
             },
         }
 
