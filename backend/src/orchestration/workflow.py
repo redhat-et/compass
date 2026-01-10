@@ -10,7 +10,6 @@ from ..context_intent.schema import (
 )
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
-from ..recommendation.model_evaluator import ModelEvaluator
 from ..recommendation.ranking_service import RankingService
 from ..context_intent.traffic_profile import TrafficProfileGenerator
 
@@ -25,7 +24,6 @@ class RecommendationWorkflow:
         llm_client: OllamaClient | None = None,
         intent_extractor: IntentExtractor | None = None,
         traffic_generator: TrafficProfileGenerator | None = None,
-        model_evaluator: ModelEvaluator | None = None,
         capacity_planner: CapacityPlanner | None = None,
     ):
         """
@@ -35,13 +33,11 @@ class RecommendationWorkflow:
             llm_client: Ollama client (creates default if not provided)
             intent_extractor: Intent extractor
             traffic_generator: Traffic profile generator
-            model_evaluator: Model evaluator for accuracy scoring
             capacity_planner: Capacity planner
         """
         self.llm_client = llm_client or OllamaClient()
         self.intent_extractor = intent_extractor or IntentExtractor(self.llm_client)
         self.traffic_generator = traffic_generator or TrafficProfileGenerator()
-        self.model_evaluator = model_evaluator or ModelEvaluator()
         self.capacity_planner = capacity_planner or CapacityPlanner()
 
     def generate_specification(
@@ -62,7 +58,7 @@ class RecommendationWorkflow:
         intent = self.intent_extractor.extract_intent(user_message, conversation_history)
         intent = self.intent_extractor.infer_missing_fields(intent)
         logger.info(
-            f"Intent extracted: {intent.use_case}, {intent.user_count} users, {intent.latency_requirement} latency"
+            f"Intent extracted: {intent.use_case}, {intent.user_count} users"
         )
 
         logger.info("Step 2: Generating traffic profile and SLO targets")
@@ -185,7 +181,6 @@ class RecommendationWorkflow:
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
-            model_evaluator=self.model_evaluator,
             include_near_miss=False,  # Strict SLO for best recommendation
         )
 
@@ -195,9 +190,7 @@ class RecommendationWorkflow:
                 f"No viable deployment configurations found meeting SLO targets.\n\n"
                 f"**Requirements:**\n"
                 f"- Use case: {intent.use_case} ({intent.experience_class} experience)\n"
-                f"- Scale: {intent.user_count:,} users\n"
-                f"- Latency requirement: {intent.latency_requirement}\n"
-                f"- Budget: {intent.budget_constraint}\n\n"
+                f"- Scale: {intent.user_count:,} users\n\n"
                 f"**Traffic profile:**\n"
                 f"- {traffic_profile.prompt_tokens} prompt tokens -> {traffic_profile.output_tokens} output tokens\n"
                 f"- Expected load: {traffic_profile.expected_qps} queries/second\n\n"
@@ -206,7 +199,7 @@ class RecommendationWorkflow:
                 f"- ITL <= {slo_targets.itl_p95_target_ms}ms\n"
                 f"- E2E <= {slo_targets.e2e_p95_target_ms}ms\n\n"
                 f"No configurations can meet the SLO targets with available hardware configurations. "
-                f"Try relaxing latency requirements or considering a different use case."
+                f"Try relaxing SLO targets or considering a different use case."
             )
             raise ValueError(error_msg)
 
@@ -322,7 +315,6 @@ class RecommendationWorkflow:
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
-            model_evaluator=self.model_evaluator,
             include_near_miss=include_near_miss,
         )
 
@@ -452,7 +444,6 @@ class RecommendationWorkflow:
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
-            model_evaluator=self.model_evaluator,
             include_near_miss=include_near_miss,
             weights=weights,
         )

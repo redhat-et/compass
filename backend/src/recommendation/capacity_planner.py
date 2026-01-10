@@ -127,7 +127,6 @@ class CapacityPlanner:
         traffic_profile: TrafficProfile,
         slo_targets: SLOTargets,
         intent: DeploymentIntent,
-        model_evaluator: "ModelEvaluator | None" = None,
         include_near_miss: bool = False,  # Strict SLO filtering - no tolerance
         near_miss_tolerance: float = 0.0,  # No near-miss tolerance
         weights: dict[str, int] | None = None,  # Custom weights for balanced score
@@ -142,7 +141,6 @@ class CapacityPlanner:
             traffic_profile: Traffic characteristics (prompt_tokens, output_tokens)
             slo_targets: p95 SLO targets
             intent: Original deployment intent
-            model_evaluator: Model evaluator for accuracy scoring (optional)
             include_near_miss: Whether to include configs within tolerance of SLO
             near_miss_tolerance: How much over SLO to allow (0.2 = 20%)
             weights: Custom weights for balanced score (0-10 scale)
@@ -151,8 +149,6 @@ class CapacityPlanner:
         Returns:
             List of DeploymentRecommendations with scores attached
         """
-        # Import here to avoid circular import
-        from .model_evaluator import ModelEvaluator
         scorer = SolutionScorer()
         all_configs: list[DeploymentRecommendation] = []
 
