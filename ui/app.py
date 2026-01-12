@@ -19,7 +19,9 @@ from pathlib import Path
 
 import pandas as pd
 import requests
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
@@ -5097,10 +5099,10 @@ def render_options_list_inline():
 
     # Define categories
     categories = [
-        ("balanced", "Balanced", "#EE0000"),
-        ("best_accuracy", "Best Accuracy", "#ffffff"),
-        ("lowest_cost", "Lowest Cost", "#f59e0b"),
-        ("lowest_latency", "Lowest Latency", "#ffffff"),
+        ("balanced", "Balanced"),
+        ("best_accuracy", "Best Accuracy"),
+        ("lowest_cost", "Lowest Cost"),
+        ("lowest_latency", "Lowest Latency"),
     ]
 
     # Helper function to format GPU config
@@ -5113,37 +5115,168 @@ def render_options_list_inline():
         replicas = gpu_config.get("replicas", 1)
         return f"{gpu_count}x {gpu_type} (TP={tp}, R={replicas})"
 
-    # Build table rows
-    all_rows = []
-    for cat_key, cat_name, cat_color in categories:
+    # Build table data
+    table_data = []
+    for cat_key, cat_name in categories:
         recs = ranked_response.get(cat_key, [])
-        if not recs:
-            all_rows.append(f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td></tr>')
-        else:
-            for i, rec in enumerate(recs[:5]):  # Show top 5 per category
-                model_name = format_display_name(rec.get("model_name", "Unknown"))
-                gpu_config = rec.get("gpu_config", {})
-                gpu_str = format_gpu_config(gpu_config)
-                ttft = rec.get("predicted_ttft_p95_ms", 0)
-                cost = rec.get("cost_per_month_usd", 0)
-                scores = rec.get("scores", {}) or {}
-                accuracy = scores.get("accuracy_score", 0)
-                balanced = scores.get("balanced_score", 0)
-                meets_slo = rec.get("meets_slo", False)
-                slo_icon = "Yes" if meets_slo else "No"
+        for rec in recs[:5]:  # Show top 5 per category
+            model_name = format_display_name(rec.get("model_name", "Unknown"))
+            gpu_config = rec.get("gpu_config", {})
+            gpu_str = format_gpu_config(gpu_config)
+            ttft = rec.get("predicted_ttft_p95_ms", 0)
+            cost = rec.get("cost_per_month_usd", 0)
+            scores = rec.get("scores", {}) or {}
+            accuracy = scores.get("accuracy_score", 0)
+            balanced = scores.get("balanced_score", 0)
+            meets_slo = rec.get("meets_slo", False)
+            slo_value = 1 if meets_slo else 0  # Numeric value for sorting
 
-                cat_display = f'<span style="color: {cat_color}; font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
+            table_data.append({
+                "category": cat_name,
+                "model": model_name,
+                "gpu_config": gpu_str,
+                "ttft": ttft,
+                "cost": cost,
+                "accuracy": accuracy,
+                "balanced": balanced,
+                "slo": "Yes" if meets_slo else "No",
+                "slo_value": slo_value,
+            })
 
-                row = f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
-                all_rows.append(row)
+    if table_data:
+        # Build table rows HTML
+        rows_html = []
+        for row in table_data:
+            rows_html.append(f'''
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"
+                    data-category="{row['category']}"
+                    data-model="{row['model']}"
+                    data-gpu="{row['gpu_config']}"
+                    data-ttft="{row['ttft']}"
+                    data-cost="{row['cost']}"
+                    data-accuracy="{row['accuracy']}"
+                    data-balanced="{row['balanced']}"
+                    data-slo="{row['slo_value']}">
+                    <td style="padding: 0.75rem 0.5rem; color: white;">{row['category']}</td>
+                    <td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{row['model']}</td>
+                    <td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{row['gpu_config']}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{row['ttft']:.0f}ms</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${row['cost']:,.0f}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{row['accuracy']:.0f}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{row['balanced']:.1f}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: center;">{row['slo']}</td>
+                </tr>
+            ''')
 
-    # Table header
-    header = '<thead><tr style="border-bottom: 2px solid rgba(255,255,255,0.2);"><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th></tr></thead>'
+        # Table HTML with JavaScript sorting
+        table_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                background: transparent;
+                font-family: "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            }}
+            .sortable-table {{
+                font-family: "Source Sans Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            }}
+            .sortable-table th {{
+                cursor: pointer;
+                user-select: none;
+                position: relative;
+            }}
+            .sortable-table th:hover {{
+                background: rgba(50, 50, 50, 0.8) !important;
+            }}
+            .sortable-table th.sort-asc::after {{
+                content: " ▲";
+                font-size: 0.7em;
+                color: #06b6d4;
+            }}
+            .sortable-table th.sort-desc::after {{
+                content: " ▼";
+                font-size: 0.7em;
+                color: #06b6d4;
+            }}
+            .sortable-table tbody tr:hover {{
+                background: rgba(30, 30, 30, 0.6) !important;
+            }}
+        </style>
+        </head>
+        <body>
+        <table class="sortable-table" id="recsTableInline" style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">
+            <thead>
+                <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
+                    <th onclick="sortTableInline(0, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th>
+                    <th onclick="sortTableInline(1, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th>
+                    <th onclick="sortTableInline(2, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th>
+                    <th onclick="sortTableInline(3, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th>
+                    <th onclick="sortTableInline(4, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th>
+                    <th onclick="sortTableInline(5, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th>
+                    <th onclick="sortTableInline(6, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th>
+                    <th onclick="sortTableInline(7, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th>
+                </tr>
+            </thead>
+            <tbody>
+                {''.join(rows_html)}
+            </tbody>
+        </table>
+        <script>
+            let sortDirectionInline = {{}};
 
-    # Render table
-    table_html = f'<table style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">{header}<tbody>{"".join(all_rows)}</tbody></table>'
+            function sortTableInline(columnIndex, type) {{
+                const table = document.getElementById('recsTableInline');
+                const tbody = table.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                const headers = table.querySelectorAll('th');
 
-    st.markdown(table_html, unsafe_allow_html=True)
+                // Toggle sort direction
+                const key = columnIndex;
+                sortDirectionInline[key] = sortDirectionInline[key] === 'asc' ? 'desc' : 'asc';
+                const isAsc = sortDirectionInline[key] === 'asc';
+
+                // Clear all header classes
+                headers.forEach(h => {{
+                    h.classList.remove('sort-asc', 'sort-desc');
+                }});
+
+                // Add class to current header
+                headers[columnIndex].classList.add(isAsc ? 'sort-asc' : 'sort-desc');
+
+                // Sort rows
+                rows.sort((a, b) => {{
+                    let aVal, bVal;
+
+                    if (type === 'number') {{
+                        const attrs = ['category', 'model', 'gpu', 'ttft', 'cost', 'accuracy', 'balanced', 'slo'];
+                        const attr = 'data-' + attrs[columnIndex];
+                        aVal = parseFloat(a.getAttribute(attr)) || 0;
+                        bVal = parseFloat(b.getAttribute(attr)) || 0;
+                    }} else {{
+                        aVal = a.cells[columnIndex].textContent.trim();
+                        bVal = b.cells[columnIndex].textContent.trim();
+                    }}
+
+                    if (aVal < bVal) return isAsc ? -1 : 1;
+                    if (aVal > bVal) return isAsc ? 1 : -1;
+                    return 0;
+                }});
+
+                // Re-append sorted rows
+                rows.forEach(row => tbody.appendChild(row));
+            }}
+        </script>
+        </body>
+        </html>
+        '''
+
+        components.html(table_html, height=450, scrolling=True)
+        st.markdown('<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">Click on column headers to sort the table</p>', unsafe_allow_html=True)
+    else:
+        st.warning("No configurations to display")
 
 
 # =============================================================================
