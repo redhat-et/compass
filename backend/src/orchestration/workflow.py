@@ -224,55 +224,6 @@ class RecommendationWorkflow:
 
         return best_recommendation
 
-    def validate_recommendation(self, recommendation: DeploymentRecommendation) -> bool:
-        """
-        Validate that recommendation meets all requirements.
-
-        Args:
-            recommendation: Deployment recommendation to validate
-
-        Returns:
-            True if valid
-        """
-        # Check SLO targets are met
-        if not recommendation.meets_slo:
-            logger.warning("Recommendation does not meet SLO targets")
-            return False
-
-        # Check TTFT
-        if recommendation.predicted_ttft_p95_ms > recommendation.slo_targets.ttft_p95_target_ms:
-            logger.warning(
-                f"TTFT {recommendation.predicted_ttft_p95_ms}ms exceeds target "
-                f"{recommendation.slo_targets.ttft_p95_target_ms}ms"
-            )
-            return False
-
-        # Check ITL
-        if recommendation.predicted_itl_p95_ms > recommendation.slo_targets.itl_p95_target_ms:
-            logger.warning(
-                f"ITL {recommendation.predicted_itl_p95_ms}ms exceeds target "
-                f"{recommendation.slo_targets.itl_p95_target_ms}ms"
-            )
-            return False
-
-        # Check E2E
-        if recommendation.predicted_e2e_p95_ms > recommendation.slo_targets.e2e_p95_target_ms:
-            logger.warning(
-                f"E2E {recommendation.predicted_e2e_p95_ms}ms exceeds target "
-                f"{recommendation.slo_targets.e2e_p95_target_ms}ms"
-            )
-            return False
-
-        # Check throughput
-        if recommendation.predicted_throughput_qps < recommendation.traffic_profile.expected_qps:
-            logger.warning(
-                f"Throughput {recommendation.predicted_throughput_qps} QPS below required "
-                f"{recommendation.traffic_profile.expected_qps} QPS"
-            )
-            return False
-
-        return True
-
     def generate_ranked_recommendations(
         self,
         user_message: str,
