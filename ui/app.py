@@ -1615,16 +1615,6 @@ def load_206_models() -> pd.DataFrame:
         return pd.DataFrame()
 
 @st.cache_data
-def load_research_slo_ranges():
-    """Load research-backed SLO ranges from JSON file (includes benchmark data)."""
-    try:
-        json_path = DATA_DIR / "research" / "slo_ranges.json"
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return None
-
-@st.cache_data
 def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int) -> dict:
     """Get actual min-max ranges for each percentile from benchmark data for a specific token config.
     
@@ -1677,16 +1667,6 @@ def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int
     except Exception:
         return {"config_count": 0}
 
-@st.cache_data  
-def load_research_workload_patterns():
-    """Load research-backed workload patterns from JSON file (includes benchmark data)."""
-    try:
-        json_path = DATA_DIR / "research" / "workload_patterns.json"
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return None
-
 # =============================================================================
 # RANKED RECOMMENDATIONS (Backend API Integration)
 # =============================================================================
@@ -1737,6 +1717,33 @@ def fetch_expected_rps(use_case: str, user_count: int) -> dict | None:
         return None
     except Exception as e:
         logger.warning(f"Failed to fetch expected RPS for {use_case}: {e}")
+        return None
+
+
+@st.cache_data(ttl=300)
+def fetch_workload_profile(use_case: str) -> dict | None:
+    """Fetch workload profile for a use case from the backend API.
+
+    Returns dict with workload_profile containing:
+    - prompt_tokens: average input token count
+    - output_tokens: average output token count
+    - peak_multiplier: peak traffic multiplier
+    - distribution: workload distribution type
+
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/workload-profile/{use_case}",
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data.get("workload_profile")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch workload profile for {use_case}: {e}")
         return None
 
 
@@ -2111,57 +2118,26 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
 
 
 def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
-    """Get workload pattern insights based on research data and benchmarks.
-    
+    """Get workload pattern insights based on API data.
+
     Returns list of tuples: (icon, color, message, severity)
     """
     messages = []
-    workload_data = load_research_workload_patterns()
-    
-    if not workload_data or 'workload_distributions' not in workload_data:
+
+    # Get workload profile from API
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
         return messages
-    
-    workload_patterns = workload_data.get('workload_distributions', {})
-    traffic_profiles = workload_data.get('traffic_profiles', {})
-    hardware_throughput = workload_data.get('hardware_throughput', {})
-    capacity_guidance = workload_data.get('capacity_planning', {}).get('blis_guidance', {})
-    
-    # Get use case specific pattern
-    pattern = workload_patterns.get(use_case)
-    traffic = traffic_profiles.get(use_case)
-    
-    if pattern:
-        distribution = pattern.get('distribution', 'poisson')
-        active_fraction = pattern.get('active_fraction', {}).get('mean', 0.2)
-        peak_multiplier = pattern.get('peak_multiplier', 2.0)
-        req_per_min = pattern.get('requests_per_active_user_per_min', {}).get('mean', 0.5)
-        
-        # Get benchmark data for this use case
-        benchmark_perf = pattern.get('benchmark_perfmark', {})
-        benchmark_optimal_rps = benchmark_perf.get('optimal_rps', 1.0)
-        benchmark_max_rps = benchmark_perf.get('max_rps_tested', 10)
-        benchmark_e2e_p95 = benchmark_perf.get('e2e_p95_at_optimal', 5000)
-        
-        # Calculate expected metrics
-        expected_concurrent = int(user_count * active_fraction)
-        expected_rps = (expected_concurrent * req_per_min) / 60
-        expected_peak_rps = expected_rps * peak_multiplier
-        
-        messages.append((
-            "", "#000000",
-            f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
-            "info"
-        ))
-        
-        # Note: Peak multiplier info now shown inline in workload profile box
-    
-    if traffic:
-        prompt_tokens = traffic.get('prompt_tokens', 512)
-        output_tokens = traffic.get('output_tokens', 256)
-        # Note: Token profile info now shown inline in workload profile box
-    
-    # Hardware recommendations moved to Recommendation tab (uses benchmark data)
-    
+
+    distribution = workload_profile.get('distribution', 'poisson')
+    active_fraction = workload_profile.get('active_fraction', 0.2)
+
+    messages.append((
+        "", "#000000",
+        f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
+        "info"
+    ))
+
     return messages
 
 @st.cache_data
@@ -3133,17 +3109,24 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     User drags slider LEFT to tighten SLOs and filter down configs.
     Priority affects the MAX - low_latency has tighter max values.
     """
-    # Get research data for token config and priority factors
-    research_data = load_research_slo_ranges()
-    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
-    
+    # Get workload profile from API for token config
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
+        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+        return
+    prompt_tokens = workload_profile['prompt_tokens']
+    output_tokens = workload_profile['output_tokens']
+
     # Get actual benchmark ranges for this use case's token config
-    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
-    
-    # Get priority adjustment factors
-    priority_adjustments = research_data.get('priority_adjustments', {}) if research_data else {}
-    priority_factor = priority_adjustments.get(priority, {})
+    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
+
+    # Priority adjustment factors (hardcoded - these rarely change)
+    priority_factors = {
+        'low_latency': {'ttft_factor': 0.5, 'itl_factor': 0.5, 'e2e_factor': 0.5},
+        'balanced': {'ttft_factor': 1.0, 'itl_factor': 1.0, 'e2e_factor': 1.0},
+        'cost_optimized': {'ttft_factor': 1.5, 'itl_factor': 1.5, 'e2e_factor': 1.5},
+    }
+    priority_factor = priority_factors.get(priority, priority_factors['balanced'])
     ttft_factor = priority_factor.get('ttft_factor', 1.0)
     itl_factor = priority_factor.get('itl_factor', 1.0)
     e2e_factor = priority_factor.get('e2e_factor', 1.0)
@@ -3276,12 +3259,13 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </style>
         """, unsafe_allow_html=True)
 
-        # Load research data and get use-case specific ranges
-        research_data = load_research_slo_ranges()
-        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
-        prompt_tokens = token_config.get('prompt', 512)
-        output_tokens = token_config.get('output', 256)
+        # Load workload profile from API for token config
+        workload_profile = fetch_workload_profile(use_case)
+        if not workload_profile:
+            st.error(f"Failed to fetch workload profile for use case: {use_case}")
+            return
+        prompt_tokens = workload_profile['prompt_tokens']
+        output_tokens = workload_profile['output_tokens']
         benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
 
         # Percentile options
@@ -3397,16 +3381,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
-        # Load token config and workload data from research
-        research_data = load_research_slo_ranges()
-        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
-        prompt_tokens = token_config.get('prompt', 512)
-        output_tokens = token_config.get('output', 256)
-
-        workload_data = load_research_workload_patterns()
-        pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
-        peak_mult = pattern.get('peak_multiplier', 2.0)
+        # Load workload profile from API
+        workload_profile = fetch_workload_profile(use_case)
+        if not workload_profile:
+            st.error(f"Failed to fetch workload profile for use case: {use_case}")
+            return
+        prompt_tokens = workload_profile['prompt_tokens']
+        output_tokens = workload_profile['output_tokens']
+        peak_mult = workload_profile['peak_multiplier']
 
         # Store workload profile values in session state for Recommendations tab
         st.session_state.spec_prompt_tokens = prompt_tokens
@@ -4841,12 +4823,14 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     # ==========================================================================
     # VALIDATE SLO VALUES - Use case-specific ranges (same as sliders)
     # ==========================================================================
-    research_data = load_research_slo_ranges()
-    
-    # Get use-case specific token config and benchmark ranges
-    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
-    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
+    # Get workload profile from API for token config
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
+        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+        return
+    prompt_tokens = workload_profile['prompt_tokens']
+    output_tokens = workload_profile['output_tokens']
+    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
     
     # Get selected percentile (same as sliders)
     percentile_key = st.session_state.get('slo_percentile', 'p95')

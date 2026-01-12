@@ -219,7 +219,7 @@ async def get_slo_defaults(use_case: str):
     """
     try:
         import json
-        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
 
         if not json_path.exists():
             logger.error(f"SLO workload config not found at: {json_path}")
@@ -271,6 +271,62 @@ async def get_slo_defaults(use_case: str):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.get("/api/v1/workload-profile/{use_case}")
+async def get_workload_profile(use_case: str):
+    """Get workload profile for a use case.
+
+    Returns the token configuration and peak multiplier used for
+    capacity planning and recommendation generation.
+    """
+    try:
+        import json
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
+
+        if not json_path.exists():
+            logger.error(f"SLO workload config not found at: {json_path}")
+            raise HTTPException(status_code=404, detail="SLO workload configuration not found")
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        use_case_data = data.get("use_case_slo_workload", {}).get(use_case)
+        if not use_case_data:
+            raise HTTPException(status_code=404, detail=f"Use case '{use_case}' not found")
+
+        workload = use_case_data.get("workload", {})
+
+        # Require all workload fields - fail if missing
+        prompt_tokens = workload["prompt_tokens"]
+        output_tokens = workload["output_tokens"]
+        peak_multiplier = workload["peak_multiplier"]
+        distribution = workload["distribution"]
+        active_fraction = workload["active_fraction"]
+        requests_per_active_user_per_min = workload["requests_per_active_user_per_min"]
+
+        return {
+            "success": True,
+            "use_case": use_case,
+            "description": use_case_data.get("description", ""),
+            "workload_profile": {
+                "prompt_tokens": prompt_tokens,
+                "output_tokens": output_tokens,
+                "peak_multiplier": peak_multiplier,
+                "distribution": distribution,
+                "active_fraction": active_fraction,
+                "requests_per_active_user_per_min": requests_per_active_user_per_min
+            }
+        }
+
+    except HTTPException:
+        raise
+    except KeyError as e:
+        logger.error(f"Missing workload data for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=f"Missing workload data: {e}") from e
+    except Exception as e:
+        logger.error(f"Failed to get workload profile for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/api/v1/expected-rps/{use_case}")
 async def get_expected_rps(use_case: str, user_count: int = 1000):
     """Calculate expected RPS for a use case based on workload patterns.
@@ -283,7 +339,7 @@ async def get_expected_rps(use_case: str, user_count: int = 1000):
     """
     try:
         import json
-        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
 
         if not json_path.exists():
             logger.error(f"SLO workload config not found at: {json_path}")
