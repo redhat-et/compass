@@ -7,6 +7,7 @@ Expected JSON schema:
   "experience_class": "instant|conversational|interactive|deferred|batch",
   "user_count": <integer>,
   "domain_specialization": ["general"|"code"|"multilingual"|"enterprise"],
+  "preferred_gpu_type": "<GPU type if mentioned (H100, H200, A100, L4), or 'Any GPU' if not specified>",
   "accuracy_priority": "low|medium|high",
   "cost_priority": "low|medium|high",
   "latency_priority": "low|medium|high",
@@ -63,6 +64,11 @@ Your task is to extract structured information about their deployment requiremen
 1. **Use case**: What type of application (chatbot, customer service, code generation, summarization, etc.)
 2. **User count**: How many users or scale mentioned (estimate if not explicit)
 3. **Domain specialization**: Any specific domains mentioned (code, multilingual, enterprise, etc.)
+4. **Latency requirement**: How important is low latency? (very_high = sub-500ms, high = sub-2s, medium = 2-5s, low = >5s acceptable)
+5. **Throughput priority**: Is high request volume more important than low latency?
+6. **Budget constraint**: How price-sensitive are they?
+7. **Domain specialization**: Any specific domains mentioned (code, multilingual, enterprise, etc.)
+8. **Preferred GPU**: If user mentions a specific GPU type (H100, H200, A100, A100-80, L4, B200), extract it
 
 Be intelligent about inference:
 - "thousands of users" → estimate specific number
@@ -70,6 +76,11 @@ Be intelligent about inference:
 - "RAG" or "retrieval" → use_case: document_analysis_rag
 - "chatbot" or "customer service" or "conversational" → use_case: chatbot_conversational
 - "summarize document" or "summarization" → use_case: summarization_short or long_document_summarization
+- "running on h200" or "h200" or "H200" → preferred_gpu_type: "H200"
+- "h100" or "H100" → preferred_gpu_type: "H100"
+- "a100" or "A100" → preferred_gpu_type: "A100"
+- "l4" or "L4" → preferred_gpu_type: "L4"
+- No GPU mentioned → preferred_gpu_type: "Any GPU"
 
 Priority extraction (for scoring weights - use "medium" as baseline, adjust based on context):
 - accuracy_priority: "high" if user mentions accuracy matters, quality is important, accuracy is critical, best model, or top quality. "low" if user says good enough or accuracy less important.
