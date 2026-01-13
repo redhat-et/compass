@@ -4232,31 +4232,31 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Customer service chatbot for 30 users."
+            st.session_state.user_input = "Customer service chatbot for 300 users."
 
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "IDE code completion tool for 30 developers."
+            st.session_state.user_input = "IDE code completion tool for 300 developers."
 
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 30 users."
+            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 300 users."
 
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
             clear_dialog_states()
             # With priority (cost-effective) to show filtering
-            st.session_state.user_input = "News article summarization for 30 users, cost-effective solution preferred."
+            st.session_state.user_input = "News article summarization for 300 users, cost-effective solution preferred."
 
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Legal document analysis for 30 lawyers, accuracy is critical."
+            st.session_state.user_input = "Legal document analysis for 300 lawyers, accuracy is critical."
 
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
@@ -4265,25 +4265,25 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Translation", use_container_width=True, key="task_trans"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Multi-language translation service for 30 users."
+            st.session_state.user_input = "Multi-language translation service for 300 users."
 
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Content generation tool for marketing team, 30 users."
+            st.session_state.user_input = "Content generation tool for marketing team, 300 users."
 
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
+            st.session_state.user_input = "Long document summarization for research papers, 300 researchers, accuracy matters."
 
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Full code generation tool for implementing features, 30 developers."
+            st.session_state.user_input = "Full code generation tool for implementing features, 300 developers."
     
     # Input area with validation
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
@@ -4292,7 +4292,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         value=st.session_state.user_input,
         height=120,
         max_chars=2000,  # Corporate standard: limit input length
-        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 30 users. Low latency is important, and we have H100 GPUs available.",
+        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 300 users. Low latency is important, and we have H100 GPUs available.",
         label_visibility="collapsed"
     )
     st.markdown('</div>', unsafe_allow_html=True)
