@@ -1615,16 +1615,6 @@ def load_206_models() -> pd.DataFrame:
         return pd.DataFrame()
 
 @st.cache_data
-def load_research_slo_ranges():
-    """Load research-backed SLO ranges from JSON file (includes benchmark data)."""
-    try:
-        json_path = DATA_DIR / "research" / "slo_ranges.json"
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return None
-
-@st.cache_data
 def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int) -> dict:
     """Get actual min-max ranges for each percentile from benchmark data for a specific token config.
     
@@ -1676,77 +1666,6 @@ def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int
         return result
     except Exception:
         return {"config_count": 0}
-
-@st.cache_data  
-def load_research_workload_patterns():
-    """Load research-backed workload patterns from JSON file (includes benchmark data)."""
-    try:
-        json_path = DATA_DIR / "research" / "workload_patterns.json"
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception:
-        return None
-
-@st.cache_data
-def load_performance_benchmarks():
-    """Load performance benchmark data for real hardware/model performance validation."""
-    try:
-        # Benchmark file is in data/ root, not data/benchmarks/
-        json_path = DATA_DIR / "benchmarks_BLIS.json"
-        with open(json_path, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.warning(f"Could not load benchmark data: {e}")
-        return None
-
-def get_slo_targets_for_use_case(use_case: str, priority: str = "balanced") -> dict:
-    """Get research-backed SLO targets (min/max) for a use case with priority adjustment.
-    
-    Returns dict with:
-    - ttft_target: {"min": X, "max": Y} - the acceptable range
-    - itl_target: {"min": X, "max": Y}
-    - e2e_target: {"min": X, "max": Y}
-    - token_config: {"prompt": X, "output": Y}
-    """
-    research_data = load_research_slo_ranges()
-    if not research_data:
-        return None
-    
-    slo_ranges = research_data.get('slo_ranges', {})
-    priority_adjustments = research_data.get('priority_adjustments', {})
-    
-    use_case_data = slo_ranges.get(use_case)
-    if not use_case_data:
-        return None
-    
-    # Get priority adjustment factors
-    priority_factor = priority_adjustments.get(priority, {})
-    ttft_factor = priority_factor.get('ttft_factor', 1.0)
-    itl_factor = priority_factor.get('itl_factor', 1.0)
-    e2e_factor = priority_factor.get('e2e_factor', 1.0)
-    
-    return {
-        "use_case": use_case,
-        "priority": priority,
-        "description": use_case_data.get('description', ''),
-        "ttft_target": {
-            "min": int(use_case_data['ttft_ms']['min'] * ttft_factor),
-            "max": int(use_case_data['ttft_ms']['max'] * ttft_factor),
-        },
-        "itl_target": {
-            "min": int(use_case_data['itl_ms']['min'] * itl_factor),
-            "max": int(use_case_data['itl_ms']['max'] * itl_factor),
-        },
-        "e2e_target": {
-            "min": int(use_case_data['e2e_ms']['min'] * e2e_factor),
-            "max": int(use_case_data['e2e_ms']['max'] * e2e_factor),
-        },
-        "token_config": use_case_data.get('token_config', {"prompt": 512, "output": 256}),
-        "tokens_per_sec_target": use_case_data.get('tokens_per_sec', {}).get('target', 100),
-        "research_note": use_case_data.get('research_note', ''),
-        "recommended_hardware": priority_factor.get('recommended_hardware', 'H100_x2'),
-    }
-
 
 # =============================================================================
 # RANKED RECOMMENDATIONS (Backend API Integration)
@@ -1801,6 +1720,33 @@ def fetch_expected_rps(use_case: str, user_count: int) -> dict | None:
         return None
 
 
+@st.cache_data(ttl=300)
+def fetch_workload_profile(use_case: str) -> dict | None:
+    """Fetch workload profile for a use case from the backend API.
+
+    Returns dict with workload_profile containing:
+    - prompt_tokens: average input token count
+    - output_tokens: average output token count
+    - peak_multiplier: peak traffic multiplier
+    - distribution: workload distribution type
+
+    Cached for 5 minutes.
+    """
+    try:
+        response = requests.get(
+            f"{API_BASE_URL}/api/v1/workload-profile/{use_case}",
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if data.get("success"):
+            return data.get("workload_profile")
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to fetch workload profile for {use_case}: {e}")
+        return None
+
+
 @st.cache_data(ttl=3600)
 def fetch_priority_weights() -> dict | None:
     """Fetch priority weights configuration from the backend API.
@@ -1834,7 +1780,6 @@ def fetch_priority_weights() -> dict | None:
 def fetch_ranked_recommendations(
     use_case: str,
     user_count: int,
-    priority: str,
     prompt_tokens: int,
     output_tokens: int,
     expected_qps: float,
@@ -1850,7 +1795,6 @@ def fetch_ranked_recommendations(
     Args:
         use_case: Use case identifier (e.g., "chatbot_conversational")
         user_count: Number of concurrent users
-        priority: UI priority (maps to latency_requirement/budget_constraint)
         prompt_tokens: Input prompt token count
         output_tokens: Output generation token count
         expected_qps: Queries per second
@@ -1866,33 +1810,20 @@ def fetch_ranked_recommendations(
     """
     import requests
 
-    # Map UI priority to backend latency_requirement and budget_constraint
-    priority_mapping = {
-        "low_latency": {"latency_requirement": "very_high", "budget_constraint": "flexible"},
-        "balanced": {"latency_requirement": "high", "budget_constraint": "moderate"},
-        "cost_saving": {"latency_requirement": "medium", "budget_constraint": "strict"},
-        "high_throughput": {"latency_requirement": "high", "budget_constraint": "moderate"},
-        "high_accuracy": {"latency_requirement": "medium", "budget_constraint": "flexible"},
-    }
-
-    mapping = priority_mapping.get(priority, priority_mapping["balanced"])
-
     # Build request payload
     # min_accuracy=35 filters out models with 30% fallback (no AA data)
     payload = {
         "use_case": use_case,
         "user_count": user_count,
-        "latency_requirement": mapping["latency_requirement"],
-        "budget_constraint": mapping["budget_constraint"],
         "prompt_tokens": prompt_tokens,
         "output_tokens": output_tokens,
         "expected_qps": expected_qps,
         "ttft_target_ms": ttft_target_ms,
         "itl_target_ms": itl_target_ms,
         "e2e_target_ms": e2e_target_ms,
-        "percentile": percentile,  # mean, p90, p95, p99
+        "percentile": percentile,
         "include_near_miss": include_near_miss,
-        "min_accuracy": 35,  # Filter out models without AA accuracy data (30% fallback)
+        "min_accuracy": 35,
     }
 
     if weights:
@@ -1986,94 +1917,6 @@ def render_weight_controls() -> None:
             # Re-evaluate button to apply weight changes (styled as primary/blue)
             if st.button("Re-Evaluate", key="re_evaluate_btn", type="primary", help="Apply weight changes and re-fetch recommendations"):
                 st.rerun()
-
-
-def render_recommendation_category_card(
-    category_name: str,
-    category_emoji: str,
-    category_color: str,
-    recommendations: list,
-):
-    """Render a single recommendation category card with top pick and expander.
-
-    Args:
-        category_name: Display name (e.g., "Balanced", "Best Accuracy")
-        category_emoji: Emoji for the category
-        category_color: Hex color for styling
-        recommendations: List of recommendation dicts from backend
-    """
-    if not recommendations:
-        st.markdown(f"""
-        <div style="background: var(--bg-card); padding: 1rem; border-radius: 0.75rem;
-                    border: 1px solid {category_color}40; min-height: 150px;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                <span style="font-size: 1.25rem;">{category_emoji}</span>
-                <span style="color: {category_color}; font-weight: 700;">{category_name}</span>
-            </div>
-            <p style="color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</p>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-
-    top = recommendations[0]
-    model_name = top.get("model_name", "Unknown")
-    gpu_type = top.get("gpu_config", {}).get("gpu_type", "Unknown") if isinstance(top.get("gpu_config"), dict) else "Unknown"
-    gpu_count = top.get("gpu_config", {}).get("gpu_count", 1) if isinstance(top.get("gpu_config"), dict) else 1
-    ttft = top.get("predicted_ttft_p95_ms", 0)
-    cost = top.get("cost_per_month_usd", 0)
-    meets_slo = top.get("meets_slo", False)
-    scores = top.get("scores", {})
-    balanced_score = scores.get("balanced_score", 0) if isinstance(scores, dict) else 0
-    accuracy_score = scores.get("accuracy_score", 0) if isinstance(scores, dict) else 0
-
-    slo_badge = "Yes" if meets_slo else "No"
-
-    st.markdown(f"""
-    <div style="background: var(--bg-card); padding: 1rem; border-radius: 0.75rem;
-                border: 1px solid {category_color}40;">
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <span style="font-size: 1.25rem;">{category_emoji}</span>
-            <span style="color: {category_color}; font-weight: 700;">{category_name}</span>
-            <span style="margin-left: auto; font-size: 0.9rem;">{slo_badge}</span>
-        </div>
-        <div style="margin-bottom: 0.5rem;">
-            <span style="color: white; font-weight: 600; font-size: 1.1rem;">{model_name}</span>
-        </div>
-        <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">
-            {gpu_count}x {gpu_type}
-        </div>
-        <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: rgba(255,255,255,0.6);">
-            <span>⏱️ {ttft:.0f}ms</span>
-            <span>${cost:,.0f}/mo</span>
-        </div>
-        <div style="margin-top: 0.5rem; font-size: 0.85rem;">
-            <span style="color: {category_color};">Score: {balanced_score:.1f}</span>
-            <span style="color: rgba(255,255,255,0.5);"> | Accuracy: {accuracy_score:.0f}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Expander for additional options
-    if len(recommendations) > 1:
-        with st.expander(f"Show {len(recommendations) - 1} more options"):
-            for rec in recommendations[1:]:
-                rec_model = rec.get("model_name", "Unknown")
-                rec_gpu_type = rec.get("gpu_config", {}).get("gpu_type", "Unknown") if isinstance(rec.get("gpu_config"), dict) else "Unknown"
-                rec_gpu_count = rec.get("gpu_config", {}).get("gpu_count", 1) if isinstance(rec.get("gpu_config"), dict) else 1
-                rec_ttft = rec.get("predicted_ttft_p95_ms", 0)
-                rec_cost = rec.get("cost_per_month_usd", 0)
-                rec_meets_slo = "Yes" if rec.get("meets_slo", False) else "No"
-                rec_scores = rec.get("scores", {})
-                rec_balanced = rec_scores.get("balanced_score", 0) if isinstance(rec_scores, dict) else 0
-
-                st.markdown(f"""
-                <div style="padding: 0.5rem; margin: 0.25rem 0; background: rgba(255,255,255,0.03);
-                            border-radius: 0.5rem; font-size: 0.9rem;">
-                    <span style="color: white; font-weight: 500;">{rec_meets_slo} {rec_model}</span>
-                    <span style="color: rgba(255,255,255,0.5);"> — {rec_gpu_count}x {rec_gpu_type},
-                          {rec_ttft:.0f}ms, ${rec_cost:,.0f}/mo (Score: {rec_balanced:.1f})</span>
-                </div>
-                """, unsafe_allow_html=True)
 
 
 def render_ranked_recommendations(response: dict, show_config: bool = True):
@@ -2274,182 +2117,27 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
     st.markdown(unified_table_html, unsafe_allow_html=True)
 
 
-def get_slo_for_model(model_name: str, use_case: str, hardware: str = "H100") -> dict:
-    """Get REAL benchmark SLO data for a specific model and use case.
-    
-    IMPORTANT: Only returns data if we have ACTUAL benchmarks for this model.
-    Returns None if no matching benchmark data exists (we don't fake data).
-    
-    Benchmark dataset contains only these models:
-    - qwen2.5-7b, llama-3.1-8b, llama-3.3-70b, phi-4
-    - mistral-small-24b, mixtral-8x7b, granite-3.1-8b
-    - gpt-oss-120b, gpt-oss-20b
-    """
-    benchmark_data = load_performance_benchmarks()
-    if not benchmark_data or 'benchmarks' not in benchmark_data:
-        return None
-    
-    benchmarks = benchmark_data['benchmarks']
-    
-    # Map use case to token config
-    token_configs = {
-        "code_completion": (512, 256),
-        "chatbot_conversational": (512, 256),
-        "code_generation_detailed": (1024, 1024),
-        "translation": (512, 256),
-        "content_generation": (512, 256),
-        "summarization_short": (4096, 512),
-        "document_analysis_rag": (4096, 512),
-        "long_document_summarization": (10240, 1536),
-        "research_legal_analysis": (10240, 1536),
-    }
-    
-    prompt_tokens, output_tokens = token_configs.get(use_case, (512, 256))
-    
-    # STRICT mapping: Only map if we're confident it's the same model family
-    # Key = pattern to find in recommended model name, Value = benchmark repo
-    model_mapping = {
-        "qwen2.5": "qwen/qwen2.5-7b-instruct",
-        "qwen 2.5": "qwen/qwen2.5-7b-instruct",
-        "llama 3.1 8b": "meta-llama/llama-3.1-8b-instruct",
-        "llama 3.1 instruct 8b": "meta-llama/llama-3.1-8b-instruct",
-        "llama-3.1-8b": "meta-llama/llama-3.1-8b-instruct",
-        "llama 3.3": "meta-llama/llama-3.3-70b-instruct",
-        "llama-3.3": "meta-llama/llama-3.3-70b-instruct",
-        "granite": "ibm-granite/granite-3.1-8b-instruct",
-        "phi-4": "microsoft/phi-4",
-        "phi 4": "microsoft/phi-4",
-        "mistral small": "mistralai/mistral-small-24b-instruct-2501",
-        "mistral-small": "mistralai/mistral-small-24b-instruct-2501",
-        "mixtral": "mistralai/mixtral-8x7b-instruct-v0.1",
-        "gpt-oss-120b": "openai/gpt-oss-120b",
-        "gpt-oss-20b": "openai/gpt-oss-20b",
-    }
-    
-    # Find matching model in benchmark data - STRICT matching
-    model_lower = model_name.lower()
-    benchmark_model_repo = None
-    is_exact_match = False
-    
-    for key, repo in model_mapping.items():
-        if key in model_lower:
-            benchmark_model_repo = repo
-            is_exact_match = True
-            break
-    
-    # If no exact match, return None - we don't want to show misleading data
-    if not benchmark_model_repo:
-        return None
-    
-    # Filter benchmarks by token config
-    matching = [b for b in benchmarks 
-                if b['prompt_tokens'] == prompt_tokens 
-                and b['output_tokens'] == output_tokens]
-    
-    # MUST match the specific model - no fallbacks
-    model_matches = [b for b in matching if b['model_hf_repo'] == benchmark_model_repo]
-    if not model_matches:
-        return None  # No benchmark data for this model
-    
-    matching = model_matches
-    
-    # Filter by hardware if specified
-    if hardware:
-        hw_matches = [b for b in matching if hardware.upper() in b['hardware'].upper()]
-        if hw_matches:
-            matching = hw_matches
-    
-    if not matching:
-        return None
-    
-    # Get best benchmark (lowest E2E at reasonable RPS)
-    matching.sort(key=lambda x: x['e2e_mean'])
-    best = matching[0]
-    
-    return {
-        "model_repo": best['model_hf_repo'],
-        "is_exact_match": is_exact_match,
-        "recommended_model": model_name,
-        "hardware": best['hardware'],
-        "hardware_count": best['hardware_count'],
-        "token_config": {"prompt": prompt_tokens, "output": output_tokens},
-        "slo_actual": {
-            "ttft_mean_ms": round(best['ttft_mean'], 1),
-            "ttft_p95_ms": round(best['ttft_p95'], 1),
-            "ttft_p99_ms": round(best['ttft_p99'], 1),
-            "itl_mean_ms": round(best['itl_mean'], 1),
-            "itl_p95_ms": round(best['itl_p95'], 1),
-            "itl_p99_ms": round(best['itl_p99'], 1),
-            "e2e_mean_ms": round(best['e2e_mean'], 0),
-            "e2e_p95_ms": round(best['e2e_p95'], 0),
-            "e2e_p99_ms": round(best['e2e_p99'], 0),
-        },
-        "throughput": {
-            "tokens_per_sec": round(best['tokens_per_second'], 0),
-            "requests_per_sec": round(best['requests_per_second'], 2),
-            "responses_per_sec": round(best['responses_per_second'], 2),
-        },
-        "benchmark_samples": len(matching),
-        "ranges": {
-            "ttft_range_ms": [round(min(b['ttft_mean'] for b in matching), 1), 
-                             round(max(b['ttft_mean'] for b in matching), 1)],
-            "e2e_range_ms": [round(min(b['e2e_mean'] for b in matching), 0),
-                           round(max(b['e2e_mean'] for b in matching), 0)],
-        }
-    }
-
 def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
-    """Get workload pattern insights based on research data and benchmarks.
-    
+    """Get workload pattern insights based on API data.
+
     Returns list of tuples: (icon, color, message, severity)
     """
     messages = []
-    workload_data = load_research_workload_patterns()
-    
-    if not workload_data or 'workload_distributions' not in workload_data:
+
+    # Get workload profile from API
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
         return messages
-    
-    workload_patterns = workload_data.get('workload_distributions', {})
-    traffic_profiles = workload_data.get('traffic_profiles', {})
-    hardware_throughput = workload_data.get('hardware_throughput', {})
-    capacity_guidance = workload_data.get('capacity_planning', {}).get('blis_guidance', {})
-    
-    # Get use case specific pattern
-    pattern = workload_patterns.get(use_case)
-    traffic = traffic_profiles.get(use_case)
-    
-    if pattern:
-        distribution = pattern.get('distribution', 'poisson')
-        active_fraction = pattern.get('active_fraction', {}).get('mean', 0.2)
-        peak_multiplier = pattern.get('peak_multiplier', 2.0)
-        req_per_min = pattern.get('requests_per_active_user_per_min', {}).get('mean', 0.5)
-        
-        # Get benchmark data for this use case
-        benchmark_perf = pattern.get('benchmark_perfmark', {})
-        benchmark_optimal_rps = benchmark_perf.get('optimal_rps', 1.0)
-        benchmark_max_rps = benchmark_perf.get('max_rps_tested', 10)
-        benchmark_e2e_p95 = benchmark_perf.get('e2e_p95_at_optimal', 5000)
-        
-        # Calculate expected metrics
-        expected_concurrent = int(user_count * active_fraction)
-        expected_rps = (expected_concurrent * req_per_min) / 60
-        expected_peak_rps = expected_rps * peak_multiplier
-        
-        messages.append((
-            "", "#000000",
-            f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
-            "info"
-        ))
-        
-        # Note: Peak multiplier info now shown inline in workload profile box
-    
-    if traffic:
-        prompt_tokens = traffic.get('prompt_tokens', 512)
-        output_tokens = traffic.get('output_tokens', 256)
-        # Note: Token profile info now shown inline in workload profile box
-    
-    # Hardware recommendations moved to Recommendation tab (uses benchmark data)
-    
+
+    distribution = workload_profile.get('distribution', 'poisson')
+    active_fraction = workload_profile.get('active_fraction', 0.2)
+
+    messages.append((
+        "", "#000000",
+        f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
+        "info"
+    ))
+
     return messages
 
 @st.cache_data
@@ -2566,28 +2254,11 @@ def get_raw_aa_accuracy(model_name: str, use_case: str) -> float:
     
     return 0.0
 
-@st.cache_data
-def load_model_pricing() -> pd.DataFrame:
-    """Load model pricing and latency data from model_pricing.csv.
-    
-    This provides REAL data for:
-    - Cost scoring: price_blended ($/1M tokens)
-    - Latency scoring: median_output_tokens_per_sec, median_ttft_seconds
-    """
-    csv_path = DATA_DIR / "benchmarks" / "models" / "model_pricing.csv"
-    try:
-        df = pd.read_csv(csv_path)
-        df = df.dropna(subset=['model_name'])
-        df = df[df['model_name'].str.strip() != '']
-        return df
-    except Exception:
-        return pd.DataFrame()
-
 # =============================================================================
 # API FUNCTIONS (with Mock fallback for demo)
 # =============================================================================
 
-from typing import Optional, Dict, List
+from typing import Optional
 
 def extract_business_context(user_input: str) -> Optional[dict]:
     """Extract business context using Qwen 2.5 7B."""
@@ -2793,791 +2464,6 @@ def mock_extraction(user_input: str) -> dict:
     }
 
 
-def get_enhanced_recommendation(business_context: dict) -> Optional[dict]:
-    """Get enhanced recommendation with explainability.
-
-    ALL logic is in backend - UI only fetches data.
-    """
-    try:
-        # Extract values from business_context for the API
-        use_case = business_context.get("use_case", "chatbot_conversational")
-        priority = business_context.get("priority", "balanced")
-        user_count = business_context.get("user_count", 1000)
-        prompt_tokens = business_context.get("prompt_tokens", 512)
-        output_tokens = business_context.get("output_tokens", 256)
-        expected_qps = business_context.get("expected_qps", 1)  # Default to 1 RPS, not user_count!
-        ttft_target = business_context.get("ttft_p95_target_ms", 500)
-        itl_target = business_context.get("itl_p95_target_ms", 50)
-        e2e_target = business_context.get("e2e_p95_target_ms", 10000)
-        percentile = business_context.get("percentile", "p95")
-
-        # Get weights from session state (set in PRIORITIES section of Tech Spec tab)
-        weights = {
-            "accuracy": st.session_state.get("weight_accuracy", 5),
-            "price": st.session_state.get("weight_cost", 4),
-            "latency": st.session_state.get("weight_latency", 2),
-            "complexity": 0,  # Complexity scoring disabled in UI (backend logic preserved)
-        }
-
-        # Use the ranked-recommend-from-spec endpoint with proper fields
-        response = requests.post(
-            f"{API_BASE_URL}/api/ranked-recommend-from-spec",
-            json={
-                "use_case": use_case,
-                "user_count": user_count,
-                "latency_requirement": "high",
-                "budget_constraint": "moderate",
-                "prompt_tokens": prompt_tokens,
-                "output_tokens": output_tokens,
-                "expected_qps": expected_qps,
-                "ttft_p95_target_ms": ttft_target,  # Fixed: was ttft_target_ms
-                "itl_p95_target_ms": itl_target,    # Fixed: was itl_target_ms
-                "e2e_p95_target_ms": e2e_target,    # Fixed: was e2e_target_ms
-                "percentile": percentile,
-                "include_near_miss": False,  # Strict filtering!
-                "min_accuracy": 35,
-                "weights": weights,  # Pass user-configured weights for balanced scoring
-            },
-            timeout=60,
-        )
-        if response.status_code == 200:
-            return response.json()
-        else:
-            st.error(f"API returned status {response.status_code}: {response.text[:500]}")
-    except Exception as e:
-        st.error(f"Backend call failed: {e}")
-    
-    # Fallback only when backend unavailable - THIS DOESN'T RESPECT SLO FILTERS!
-    st.warning("⚠️ Using fallback - SLO filters may not be applied!")
-    return benchmark_recommendation(business_context)
-
-
-# =============================================================================
-# VALID MODELS - Only models with BOTH AA Quality AND Performance benchmark data
-# These 25 variants are the only ones we should recommend (have both AA quality + benchmark performance)
-# =============================================================================
-VALID_BENCHMARK_MODELS = {
-    # GPT-OSS (highest accuracy for chatbot!)
-    'openai/gpt-oss-120b',
-    'openai/gpt-oss-20b',
-    # Phi-4 variants
-    'microsoft/phi-4',
-    'microsoft/phi-4-fp8-dynamic',
-    'microsoft/phi-4-quantized.w4a16',
-    'microsoft/phi-4-quantized.w8a8',
-    # Mistral Small 3/3.1 variants
-    'mistralai/mistral-small-24b-instruct-2501',
-    'mistralai/mistral-small-3.1-24b-instruct-2503',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-fp8-dynamic',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-quantized.w4a16',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-quantized.w8a8',
-    # Mixtral 8x7B
-    'mistralai/mixtral-8x7b-instruct-v0.1',
-    # Llama 4 Scout variants
-    'meta-llama/llama-4-scout-17b-16e-instruct',
-    'meta-llama/llama-4-scout-17b-16e-instruct-fp8-dynamic',
-    'meta-llama/llama-4-scout-17b-16e-instruct-quantized.w4a16',
-    # Llama 4 Maverick
-    'meta-llama/llama-4-maverick-17b-128e-instruct-fp8',
-    # Qwen 2.5 7B variants (note: quantized use redhatai/ prefix)
-    'qwen/qwen2.5-7b-instruct',
-    'redhatai/qwen2.5-7b-instruct-fp8-dynamic',
-    'redhatai/qwen2.5-7b-instruct-quantized.w4a16',
-    'redhatai/qwen2.5-7b-instruct-quantized.w8a8',
-    # Llama 3.3 70B variants (note: quantized use redhatai/ prefix)
-    'meta-llama/llama-3.3-70b-instruct',
-    'redhatai/llama-3.3-70b-instruct-quantized.w4a16',
-    'redhatai/llama-3.3-70b-instruct-quantized.w8a8',
-}
-
-# Maps benchmark repo names to AA quality CSV model names
-BENCHMARK_TO_QUALITY_MODEL_MAP = {
-    # GPT-OSS (highest accuracy)
-    'openai/gpt-oss-120b': 'gpt-oss-120B (high)',
-    'openai/gpt-oss-20b': 'gpt-oss-20B (high)',
-    # Phi-4
-    'microsoft/phi-4': 'Phi-4',
-    'microsoft/phi-4-fp8-dynamic': 'Phi-4',
-    'microsoft/phi-4-quantized.w4a16': 'Phi-4',
-    'microsoft/phi-4-quantized.w8a8': 'Phi-4',
-    # Mistral Small
-    'mistralai/mistral-small-24b-instruct-2501': 'Mistral Small 3',
-    'mistralai/mistral-small-3.1-24b-instruct-2503': 'Mistral Small 3.1',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-fp8-dynamic': 'Mistral Small 3.1',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-quantized.w4a16': 'Mistral Small 3.1',
-    'mistralai/mistral-small-3.1-24b-instruct-2503-quantized.w8a8': 'Mistral Small 3.1',
-    'mistralai/mixtral-8x7b-instruct-v0.1': 'Mixtral 8x7B Instruct',
-    # Llama 4
-    'meta-llama/llama-4-scout-17b-16e-instruct': 'Llama 4 Scout',
-    'meta-llama/llama-4-scout-17b-16e-instruct-fp8-dynamic': 'Llama 4 Scout',
-    'meta-llama/llama-4-scout-17b-16e-instruct-quantized.w4a16': 'Llama 4 Scout',
-    'meta-llama/llama-4-maverick-17b-128e-instruct-fp8': 'Llama 4 Maverick',
-    # Qwen 2.5 7B (note: quantized use redhatai/ prefix)
-    'qwen/qwen2.5-7b-instruct': 'Qwen2.5 Max',
-    'redhatai/qwen2.5-7b-instruct-fp8-dynamic': 'Qwen2.5 Max',
-    'redhatai/qwen2.5-7b-instruct-quantized.w4a16': 'Qwen2.5 Max',
-    'redhatai/qwen2.5-7b-instruct-quantized.w8a8': 'Qwen2.5 Max',
-    # Llama 3.3 70B (note: quantized use redhatai/ prefix)
-    'meta-llama/llama-3.3-70b-instruct': 'Llama 3.3 Instruct 70B',
-    'redhatai/llama-3.3-70b-instruct-quantized.w4a16': 'Llama 3.3 Instruct 70B',
-    'redhatai/llama-3.3-70b-instruct-quantized.w8a8': 'Llama 3.3 Instruct 70B',
-}
-
-# Hardware costs (monthly) - BOTH H100 and A100-80 are real benchmark data
-HARDWARE_COSTS = {
-    ('H100', 1): 2500,
-    ('H100', 2): 5000,
-    ('H100', 4): 10000,
-    ('H100', 8): 20000,
-    ('A100-80', 1): 1600,
-    ('A100-80', 2): 3200,
-    ('A100-80', 4): 6400,
-}
-
-
-def benchmark_recommendation(context: dict) -> dict:
-    """Benchmark-based recommendation using ACTUAL benchmark data.
-    
-    NEW ARCHITECTURE:
-    - Model quality: from weighted_scores CSVs (use-case specific)
-    - Latency/throughput: from ACTUAL benchmarks (model+hardware specific)
-    - Cost: from hardware tier (cheaper hardware = higher cost score)
-    
-    Creates MODEL+HARDWARE combinations ranked by priority:
-    - cost_saving: cheapest hardware that meets SLO for best models
-    - low_latency: fastest hardware (lowest TTFT) for best models
-    - high_accuracy: best model accuracy with hardware that meets SLO
-    - balanced: weighted combination of all factors
-    """
-    use_case = context.get("use_case", "chatbot_conversational")
-    priority = context.get("priority", "balanced")
-    user_count = context.get("user_count", 1000)
-    
-    # Load performance benchmark data
-    benchmark_data = load_performance_benchmarks()
-    if not benchmark_data or 'benchmarks' not in benchmark_data:
-        return mock_recommendation_fallback(context)
-    
-    benchmarks = benchmark_data['benchmarks']
-    
-    # Load quality scores for this use case
-    weighted_df = load_weighted_scores(use_case)
-    quality_lookup = {}
-    if not weighted_df.empty:
-        for _, row in weighted_df.iterrows():
-            model_name = row.get('Model Name', '')
-            score_str = row.get('Use Case Score', '0')
-            if isinstance(score_str, str):
-                score = float(score_str.replace('%', '')) if '%' in score_str else float(score_str) * 100
-            else:
-                score = float(score_str) * 100 if score_str <= 1 else float(score_str)
-            quality_lookup[model_name] = score
-    
-    # Get SLO targets for this use case
-    slo_data = get_slo_targets_for_use_case(use_case, priority)
-    if slo_data is None:
-        # Fallback defaults if use case not found
-        slo_data = {
-            'ttft_target': {'min': 50, 'max': 5000},
-            'e2e_target': {'min': 500, 'max': 60000},
-        }
-    ttft_max = slo_data.get('ttft_target', {}).get('max', 200)
-    e2e_max = slo_data.get('e2e_target', {}).get('max', 5000)
-    
-    # Priority weights for MCDM
-    weights = {
-        "balanced": {"accuracy": 0.30, "latency": 0.30, "cost": 0.25, "throughput": 0.15},
-        "low_latency": {"accuracy": 0.15, "latency": 0.50, "cost": 0.15, "throughput": 0.20},
-        "cost_saving": {"accuracy": 0.20, "latency": 0.15, "cost": 0.50, "throughput": 0.15},
-        "high_accuracy": {"accuracy": 0.50, "latency": 0.20, "cost": 0.15, "throughput": 0.15},
-        "high_throughput": {"accuracy": 0.15, "latency": 0.15, "cost": 0.15, "throughput": 0.55},
-    }[priority]
-    
-    # Aggregate benchmark data by model+hardware (use best config per combo)
-    # FILTER: Only include models that have BOTH AA quality AND benchmark performance data
-    model_hw_combos = {}
-    for b in benchmarks:
-        model_repo = b['model_hf_repo']
-        
-        # Skip models not in our valid list (must have both AA + benchmark data)
-        if model_repo not in VALID_BENCHMARK_MODELS:
-            continue
-            
-        hw = b['hardware']
-        hw_count = b['hardware_count']
-        key = (model_repo, hw, hw_count)
-        
-        # Keep the benchmark with lowest TTFT for each combo
-        if key not in model_hw_combos or b['ttft_p95'] < model_hw_combos[key]['ttft_p95']:
-            model_hw_combos[key] = {
-                'model_repo': model_repo,
-                'model_name': model_repo.split('/')[-1],
-                'hardware': hw,
-                'hardware_count': hw_count,
-                'ttft_mean': b['ttft_mean'],
-                'ttft_p95': b['ttft_p95'],
-                'itl_mean': b['itl_mean'],
-                'itl_p95': b['itl_p95'],
-                'e2e_mean': b['e2e_mean'],
-                'e2e_p95': b['e2e_p95'],
-                'tokens_per_second': b['tokens_per_second'],
-                'prompt_tokens': b['prompt_tokens'],
-                'output_tokens': b['output_tokens'],
-            }
-    
-    # Calculate scores for each model+hardware combo
-    scored_combos = []
-    
-    # Find max values for normalization
-    max_ttft = max(c['ttft_p95'] for c in model_hw_combos.values()) or 1
-    max_tps = max(c['tokens_per_second'] for c in model_hw_combos.values()) or 1
-    max_cost = max(HARDWARE_COSTS.values()) or 1
-    
-    for key, combo in model_hw_combos.items():
-        # Get quality score from CSV (mapped model name)
-        quality_model = BENCHMARK_TO_QUALITY_MODEL_MAP.get(combo['model_repo'], combo['model_name'])
-        quality_score = quality_lookup.get(quality_model, 30.0)  # Default 30 if not found
-        
-        # Latency score: lower TTFT = higher score (inverted, normalized 0-100)
-        latency_score = 100 - (combo['ttft_p95'] / max_ttft * 100)
-        latency_score = max(10, min(100, latency_score))
-        
-        # Throughput score: higher TPS = higher score
-        throughput_score = (combo['tokens_per_second'] / max_tps) * 100
-        throughput_score = max(10, min(100, throughput_score))
-        
-        # Cost score: lower hardware cost = higher score (inverted)
-        hw_cost = HARDWARE_COSTS.get((combo['hardware'], combo['hardware_count']), 10000)
-        cost_score = 100 - (hw_cost / max_cost * 80)  # Leave headroom
-        cost_score = max(10, min(100, cost_score))
-        
-        # Check if meets SLO
-        meets_slo = combo['ttft_p95'] <= ttft_max and combo['e2e_p95'] <= e2e_max
-        
-        # Calculate weighted MCDM score
-        final_score = (
-            weights['accuracy'] * quality_score +
-            weights['latency'] * latency_score +
-            weights['cost'] * cost_score +
-            weights['throughput'] * throughput_score
-        )
-        
-        # Bonus for meeting SLO
-        if meets_slo:
-            final_score += 5
-        
-        scored_combos.append({
-            **combo,
-            'quality_score': round(quality_score, 1),
-            'latency_score': round(latency_score, 1),
-            'cost_score': round(cost_score, 1),
-            'throughput_score': round(throughput_score, 1),
-            'final_score': round(final_score, 2),
-            'meets_slo': meets_slo,
-            'hw_cost_monthly': hw_cost,
-            'quality_model_name': quality_model,
-        })
-    
-    # Sort by final score (highest first)
-    scored_combos.sort(key=lambda x: x['final_score'], reverse=True)
-    
-    # Get top recommendation
-    if not scored_combos:
-        return mock_recommendation_fallback(context)
-    
-    top = scored_combos[0]
-    
-    # Build recommendation response
-    return {
-        "model_name": format_display_name(top['model_name']),
-        "model_hf_repo": top['model_repo'],
-        "score": top['final_score'],
-        "intent": {
-            "use_case": use_case,
-            "priority": priority,
-            "user_count": user_count,
-        },
-        "gpu_config": {
-            "gpu_type": top['hardware'],
-            "gpu_count": top['hardware_count'],
-        },
-        "meets_slo": top['meets_slo'],
-        "slo_targets": slo_data,
-        "hardware_recommendation": {
-            "recommended": {
-                "hardware": top['hardware'],
-                "hardware_count": top['hardware_count'],
-                "ttft_p95": top['ttft_p95'],
-                "itl_mean": top['itl_mean'],
-                "e2e_p95": top['e2e_p95'],
-                "tokens_per_second": top['tokens_per_second'],
-                "cost_monthly": top['hw_cost_monthly'],
-            },
-            "selection_reason": get_selection_reason(top, priority),
-            "alternatives": [
-                {
-                    "model": format_display_name(c['model_name']),
-                    "hardware": c['hardware'],
-                    "hardware_count": c['hardware_count'],
-                    "ttft_p95": c['ttft_p95'],
-                    "e2e_p95": c['e2e_p95'],
-                    "cost_monthly": c['hw_cost_monthly'],
-                    "score": c['final_score'],
-                    "meets_slo": c['meets_slo'],
-                }
-                for c in scored_combos[1:6]  # Top 5 alternatives
-            ],
-        },
-        "score_breakdown": {
-            "accuracy": {"score": top['quality_score'], "weight": weights['accuracy']},
-            "latency": {"score": top['latency_score'], "weight": weights['latency']},
-            "cost": {"score": top['cost_score'], "weight": weights['cost']},
-            "throughput": {"score": top['throughput_score'], "weight": weights['throughput']},
-        },
-        "benchmark_actual": {
-            "ttft_mean": top['ttft_mean'],
-            "ttft_p95": top['ttft_p95'],
-            "itl_mean": top['itl_mean'],
-            "itl_p95": top['itl_p95'],
-            "e2e_mean": top['e2e_mean'],
-            "e2e_p95": top['e2e_p95'],
-            "tokens_per_second": top['tokens_per_second'],
-            "prompt_tokens": top['prompt_tokens'],
-            "output_tokens": top['output_tokens'],
-        },
-        "recommendations": [
-            {
-                "rank": i + 1,
-                "model_name": f"{format_display_name(c['model_name'])} on {c['hardware']} x{c['hardware_count']}",
-                "model_id": c['model_repo'],
-                "hardware": c['hardware'],
-                "hardware_count": c['hardware_count'],
-                "final_score": c['final_score'],
-                "score_breakdown": {
-                    "quality_score": c['quality_score'],
-                    "latency_score": c['latency_score'],
-                    "cost_score": c['cost_score'],
-                    "capacity_score": c['throughput_score'],
-                    "accuracy_contribution": round(c['quality_score'] * weights['accuracy'] / 100 * c['final_score'], 1),
-                    "latency_contribution": round(c['latency_score'] * weights['latency'] / 100 * c['final_score'], 1),
-                    "cost_contribution": round(c['cost_score'] * weights['cost'] / 100 * c['final_score'], 1),
-                    "capacity_contribution": round(c['throughput_score'] * weights['throughput'] / 100 * c['final_score'], 1),
-                },
-                "benchmark_slo": {
-                    "slo_actual": {
-                        "ttft_mean_ms": c['ttft_mean'],
-                        "ttft_p95_ms": c['ttft_p95'],
-                        "itl_mean_ms": c['itl_mean'],
-                        "itl_p95_ms": c['itl_p95'],
-                        "e2e_mean_ms": c['e2e_mean'],
-                        "e2e_p95_ms": c['e2e_p95'],
-                    },
-                    "throughput": {
-                        "tokens_per_sec": c['tokens_per_second'],
-                    },
-                    "token_config": {
-                        "prompt": c['prompt_tokens'],
-                        "output": c['output_tokens'],
-                    },
-                    "hardware": c['hardware'],
-                    "hardware_count": c['hardware_count'],
-                    "model_repo": c['model_repo'],
-                    "benchmark_samples": 1,
-                },
-                "cost_monthly": c['hw_cost_monthly'],
-                "meets_slo": c['meets_slo'],
-                "pros": get_model_pros(c, priority),
-                "cons": get_model_cons(c, priority),
-            }
-            for i, c in enumerate(scored_combos[:10])
-        ],
-    }
-
-
-def get_selection_reason(top: dict, priority: str) -> str:
-    """Generate human-readable selection reason."""
-    model = format_display_name(top['model_name'])
-    hw = f"{top['hardware']} x{top['hardware_count']}"
-    ttft = top['ttft_p95']
-    cost = top['hw_cost_monthly']
-    tps = top['tokens_per_second']
-    
-    if priority == "cost_saving":
-        return f"{model} on {hw} is the most cost-effective option (${cost:,}/mo) that meets your SLO requirements with {ttft:.0f}ms TTFT."
-    elif priority == "low_latency":
-        return f"{model} on {hw} delivers the lowest latency ({ttft:.0f}ms TTFT P95) from actual benchmarks."
-    elif priority == "high_accuracy":
-        return f"{model} has the highest accuracy score for your use case, running on {hw} with {ttft:.0f}ms TTFT."
-    elif priority == "high_throughput":
-        return f"{model} on {hw} achieves {tps:.0f} tokens/sec throughput from actual benchmarks."
-    else:  # balanced
-        return f"{model} on {hw} provides optimal balance: {ttft:.0f}ms TTFT, {tps:.0f} tokens/sec, ${cost:,}/mo."
-
-
-def get_model_pros(combo: dict, priority: str) -> list:
-    """Generate pros based on ACTUAL benchmark metrics."""
-    pros = []
-    ttft = combo['ttft_p95']
-    tps = combo['tokens_per_second']
-    cost = combo['hw_cost_monthly']
-    quality = combo['quality_score']
-    
-    if ttft < 50:
-        pros.append(f"Ultra-fast TTFT ({ttft:.0f}ms)")
-    elif ttft < 100:
-        pros.append(f"Fast TTFT ({ttft:.0f}ms)")
-    
-    if tps > 400:
-        pros.append(f"🚀 High throughput ({tps:.0f} tok/s)")
-    elif tps > 200:
-        pros.append(f"Good throughput ({tps:.0f} tok/s)")
-    
-    if cost < 3000:
-        pros.append(f"Cost-efficient (${cost:,}/mo)")
-    
-    if quality > 50:
-        pros.append(f"High accuracy ({quality:.0f}%)")
-    
-    if combo['meets_slo']:
-        pros.append("Meets SLO targets")
-    
-    return pros[:4] if pros else ["Benchmarked"]
-
-
-def get_model_cons(combo: dict, priority: str) -> list:
-    """Generate cons based on ACTUAL benchmark metrics."""
-    cons = []
-    ttft = combo['ttft_p95']
-    tps = combo['tokens_per_second']
-    cost = combo['hw_cost_monthly']
-    quality = combo['quality_score']
-    
-    if ttft > 200:
-        cons.append(f"⏱️ Higher latency ({ttft:.0f}ms)")
-    
-    if tps < 100:
-        cons.append(f"📉 Lower throughput ({tps:.0f} tok/s)")
-    
-    if cost > 10000:
-        cons.append(f"💸 Premium cost (${cost:,}/mo)")
-    
-    if quality < 40:
-        cons.append(f"Lower accuracy score ({quality:.0f}%)")
-    
-    if not combo['meets_slo']:
-        cons.append("May not meet SLO")
-    
-    return cons[:2]
-
-
-def mock_recommendation_fallback(context: dict) -> dict:
-    """Fallback recommendation when benchmark data unavailable."""
-    return mock_recommendation(context)
-
-
-def mock_recommendation(context: dict) -> dict:
-    """FALLBACK: Recommendation using CSV data when benchmarks unavailable.
-    
-    Data sources:
-    - Accuracy: weighted_scores/{use_case}.csv (task-specific benchmark scores)
-    - Cost: model_pricing.csv (price_blended - $/1M tokens)
-    - Latency: model_pricing.csv (median_output_tokens_per_sec, median_ttft_seconds)
-    
-    Enterprise-grade error handling with graceful fallbacks.
-    """
-    # Validate context input
-    if not context or not isinstance(context, dict):
-        context = {}
-    
-    use_case = context.get("use_case", "chatbot_conversational")
-    priority = context.get("priority", "balanced")
-    
-    # Validate use_case is in allowed list
-    valid_use_cases = [
-        "chatbot_conversational", "code_completion", "code_generation_detailed",
-        "document_analysis_rag", "summarization_short", "long_document_summarization",
-        "translation", "content_generation", "research_legal_analysis"
-    ]
-    if use_case not in valid_use_cases:
-        use_case = "chatbot_conversational"
-    
-    # Validate priority is in allowed list
-    valid_priorities = ["balanced", "low_latency", "cost_saving", "high_accuracy", "high_throughput"]
-    if priority not in valid_priorities:
-        priority = "balanced"
-    
-    # Load use-case-specific weighted scores (the QUALITY component)
-    weighted_df = load_weighted_scores(use_case)
-    # Also load 206-model benchmark for validation
-    all_models_df = load_206_models()
-    # Load REAL pricing and latency data
-    pricing_df = load_model_pricing()
-    
-    # Create pricing lookup dict (model_name -> pricing data)
-    pricing_lookup = {}
-    if not pricing_df.empty:
-        for _, row in pricing_df.iterrows():
-            model_name = row.get('model_name', '')
-            if model_name:
-                pricing_lookup[model_name] = {
-                    'price_blended': row.get('price_blended', 0),
-                    'price_input': row.get('price_per_1m_input_tokens', 0),
-                    'price_output': row.get('price_per_1m_output_tokens', 0),
-                    'tokens_per_sec': row.get('median_output_tokens_per_sec', 0),
-                    'ttft_seconds': row.get('median_ttft_seconds', 0),
-                }
-    
-    # Calculate normalization ranges for scoring
-    # Cost: Lower is better (0 = most expensive, 100 = cheapest/free)
-    max_price = max((p['price_blended'] for p in pricing_lookup.values() if p['price_blended'] > 0), default=10)
-    # Latency: Higher tokens/sec is better (faster = higher score)
-    max_tokens_sec = max((p['tokens_per_sec'] for p in pricing_lookup.values() if p['tokens_per_sec'] > 0), default=500)
-    
-    # Priority-based weights for MCDM scoring
-    weights = {
-        "balanced": {"accuracy": 0.30, "latency": 0.25, "cost": 0.25, "capacity": 0.20},
-        "low_latency": {"accuracy": 0.20, "latency": 0.45, "cost": 0.15, "capacity": 0.20},
-        "cost_saving": {"accuracy": 0.20, "latency": 0.15, "cost": 0.50, "capacity": 0.15},
-        "high_accuracy": {"accuracy": 0.50, "latency": 0.20, "cost": 0.15, "capacity": 0.15},
-        "high_throughput": {"accuracy": 0.20, "latency": 0.15, "cost": 0.15, "capacity": 0.50},
-    }[priority]
-    
-    # Parse use case score from weighted_scores CSV
-    def parse_score(x):
-        if pd.isna(x) or x == 'N/A':
-            return 0
-        if isinstance(x, str):
-            return float(x.replace('%', '')) if '%' in x else float(x) * 100
-        return float(x) * 100 if x <= 1 else float(x)
-    
-    def calculate_cost_score(model_name: str) -> float:
-        """Calculate cost score from REAL pricing data.
-        Lower price = higher score (100 = free, 0 = most expensive)
-        """
-        pricing = pricing_lookup.get(model_name, {})
-        price = pricing.get('price_blended', 0)
-        
-        if price <= 0:
-            # Free model = perfect cost score
-            return 95
-        
-        # Normalize: lower price = higher score
-        # Score = 100 - (price / max_price * 100)
-        cost_score = 100 - (price / max_price * 80)  # Cap at 80% reduction
-        return max(min(cost_score, 100), 20)  # Range: 20-100
-    
-    def calculate_latency_score(model_name: str) -> float:
-        """Calculate latency score from REAL speed data.
-        Higher tokens/sec = higher score
-        """
-        import math
-        pricing = pricing_lookup.get(model_name, {})
-        tokens_sec = pricing.get('tokens_per_sec', 0) or 0
-        ttft = pricing.get('ttft_seconds', 0) or 0
-        
-        # Handle NaN values
-        if isinstance(tokens_sec, float) and math.isnan(tokens_sec):
-            tokens_sec = 0
-        if isinstance(ttft, float) and math.isnan(ttft):
-            ttft = 0
-        
-        if tokens_sec <= 0:
-            # No data - estimate based on model size
-            model_lower = model_name.lower()
-            is_large = any(s in model_lower for s in ["405b", "70b", "72b", "235b", "120b", "80b"])
-            is_medium = any(s in model_lower for s in ["32b", "27b", "22b", "14b", "49b", "20b"])
-            is_small = any(s in model_lower for s in ["7b", "8b", "3b", "4b", "1.7b", "1b"])
-            if is_large:
-                return 45.0
-            elif is_medium:
-                return 60.0
-            elif is_small:
-                return 80.0
-            return 55.0  # Default for unknown size
-        
-        # Normalize: higher tokens/sec = higher score
-        safe_max = max_tokens_sec if max_tokens_sec > 0 else 500
-        latency_score = (tokens_sec / safe_max) * 100
-        
-        # Bonus for low TTFT (< 0.5s = +10, < 1s = +5)
-        if 0 < ttft < 0.5:
-            latency_score += 10
-        elif 0 < ttft < 1.0:
-            latency_score += 5
-        
-        return float(max(min(latency_score, 100), 20))
-    
-    models = []
-    
-    # Use weighted_scores CSV for quality (already ranked by use case)
-    if not weighted_df.empty:
-        # Get valid model names from the 204-model benchmark
-        valid_models = set(all_models_df['Model Name'].dropna().tolist()) if not all_models_df.empty else set()
-        
-        # Filter weighted_scores to only include models in the 204 benchmark
-        weighted_df = weighted_df[weighted_df['Model Name'].isin(valid_models)] if valid_models else weighted_df
-        
-        # Get top 10 models from weighted scores (already sorted by use case quality)
-        top_models = weighted_df.head(10)
-        
-        for _, row in top_models.iterrows():
-            model_name = row.get("Model Name", "")
-            provider = row.get("Provider", "Unknown")
-            
-            # Get QUALITY from USE-CASE-SPECIFIC weighted score!
-            quality_score = parse_score(row.get('Use Case Score', 0))
-            
-            # Skip models with no quality score
-            if quality_score == 0:
-                continue
-            
-            # Get REAL cost and latency scores from model_pricing.csv
-            cost_score = calculate_cost_score(model_name)
-            latency_score = calculate_latency_score(model_name)
-            
-            # Capacity score based on throughput and model architecture
-            model_lower = model_name.lower()
-            is_moe = ("a" in model_lower and "b" in model_lower) or "moe" in model_lower or "mixture" in model_lower
-            is_small = any(s in model_lower for s in ["7b", "8b", "3b", "4b", "1.7b", "1b"])
-            
-            # Ensure latency_score is a valid number
-            safe_latency = latency_score if latency_score and latency_score > 0 else 55.0
-            
-            if is_moe:
-                capacity_score = 80 + (safe_latency / 10)  # MoE = high capacity
-            elif is_small:
-                capacity_score = 75 + (safe_latency / 8)
-            else:
-                capacity_score = 50 + (safe_latency / 5)
-            
-            # Ensure all scores are valid floats
-            import math
-            quality_score = float(quality_score) if quality_score and not (isinstance(quality_score, float) and math.isnan(quality_score)) else 50.0
-            latency_score = float(safe_latency)
-            cost_score = float(cost_score) if cost_score and not (isinstance(cost_score, float) and math.isnan(cost_score)) else 50.0
-            capacity_score = float(capacity_score) if capacity_score and not (isinstance(capacity_score, float) and math.isnan(capacity_score)) else 60.0
-            
-            models.append({
-                "name": model_name,
-                "provider": provider,
-                "quality": min(max(quality_score, 0), 100),
-                "latency": min(max(latency_score, 0), 100),
-                "cost": min(max(cost_score, 0), 100),
-                "capacity": min(max(capacity_score, 0), 100),
-            })
-    
-    # Fallback to hardcoded models if CSV fails (using exact names from CSV)
-    if not models:
-        models = [
-            {"name": "Kimi K2 Thinking", "provider": "Moonshot AI", "quality": 94, "latency": 62, "cost": 52, "capacity": 65},
-            {"name": "MiniMax-M2", "provider": "MiniMax", "quality": 92, "latency": 68, "cost": 58, "capacity": 72},
-            {"name": "DeepSeek V3 (Dec '24)", "provider": "DeepSeek", "quality": 95, "latency": 55, "cost": 45, "capacity": 58},
-            {"name": "Qwen2.5 Instruct 72B", "provider": "Alibaba", "quality": 90, "latency": 58, "cost": 48, "capacity": 62},
-            {"name": "Llama 3.1 Instruct 70B", "provider": "Meta", "quality": 88, "latency": 60, "cost": 50, "capacity": 65},
-        ]
-    
-    # Calculate final MCDM score (ensure no NaN values)
-    import math
-    for m in models:
-        # Ensure all component scores are valid numbers
-        quality = m["quality"] if m["quality"] and not math.isnan(m["quality"]) else 50.0
-        latency = m["latency"] if m["latency"] and not math.isnan(m["latency"]) else 50.0
-        cost = m["cost"] if m["cost"] and not math.isnan(m["cost"]) else 50.0
-        capacity = m["capacity"] if m["capacity"] and not math.isnan(m["capacity"]) else 50.0
-        
-        m["final_score"] = (
-            quality * weights["accuracy"] +
-            latency * weights["latency"] +
-            cost * weights["cost"] +
-            capacity * weights["capacity"]
-        )
-        
-        # Ensure final_score is valid
-        if math.isnan(m["final_score"]):
-            m["final_score"] = 50.0
-    
-    # Sort by score
-    models.sort(key=lambda x: x["final_score"], reverse=True)
-    
-    # Get hardware from context
-    user_hardware = context.get("hardware", None)
-    
-    # Get optimal hardware recommendation based on priority and SLO requirements
-    hw_recommendation = recommend_optimal_hardware(use_case, priority, user_hardware)
-    
-    # Use recommended hardware or user-specified
-    if user_hardware:
-        hardware = user_hardware
-    elif hw_recommendation and hw_recommendation.get('recommended'):
-        hardware = hw_recommendation['recommended']['hardware']
-    else:
-        hardware = "H100"
-    
-    # Build recommendations (top 10 to support filtering)
-    recommendations = []
-    for m in models[:10]:
-        pros = []
-        cons = []
-        
-        if m["quality"] >= 90:
-            pros.append("Top Quality")
-        elif m["quality"] >= 80:
-            pros.append("Good Quality")
-        if m["latency"] >= 85:
-            pros.append("Ultra Fast")
-        elif m["latency"] >= 75:
-            pros.append("🚀 Fast")
-        if m["cost"] >= 80:
-            pros.append("Cost-Efficient")
-        if m["capacity"] >= 85:
-            pros.append("High Capacity")
-        
-        if m["quality"] < 75:
-            cons.append("📉 Lower Quality")
-        if m["latency"] < 55:
-            cons.append("🐢 Slower")
-        if m["cost"] < 45:
-            cons.append("💸 Expensive")
-        if m["capacity"] < 50:
-            cons.append("Limited Capacity")
-        
-        # Get REAL benchmark SLO data for this model
-        benchmark_slo = get_slo_for_model(m["name"], use_case, hardware)
-        
-        recommendation = {
-            "model_name": m["name"],
-            "provider": m["provider"],
-            "final_score": m["final_score"],
-            "score_breakdown": {
-                "quality_score": m["quality"],
-                "latency_score": m["latency"],
-                "cost_score": m["cost"],
-                "capacity_score": m["capacity"],
-                "accuracy_contribution": m["quality"] * weights["accuracy"],
-                "latency_contribution": m["latency"] * weights["latency"],
-                "cost_contribution": m["cost"] * weights["cost"],
-                "capacity_contribution": m["capacity"] * weights["capacity"],
-            },
-            "pros": pros if pros else ["Balanced Performance"],
-            "cons": cons if cons else ["No significant weaknesses"],
-        }
-        
-        # Add benchmark SLO data if available
-        if benchmark_slo:
-            recommendation["benchmark_slo"] = benchmark_slo
-        
-        recommendations.append(recommendation)
-    
-    # Build response with hardware recommendation
-    response = {"recommendations": recommendations}
-    
-    # Add hardware recommendation details
-    if hw_recommendation:
-        response["hardware_recommendation"] = hw_recommendation
-        response["slo_targets"] = hw_recommendation.get("slo_targets")
-    
-    return response
-
 # =============================================================================
 # VISUAL COMPONENTS
 # =============================================================================
@@ -3769,29 +2655,6 @@ def render_how_it_works_content():
         <li><strong style="color: white;">Use-Case CSVs</strong> - Pre-computed weighted scores for each use case</li>
     </ul>
         """, unsafe_allow_html=True)
-
-
-def render_pipeline():
-    """Render the pipeline visualization."""
-    st.markdown("""
-    <div class="pipeline-container">
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-1">1</div>
-            <div class="pipeline-title">Context Extraction</div>
-            <div class="pipeline-desc">Qwen 2.5 7B extracts use case, users, priority & hardware from natural language</div>
-        </div>
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-2">2</div>
-            <div class="pipeline-title">MCDM Scoring</div>
-            <div class="pipeline-desc">Score 204 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
-        </div>
-        <div class="pipeline-step">
-            <div class="pipeline-number pipeline-number-3">3</div>
-            <div class="pipeline-title">Recommendation</div>
-            <div class="pipeline-desc">Top 5 models with explainability, tradeoffs, SLO compliance & deployment config</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
 
 def render_top5_table(recommendations: list, priority: str):
@@ -4246,17 +3109,24 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
     User drags slider LEFT to tighten SLOs and filter down configs.
     Priority affects the MAX - low_latency has tighter max values.
     """
-    # Get research data for token config and priority factors
-    research_data = load_research_slo_ranges()
-    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
-    
+    # Get workload profile from API for token config
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
+        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+        return
+    prompt_tokens = workload_profile['prompt_tokens']
+    output_tokens = workload_profile['output_tokens']
+
     # Get actual benchmark ranges for this use case's token config
-    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
-    
-    # Get priority adjustment factors
-    priority_adjustments = research_data.get('priority_adjustments', {}) if research_data else {}
-    priority_factor = priority_adjustments.get(priority, {})
+    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
+
+    # Priority adjustment factors (hardcoded - these rarely change)
+    priority_factors = {
+        'low_latency': {'ttft_factor': 0.5, 'itl_factor': 0.5, 'e2e_factor': 0.5},
+        'balanced': {'ttft_factor': 1.0, 'itl_factor': 1.0, 'e2e_factor': 1.0},
+        'cost_optimized': {'ttft_factor': 1.5, 'itl_factor': 1.5, 'e2e_factor': 1.5},
+    }
+    priority_factor = priority_factors.get(priority, priority_factors['balanced'])
     ttft_factor = priority_factor.get('ttft_factor', 1.0)
     itl_factor = priority_factor.get('itl_factor', 1.0)
     e2e_factor = priority_factor.get('e2e_factor', 1.0)
@@ -4389,12 +3259,13 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </style>
         """, unsafe_allow_html=True)
 
-        # Load research data and get use-case specific ranges
-        research_data = load_research_slo_ranges()
-        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
-        prompt_tokens = token_config.get('prompt', 512)
-        output_tokens = token_config.get('output', 256)
+        # Load workload profile from API for token config
+        workload_profile = fetch_workload_profile(use_case)
+        if not workload_profile:
+            st.error(f"Failed to fetch workload profile for use case: {use_case}")
+            return
+        prompt_tokens = workload_profile['prompt_tokens']
+        output_tokens = workload_profile['output_tokens']
         benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
 
         # Percentile options
@@ -4510,16 +3381,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
         </div>
         """, unsafe_allow_html=True)
         
-        # Load token config and workload data from research
-        research_data = load_research_slo_ranges()
-        use_case_ranges = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-        token_config = use_case_ranges.get('token_config', {'prompt': 512, 'output': 256})
-        prompt_tokens = token_config.get('prompt', 512)
-        output_tokens = token_config.get('output', 256)
-
-        workload_data = load_research_workload_patterns()
-        pattern = workload_data.get('workload_distributions', {}).get(use_case, {}) if workload_data else {}
-        peak_mult = pattern.get('peak_multiplier', 2.0)
+        # Load workload profile from API
+        workload_profile = fetch_workload_profile(use_case)
+        if not workload_profile:
+            st.error(f"Failed to fetch workload profile for use case: {use_case}")
+            return
+        prompt_tokens = workload_profile['prompt_tokens']
+        output_tokens = workload_profile['output_tokens']
+        peak_mult = workload_profile['peak_multiplier']
 
         # Store workload profile values in session state for Recommendations tab
         st.session_state.spec_prompt_tokens = prompt_tokens
@@ -4746,7 +3615,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
             st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
         if 'weight_latency' not in st.session_state:
             st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
-        # Note: weight_complexity removed from UI (hardcoded to 0 in get_enhanced_recommendation)
+        # Note: weight_complexity removed from UI (hardcoded to 0)
 
         # Container for the priority rows
         st.markdown('<div style="background: rgba(255,255,255,0.03); padding: 0.5rem; border-radius: 8px; margin-top: 0.5rem;">', unsafe_allow_html=True)
@@ -4800,7 +3669,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced",
                 st.session_state.weight_latency = new_lat_weight
 
         # Note: Complexity row removed from UI but scoring logic preserved in backend
-        # Complexity weight is hardcoded to 0 in get_enhanced_recommendation()
+        # Complexity weight is hardcoded to 0 in fetch_ranked_recommendations()
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -5363,31 +4232,31 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Customer service chatbot for 30 users."
+            st.session_state.user_input = "Customer service chatbot for 300 users."
 
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "IDE code completion tool for 30 developers."
+            st.session_state.user_input = "IDE code completion tool for 300 developers."
 
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 30 users."
+            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 300 users."
 
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
             clear_dialog_states()
             # With priority (cost-effective) to show filtering
-            st.session_state.user_input = "News article summarization for 30 users, cost-effective solution preferred."
+            st.session_state.user_input = "News article summarization for 300 users, cost-effective solution preferred."
 
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Legal document analysis for 30 lawyers, accuracy is critical."
+            st.session_state.user_input = "Legal document analysis for 300 lawyers, accuracy is critical."
 
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
@@ -5396,25 +4265,25 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Translation", use_container_width=True, key="task_trans"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Multi-language translation service for 30 users."
+            st.session_state.user_input = "Multi-language translation service for 300 users."
 
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Content generation tool for marketing team, 30 users."
+            st.session_state.user_input = "Content generation tool for marketing team, 300 users."
 
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
+            st.session_state.user_input = "Long document summarization for research papers, 300 researchers, accuracy matters."
 
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Full code generation tool for implementing features, 30 developers."
+            st.session_state.user_input = "Full code generation tool for implementing features, 300 developers."
     
     # Input area with validation
     st.markdown('<div class="input-container">', unsafe_allow_html=True)
@@ -5423,7 +4292,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         value=st.session_state.user_input,
         height=120,
         max_chars=2000,  # Corporate standard: limit input length
-        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 30 users. Low latency is important, and we have H100 GPUs available.",
+        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 300 users. Low latency is important, and we have H100 GPUs available.",
         label_visibility="collapsed"
     )
     st.markdown('</div>', unsafe_allow_html=True)
@@ -5661,22 +4530,32 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
         # The UI allows per-metric percentiles but the backend uses one
         percentile = st.session_state.get("slo_percentile", "p95")
 
-        business_context = {
-            "use_case": use_case,
-            "user_count": user_count,
-            "priority": used_priority,
-            "hardware_preference": final_extraction.get("hardware"),
-            "prompt_tokens": prompt_tokens,
-            "output_tokens": output_tokens,
-            "expected_qps": float(qps_target),
-            "ttft_p95_target_ms": int(ttft_target),
-            "itl_p95_target_ms": int(itl_target),
-            "e2e_p95_target_ms": int(e2e_target),
-            "percentile": percentile,
+        # Get weights from session state (set in PRIORITIES section of Tech Spec tab)
+        weights = {
+            "accuracy": st.session_state.get("weight_accuracy", 5),
+            "price": st.session_state.get("weight_cost", 4),
+            "latency": st.session_state.get("weight_latency", 2),
+            "complexity": 0,  # Complexity scoring disabled in UI
         }
+
         with st.spinner(f"Scoring {len(models_df)} models with MCDM..."):
-            recommendation = get_enhanced_recommendation(business_context)
-        if recommendation:
+            recommendation = fetch_ranked_recommendations(
+                use_case=use_case,
+                user_count=user_count,
+                prompt_tokens=prompt_tokens,
+                output_tokens=output_tokens,
+                expected_qps=float(qps_target),
+                ttft_target_ms=int(ttft_target),
+                itl_target_ms=int(itl_target),
+                e2e_target_ms=int(e2e_target),
+                weights=weights,
+                include_near_miss=False,
+                percentile=percentile,
+            )
+
+        if recommendation is None:
+            st.error("Unable to get recommendations. Please ensure backend is running.")
+        else:
             st.session_state.recommendation_result = recommendation
         
     if st.session_state.recommendation_result:
@@ -5944,12 +4823,14 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     # ==========================================================================
     # VALIDATE SLO VALUES - Use case-specific ranges (same as sliders)
     # ==========================================================================
-    research_data = load_research_slo_ranges()
-    
-    # Get use-case specific token config and benchmark ranges
-    use_case_data = research_data.get('slo_ranges', {}).get(use_case, {}) if research_data else {}
-    token_config = use_case_data.get('token_config', {'prompt': 512, 'output': 256})
-    benchmark_ranges = get_benchmark_ranges_for_token_config(token_config['prompt'], token_config['output'])
+    # Get workload profile from API for token config
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
+        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+        return
+    prompt_tokens = workload_profile['prompt_tokens']
+    output_tokens = workload_profile['output_tokens']
+    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
     
     # Get selected percentile (same as sliders)
     percentile_key = st.session_state.get('slo_percentile', 'p95')
@@ -6005,7 +4886,7 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     """Render beautiful recommendation results with Top 5 table."""
     
     # === Use the ALREADY FETCHED data from result ===
-    # The result was fetched with correct SLO filters from get_enhanced_recommendation
+    # The result was fetched with correct SLO filters from fetch_ranked_recommendations
     # DO NOT call fetch_ranked_recommendations again - it would use wrong default values!
     
     # Gather data from extraction (handle None case)

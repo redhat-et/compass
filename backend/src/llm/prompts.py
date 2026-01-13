@@ -6,9 +6,6 @@ Expected JSON schema:
   "use_case": "chatbot_conversational|code_completion|code_generation_detailed|translation|content_generation|summarization_short|document_analysis_rag|long_document_summarization|research_legal_analysis",
   "experience_class": "instant|conversational|interactive|deferred|batch",
   "user_count": <integer>,
-  "latency_requirement": "very_high|high|medium|low",
-  "throughput_priority": "very_high|high|medium|low",
-  "budget_constraint": "strict|moderate|flexible|none",
   "domain_specialization": ["general"|"code"|"multilingual"|"enterprise"],
   "accuracy_priority": "low|medium|high",
   "cost_priority": "low|medium|high",
@@ -65,20 +62,10 @@ Your task is to extract structured information about their deployment requiremen
 
 1. **Use case**: What type of application (chatbot, customer service, code generation, summarization, etc.)
 2. **User count**: How many users or scale mentioned (estimate if not explicit)
-3. **Latency requirement**: How important is low latency? (very_high = sub-500ms, high = sub-2s, medium = 2-5s, low = >5s acceptable)
-4. **Throughput priority**: Is high request volume more important than low latency?
-5. **Budget constraint**: How price-sensitive are they?
-6. **Domain specialization**: Any specific domains mentioned (code, multilingual, enterprise, etc.)
+3. **Domain specialization**: Any specific domains mentioned (code, multilingual, enterprise, etc.)
 
 Be intelligent about inference:
 - "thousands of users" → estimate specific number
-- "needs to be fast" or "low latency critical" → latency_requirement: very_high
-- "can tolerate higher latency" or "quality over speed" → latency_requirement: medium or low
-- "batch processing" → throughput_priority: very_high, latency_requirement: low
-- "customer-facing" → latency_requirement: high or very_high
-- "budget is flexible" or "no budget constraint" → budget_constraint: flexible or none
-- No budget mentioned → budget_constraint: moderate
-- "cost-sensitive" or "cost efficiency important" → budget_constraint: strict or moderate
 - "document Q&A" or "knowledge base" or "document search" → use_case: document_analysis_rag
 - "RAG" or "retrieval" → use_case: document_analysis_rag
 - "chatbot" or "customer service" or "conversational" → use_case: chatbot_conversational

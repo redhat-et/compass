@@ -222,8 +222,6 @@ class DeploymentGenerator:
             "gpu_hourly_rate": gpu_hourly_rate,
             # Intent metadata
             "user_count": recommendation.intent.user_count,
-            "latency_requirement": recommendation.intent.latency_requirement,
-            "budget_constraint": recommendation.intent.budget_constraint,
         }
 
         return context

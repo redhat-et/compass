@@ -55,7 +55,6 @@ def build_conversational_prompt(
     if current_understanding:
         understanding = f"""- Use case: {current_understanding.get('use_case', 'unknown')}
 - User count: {current_understanding.get('user_count', 'unknown')}
-- Latency requirement: {current_understanding.get('latency_requirement', 'unknown')}
 """
 
     return CONVERSATIONAL_RESPONSE_TEMPLATE.format(

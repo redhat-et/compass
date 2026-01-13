@@ -66,25 +66,10 @@ except KubernetesDeploymentError as e:
 
 
 # Request/Response models
-class RecommendationRequest(BaseModel):
-    """Request for deployment recommendation."""
-
-    user_message: str
-    conversation_history: list[ConversationMessage] | None = None
-
-
 class SimpleRecommendationRequest(BaseModel):
     """Simple request for deployment recommendation (UI compatibility)."""
 
     message: str
-
-
-class RecommendationResponse(BaseModel):
-    """Response with deployment recommendation."""
-
-    recommendation: DeploymentRecommendation
-    success: bool = True
-    message: str | None = None
 
 
 class DeploymentRequest(BaseModel):
@@ -127,92 +112,6 @@ class ExtractRequest(BaseModel):
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "neuralnav"}
-
-
-# Main recommendation endpoint
-@app.post("/api/v1/recommend", response_model=RecommendationResponse)
-async def get_recommendation(request: RecommendationRequest):
-    """
-    Generate deployment recommendation from user message.
-
-    Args:
-        request: Recommendation request with user message
-
-    Returns:
-        Deployment recommendation
-
-    Raises:
-        HTTPException: If recommendation fails
-    """
-    try:
-        # Log user request with clear delimiters
-        logger.info("=" * 80)
-        logger.info("[USER REQUEST] New recommendation request")
-        logger.info(f"[USER MESSAGE] {request.user_message}")
-        if request.conversation_history:
-            logger.info(
-                f"[CONVERSATION HISTORY] {len(request.conversation_history)} previous messages"
-            )
-        logger.info("=" * 80)
-
-        # Always generate specification first (this cannot fail)
-        specification = workflow.generate_specification(
-            user_message=request.user_message, conversation_history=request.conversation_history
-        )[0]
-
-        # Try to find viable recommendations
-        try:
-            recommendation = workflow.generate_recommendation(
-                user_message=request.user_message, conversation_history=request.conversation_history
-            )
-
-            # Validate recommendation
-            is_valid = workflow.validate_recommendation(recommendation)
-            if not is_valid:
-                logger.warning("Generated recommendation failed validation")
-
-            return RecommendationResponse(
-                recommendation=recommendation,
-                success=True,
-                message="Recommendation generated successfully",
-            )
-
-        except ValueError as e:
-            # No viable configurations found - return specification only
-            logger.warning(f"No viable configurations found: {e}")
-
-            # Create a partial recommendation with specification but no config
-            from ..context_intent.schema import DeploymentRecommendation
-
-            partial_recommendation = DeploymentRecommendation(
-                intent=specification.intent,
-                traffic_profile=specification.traffic_profile,
-                slo_targets=specification.slo_targets,
-                model_id=None,
-                model_name=None,
-                gpu_config=None,
-                predicted_ttft_p95_ms=None,
-                predicted_itl_p95_ms=None,
-                predicted_e2e_p95_ms=None,
-                predicted_throughput_qps=None,
-                cost_per_hour_usd=None,
-                cost_per_month_usd=None,
-                meets_slo=False,
-                reasoning=str(e),  # Include the detailed error message
-                alternative_options=None,
-            )
-
-            return RecommendationResponse(
-                recommendation=partial_recommendation,
-                success=True,
-                message="Specification generated, but no viable configurations found",
-            )
-
-    except Exception as e:
-        logger.error(f"Failed to generate recommendation: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate recommendation: {str(e)}"
-        ) from e
 
 
 # Get available models
@@ -284,13 +183,12 @@ async def extract_intent(request: ExtractRequest):
 
         logger.info(f"  Extracted use_case: {intent.use_case}")
         logger.info(f"  Extracted user_count: {intent.user_count}")
-        logger.info(f"  Extracted priority: {intent.latency_requirement}")
+        logger.info(f"  Extracted latency_priority: {intent.latency_priority}")
         logger.info("=" * 60)
 
         # Return as dict for JSON serialization
-        # Map latency_requirement to 'priority' for UI compatibility
         result = intent.model_dump()
-        result["priority"] = intent.latency_requirement
+        result["priority"] = intent.latency_priority  # UI compatibility
         return result
 
     except ValueError as e:
@@ -321,7 +219,7 @@ async def get_slo_defaults(use_case: str):
     """
     try:
         import json
-        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
 
         if not json_path.exists():
             logger.error(f"SLO workload config not found at: {json_path}")
@@ -373,6 +271,62 @@ async def get_slo_defaults(use_case: str):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@app.get("/api/v1/workload-profile/{use_case}")
+async def get_workload_profile(use_case: str):
+    """Get workload profile for a use case.
+
+    Returns the token configuration and peak multiplier used for
+    capacity planning and recommendation generation.
+    """
+    try:
+        import json
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
+
+        if not json_path.exists():
+            logger.error(f"SLO workload config not found at: {json_path}")
+            raise HTTPException(status_code=404, detail="SLO workload configuration not found")
+
+        with open(json_path, 'r') as f:
+            data = json.load(f)
+
+        use_case_data = data.get("use_case_slo_workload", {}).get(use_case)
+        if not use_case_data:
+            raise HTTPException(status_code=404, detail=f"Use case '{use_case}' not found")
+
+        workload = use_case_data.get("workload", {})
+
+        # Require all workload fields - fail if missing
+        prompt_tokens = workload["prompt_tokens"]
+        output_tokens = workload["output_tokens"]
+        peak_multiplier = workload["peak_multiplier"]
+        distribution = workload["distribution"]
+        active_fraction = workload["active_fraction"]
+        requests_per_active_user_per_min = workload["requests_per_active_user_per_min"]
+
+        return {
+            "success": True,
+            "use_case": use_case,
+            "description": use_case_data.get("description", ""),
+            "workload_profile": {
+                "prompt_tokens": prompt_tokens,
+                "output_tokens": output_tokens,
+                "peak_multiplier": peak_multiplier,
+                "distribution": distribution,
+                "active_fraction": active_fraction,
+                "requests_per_active_user_per_min": requests_per_active_user_per_min
+            }
+        }
+
+    except HTTPException:
+        raise
+    except KeyError as e:
+        logger.error(f"Missing workload data for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=f"Missing workload data: {e}") from e
+    except Exception as e:
+        logger.error(f"Failed to get workload profile for {use_case}: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @app.get("/api/v1/expected-rps/{use_case}")
 async def get_expected_rps(use_case: str, user_count: int = 1000):
     """Calculate expected RPS for a use case based on workload patterns.
@@ -385,7 +339,7 @@ async def get_expected_rps(use_case: str, user_count: int = 1000):
     """
     try:
         import json
-        json_path = Path(__file__).parent.parent.parent.parent / "data" / "business_context" / "use_case" / "configs" / "usecase_slo_workload.json"
+        json_path = Path(__file__).parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
 
         if not json_path.exists():
             logger.error(f"SLO workload config not found at: {json_path}")
@@ -657,16 +611,6 @@ class BalancedWeights(BaseModel):
     complexity: int = 1
 
 
-class RankedRecommendationRequest(BaseModel):
-    """Request for ranked recommendations with multi-criteria scoring."""
-
-    message: str
-    min_accuracy: int | None = None
-    max_cost: float | None = None
-    include_near_miss: bool = True
-    weights: BalancedWeights | None = None
-
-
 class RankedRecommendationFromSpecRequest(BaseModel):
     """Request for ranked recommendations from pre-built specification.
 
@@ -677,8 +621,6 @@ class RankedRecommendationFromSpecRequest(BaseModel):
     # Intent fields
     use_case: str
     user_count: int
-    latency_requirement: str = "high"  # "very_high", "high", "medium", "low"
-    budget_constraint: str = "moderate"  # "strict", "moderate", "flexible"
     hardware_preference: str | None = None
 
     # Traffic profile fields
@@ -686,99 +628,17 @@ class RankedRecommendationFromSpecRequest(BaseModel):
     output_tokens: int
     expected_qps: float
 
-    # SLO target fields (generic - works with any percentile)
-    ttft_target_ms: int | None = None
-    itl_target_ms: int | None = None
-    e2e_target_ms: int | None = None
+    # SLO target fields (required - explicit SLOs must always be provided)
+    ttft_target_ms: int
+    itl_target_ms: int
+    e2e_target_ms: int
     percentile: str = "p95"  # "mean", "p90", "p95", "p99"
-    
-    # Legacy p95 fields (for backwards compatibility)
-    ttft_p95_target_ms: int | None = None
-    itl_p95_target_ms: int | None = None
-    e2e_p95_target_ms: int | None = None
 
     # Ranking options
     min_accuracy: int | None = None
     max_cost: float | None = None
     include_near_miss: bool = True
     weights: BalancedWeights | None = None
-    
-    def get_ttft_target(self) -> int:
-        """Get TTFT target, preferring new field over legacy."""
-        return self.ttft_target_ms if self.ttft_target_ms is not None else (self.ttft_p95_target_ms or 500)
-    
-    def get_itl_target(self) -> int:
-        """Get ITL target, preferring new field over legacy."""
-        return self.itl_target_ms if self.itl_target_ms is not None else (self.itl_p95_target_ms or 50)
-    
-    def get_e2e_target(self) -> int:
-        """Get E2E target, preferring new field over legacy."""
-        return self.e2e_target_ms if self.e2e_target_ms is not None else (self.e2e_p95_target_ms or 5000)
-
-
-@app.post("/api/ranked-recommend")
-async def ranked_recommend(request: RankedRecommendationRequest):
-    """
-    Generate ranked recommendation lists with multi-criteria scoring.
-
-    Returns 5 ranked views of deployment configurations:
-    - best_accuracy: Top configs sorted by model capability
-    - lowest_cost: Top configs sorted by price efficiency
-    - lowest_latency: Top configs sorted by SLO headroom
-    - simplest: Top configs sorted by deployment simplicity
-    - balanced: Top configs sorted by weighted composite score
-
-    Args:
-        request: Request with message and optional filters
-
-    Returns:
-        RankedRecommendationsResponse with 5 ranked lists
-    """
-    try:
-        logger.info(f"Received ranked recommendation request: {request.message[:100]}...")
-        if request.min_accuracy:
-            logger.info(f"  Filter: min_accuracy >= {request.min_accuracy}")
-        if request.max_cost:
-            logger.info(f"  Filter: max_cost <= ${request.max_cost}")
-        logger.info(f"  Include near-miss: {request.include_near_miss}")
-        if request.weights:
-            logger.info(
-                f"  Weights: A={request.weights.accuracy}, P={request.weights.price}, "
-                f"L={request.weights.latency}, C={request.weights.complexity}"
-            )
-
-        # Convert weights to dict for workflow
-        weights_dict = None
-        if request.weights:
-            weights_dict = {
-                "accuracy": request.weights.accuracy,
-                "price": request.weights.price,
-                "latency": request.weights.latency,
-                "complexity": request.weights.complexity,
-            }
-
-        # Generate ranked recommendations
-        response = workflow.generate_ranked_recommendations(
-            user_message=request.message,
-            conversation_history=None,
-            min_accuracy=request.min_accuracy,
-            max_cost=request.max_cost,
-            include_near_miss=request.include_near_miss,
-            weights=weights_dict,
-        )
-
-        logger.info(
-            f"Ranked recommendation complete: {response.total_configs_evaluated} configs, "
-            f"{response.configs_after_filters} after filters"
-        )
-
-        return response.model_dump()
-
-    except Exception as e:
-        logger.error(f"Failed to generate ranked recommendations: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to generate ranked recommendations: {str(e)}"
-        ) from e
 
 
 @app.post("/api/ranked-recommend-from-spec")
@@ -804,34 +664,20 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         RankedRecommendationsResponse with 5 ranked lists
     """
     try:
-        # Get SLO targets using helper methods (supports both new and legacy fields)
-        ttft_target = request.get_ttft_target()
-        itl_target = request.get_itl_target()
-        e2e_target = request.get_e2e_target()
-        percentile = request.percentile
-
         # Log complete request for debugging
         logger.info("=" * 60)
         logger.info("RANKED-RECOMMEND-FROM-SPEC REQUEST")
         logger.info("=" * 60)
         logger.info(f"  use_case: {request.use_case}")
         logger.info(f"  user_count: {request.user_count}")
-        logger.info(f"  latency_requirement: {request.latency_requirement}")
-        logger.info(f"  budget_constraint: {request.budget_constraint}")
         logger.info(f"  hardware_preference: {request.hardware_preference}")
         logger.info(f"  prompt_tokens: {request.prompt_tokens}")
         logger.info(f"  output_tokens: {request.output_tokens}")
         logger.info(f"  expected_qps: {request.expected_qps}")
-        logger.info(f"  percentile: {percentile}")
-        logger.info(f"  ttft_target_ms (raw): {request.ttft_target_ms}")
-        logger.info(f"  itl_target_ms (raw): {request.itl_target_ms}")
-        logger.info(f"  e2e_target_ms (raw): {request.e2e_target_ms}")
-        logger.info(f"  ttft_p95_target_ms (legacy): {request.ttft_p95_target_ms}")
-        logger.info(f"  itl_p95_target_ms (legacy): {request.itl_p95_target_ms}")
-        logger.info(f"  e2e_p95_target_ms (legacy): {request.e2e_p95_target_ms}")
-        logger.info(f"  -> Resolved TTFT: {ttft_target}ms")
-        logger.info(f"  -> Resolved ITL: {itl_target}ms")
-        logger.info(f"  -> Resolved E2E: {e2e_target}ms")
+        logger.info(f"  percentile: {request.percentile}")
+        logger.info(f"  ttft_target_ms: {request.ttft_target_ms}ms")
+        logger.info(f"  itl_target_ms: {request.itl_target_ms}ms")
+        logger.info(f"  e2e_target_ms: {request.e2e_target_ms}ms")
         logger.info(f"  min_accuracy: {request.min_accuracy}")
         logger.info(f"  max_cost: {request.max_cost}")
         logger.info(f"  include_near_miss: {request.include_near_miss}")
@@ -849,9 +695,6 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
             "intent": {
                 "use_case": request.use_case,
                 "user_count": request.user_count,
-                "latency_requirement": request.latency_requirement,
-                "budget_constraint": request.budget_constraint,
-                "throughput_priority": "medium",
                 "domain_specialization": ["general"],
             },
             "traffic_profile": {
@@ -860,10 +703,10 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
                 "expected_qps": request.expected_qps,
             },
             "slo_targets": {
-                "ttft_p95_target_ms": ttft_target,
-                "itl_p95_target_ms": itl_target,
-                "e2e_p95_target_ms": e2e_target,
-                "percentile": percentile,
+                "ttft_p95_target_ms": request.ttft_target_ms,
+                "itl_p95_target_ms": request.itl_target_ms,
+                "e2e_p95_target_ms": request.e2e_target_ms,
+                "percentile": request.percentile,
             },
         }
 
@@ -897,283 +740,6 @@ async def ranked_recommend_from_spec(request: RankedRecommendationFromSpecReques
         logger.error(f"Failed to generate ranked recommendations from spec: {e}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to generate ranked recommendations: {str(e)}"
-        ) from e
-
-
-class ReRecommendationRequest(BaseModel):
-    """Request for re-recommendation with edited specifications."""
-
-    specifications: dict
-
-
-@app.post("/api/re-recommend")
-async def re_recommend(request: ReRecommendationRequest):
-    """
-    Re-generate recommendation with user-edited specifications.
-
-    Args:
-        request: Request with edited specifications (intent, traffic_profile, slo_targets)
-
-    Returns:
-        New recommendation as JSON dict with auto-generated YAML
-    """
-    try:
-        logger.info("Received re-recommendation request with edited specifications")
-        logger.debug(f"Edited specs: {request.specifications}")
-
-        # Try to find viable recommendations with edited specs
-        try:
-            # Re-run recommendation workflow with edited specifications
-            recommendation = workflow.generate_recommendation_from_specs(request.specifications)
-
-            # Auto-generate deployment YAML
-            try:
-                yaml_result = deployment_generator.generate_all(
-                    recommendation=recommendation, namespace="default"
-                )
-                deployment_id = yaml_result["deployment_id"]
-                yaml_files = yaml_result["files"]
-                logger.info(
-                    f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}"
-                )
-                yaml_generated = True
-            except Exception as yaml_error:
-                logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
-                deployment_id = None
-                yaml_files = {}
-                yaml_generated = False
-
-            # Return recommendation as dict with YAML info
-            result = recommendation.model_dump()
-            result["deployment_id"] = deployment_id
-            result["yaml_generated"] = yaml_generated
-            result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
-
-            logger.info(
-                f"Re-recommendation complete: {recommendation.model_name} on "
-                f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
-            )
-
-            return result
-
-        except ValueError as e:
-            # No viable configurations found - return partial recommendation
-            logger.warning(f"No viable configurations found with edited specs: {e}")
-
-            # Extract specifications from request
-            from ..context_intent.schema import (
-                DeploymentIntent,
-                DeploymentRecommendation,
-                SLOTargets,
-                TrafficProfile,
-            )
-
-            # Infer experience_class if not provided
-            intent_data = request.specifications["intent"].copy()
-            if "experience_class" not in intent_data or not intent_data.get("experience_class"):
-                use_case = intent_data.get("use_case", "")
-                if use_case == "code_completion":
-                    intent_data["experience_class"] = "instant"
-                elif use_case in [
-                    "chatbot_conversational",
-                    "code_generation_detailed",
-                    "translation",
-                    "content_generation",
-                    "summarization_short",
-                ]:
-                    intent_data["experience_class"] = "conversational"
-                elif use_case == "document_analysis_rag":
-                    intent_data["experience_class"] = "interactive"
-                elif use_case == "long_document_summarization":
-                    intent_data["experience_class"] = "deferred"
-                elif use_case == "research_legal_analysis":
-                    intent_data["experience_class"] = "batch"
-                else:
-                    intent_data["experience_class"] = "conversational"
-
-            intent = DeploymentIntent(**intent_data)
-            traffic_profile = TrafficProfile(**request.specifications["traffic_profile"])
-            slo_targets = SLOTargets(**request.specifications["slo_targets"])
-
-            partial_recommendation = DeploymentRecommendation(
-                intent=intent,
-                traffic_profile=traffic_profile,
-                slo_targets=slo_targets,
-                model_id=None,
-                model_name=None,
-                gpu_config=None,
-                predicted_ttft_p95_ms=None,
-                predicted_itl_p95_ms=None,
-                predicted_e2e_p95_ms=None,
-                predicted_throughput_qps=None,
-                cost_per_hour_usd=None,
-                cost_per_month_usd=None,
-                meets_slo=False,
-                reasoning=str(e),
-                alternative_options=None,
-            )
-
-            # No YAML for partial recommendations
-            result = partial_recommendation.model_dump()
-            result["deployment_id"] = None
-            result["yaml_generated"] = False
-            result["yaml_files"] = []
-
-            return result
-
-    except Exception as e:
-        logger.error(f"Failed to re-generate recommendation: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to re-generate recommendation: {str(e)}"
-        ) from e
-
-
-class RegenerateRequest(BaseModel):
-    """Request for regenerating traffic profile and SLOs from requirements."""
-
-    intent: dict
-
-
-@app.post("/api/regenerate-and-recommend")
-async def regenerate_and_recommend(request: RegenerateRequest):
-    """
-    Regenerate traffic profile and SLO targets from edited requirements, then recommend.
-
-    This is the full workflow: requirements → profile/SLOs → recommendation
-
-    Args:
-        request: Request with edited intent/requirements
-
-    Returns:
-        New recommendation as JSON dict with auto-generated YAML
-    """
-    try:
-        from ..context_intent.schema import DeploymentIntent
-
-        logger.info("Received regenerate-and-recommend request with edited requirements")
-        logger.debug(f"Edited intent: {request.intent}")
-
-        # Infer experience_class if not provided
-        intent_data = request.intent.copy()
-        if "experience_class" not in intent_data or not intent_data.get("experience_class"):
-            # Use the same inference logic as the extractor
-            use_case = intent_data.get("use_case", "")
-            if use_case == "code_completion":
-                intent_data["experience_class"] = "instant"
-            elif use_case in [
-                "chatbot_conversational",
-                "code_generation_detailed",
-                "translation",
-                "content_generation",
-                "summarization_short",
-            ]:
-                intent_data["experience_class"] = "conversational"
-            elif use_case == "document_analysis_rag":
-                intent_data["experience_class"] = "interactive"
-            elif use_case == "long_document_summarization":
-                intent_data["experience_class"] = "deferred"
-            elif use_case == "research_legal_analysis":
-                intent_data["experience_class"] = "batch"
-            else:
-                intent_data["experience_class"] = "conversational"  # Default
-
-        # Parse intent into schema
-        intent = DeploymentIntent(**intent_data)
-
-        # Generate traffic profile and SLO targets from intent
-        from ..context_intent.traffic_profile import TrafficProfileGenerator
-
-        traffic_generator = TrafficProfileGenerator()
-        traffic_profile = traffic_generator.generate_profile(intent)
-        slo_targets = traffic_generator.generate_slo_targets(intent)
-
-        logger.info(
-            f"Regenerated traffic profile: {traffic_profile.expected_qps} QPS, "
-            f"{traffic_profile.prompt_tokens}→{traffic_profile.output_tokens} tokens"
-        )
-        logger.info(
-            f"Regenerated SLO targets (p95): TTFT={slo_targets.ttft_p95_target_ms}ms, "
-            f"ITL={slo_targets.itl_p95_target_ms}ms, E2E={slo_targets.e2e_p95_target_ms}ms"
-        )
-
-        # Build specifications dict
-        specifications = {
-            "intent": intent.model_dump(),
-            "traffic_profile": traffic_profile.model_dump(),
-            "slo_targets": slo_targets.model_dump(),
-        }
-
-        # Try to find viable recommendations with regenerated specifications
-        try:
-            # Re-run recommendation workflow with regenerated specifications
-            recommendation = workflow.generate_recommendation_from_specs(specifications)
-
-            # Auto-generate deployment YAML
-            try:
-                yaml_result = deployment_generator.generate_all(
-                    recommendation=recommendation, namespace="default"
-                )
-                deployment_id = yaml_result["deployment_id"]
-                yaml_files = yaml_result["files"]
-                logger.info(
-                    f"Auto-generated YAML files for {deployment_id}: {list(yaml_files.keys())}"
-                )
-                yaml_generated = True
-            except Exception as yaml_error:
-                logger.warning(f"Failed to auto-generate YAML: {yaml_error}")
-                deployment_id = None
-                yaml_files = {}
-                yaml_generated = False
-
-            # Return recommendation as dict with YAML info
-            result = recommendation.model_dump()
-            result["deployment_id"] = deployment_id
-            result["yaml_generated"] = yaml_generated
-            result["yaml_files"] = list(yaml_files.keys()) if yaml_files else []
-
-            logger.info(
-                f"Regenerate-and-recommend complete: {recommendation.model_name} on "
-                f"{recommendation.gpu_config.gpu_count}x {recommendation.gpu_config.gpu_type}"
-            )
-
-            return result
-
-        except ValueError as e:
-            # No viable configurations found - return partial recommendation
-            logger.warning(f"No viable configurations found with regenerated specs: {e}")
-
-            from ..context_intent.schema import DeploymentRecommendation
-
-            partial_recommendation = DeploymentRecommendation(
-                intent=intent,
-                traffic_profile=traffic_profile,
-                slo_targets=slo_targets,
-                model_id=None,
-                model_name=None,
-                gpu_config=None,
-                predicted_ttft_p95_ms=None,
-                predicted_itl_p95_ms=None,
-                predicted_e2e_p95_ms=None,
-                predicted_throughput_qps=None,
-                cost_per_hour_usd=None,
-                cost_per_month_usd=None,
-                meets_slo=False,
-                reasoning=str(e),
-                alternative_options=None,
-            )
-
-            # No YAML for partial recommendations
-            result = partial_recommendation.model_dump()
-            result["deployment_id"] = None
-            result["yaml_generated"] = False
-            result["yaml_files"] = []
-
-            return result
-
-    except Exception as e:
-        logger.error(f"Failed to regenerate and recommend: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to regenerate and recommend: {str(e)}"
         ) from e
 
 
