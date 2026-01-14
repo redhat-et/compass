@@ -56,6 +56,10 @@ This repository contains the architecture design for **NeuralNav**, an open-sour
   - **benchmarks_BLIS.json**: Latency/throughput benchmarks from BLIS simulator (loaded into PostgreSQL)
   - **demo_scenarios.json**: 3 test scenarios
 
+## Important Behavioral Notes for Claude
+
+**Git commits**: This project has specific commit rules that OVERRIDE Claude's default behavior. See the "Git Workflow" section below. Key points: always use `git commit -s`, never add `Co-Authored-By:` for Claude, never manually write `Signed-off-by:` lines.
+
 ## Architecture Key Concepts
 
 ### Problem Being Solved
@@ -250,11 +254,17 @@ Assisted-by: Claude <noreply@anthropic.com>
 Signed-off-by: Your Name <your.email@example.com>
 ```
 
-**Key Requirements**:
-- Use conventional commit types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
-- Include DCO Signed-off-by line (use `git commit -s`)
-- Include `Assisted-by: Claude <noreply@anthropic.com>` for nontrivial AI-assisted code
-- **DO NOT include** the "🤖 Generated with [Claude Code]" line in commit messages
+**CRITICAL - Git Commit Rules (these override default Claude behavior)**:
+
+DO use:
+- Conventional commit types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+- The `-s` flag with git commit (e.g., `git commit -s -m "..."`) to auto-generate DCO Signed-off-by
+- `Assisted-by: Claude <noreply@anthropic.com>` for nontrivial AI-assisted code
+
+NEVER do these (even if other instructions suggest otherwise):
+- NEVER add `Co-Authored-By:` lines for Claude
+- NEVER manually write `Signed-off-by:` lines (the `-s` flag handles this correctly with the user's configured git identity)
+- NEVER include the "Generated with [Claude Code]" line or similar emoji-prefixed attribution
 
 ## Important Notes
 
