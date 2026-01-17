@@ -1497,6 +1497,11 @@ if "slo_approved" not in st.session_state:
     st.session_state.slo_approved = None
 if "edited_extraction" not in st.session_state:
     st.session_state.edited_extraction = None
+# Tab switching flags
+if "switch_to_tab2" not in st.session_state:
+    st.session_state.switch_to_tab2 = False
+if "switch_to_tab3" not in st.session_state:
+    st.session_state.switch_to_tab3 = False
 # Editable SLO values
 if "edit_slo" not in st.session_state:
     st.session_state.edit_slo = False
@@ -4212,7 +4217,44 @@ def main():
     with tab4:
         render_about_section(models_df)
 
-    
+    # Handle tab switching after approval
+    if st.session_state.get('switch_to_tab2', False):
+        st.session_state.switch_to_tab2 = False
+        import streamlit.components.v1 as components
+        components.html("""
+        <script>
+            setTimeout(function() {
+                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 1) tabs[1].click();
+            }, 100);
+        </script>
+        """, height=0)
+
+    if st.session_state.get('switch_to_tab3', False):
+        st.session_state.switch_to_tab3 = False
+        import streamlit.components.v1 as components
+        components.html("""
+        <script>
+            setTimeout(function() {
+                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 2) tabs[2].click();
+            }, 100);
+        </script>
+        """, height=0)
+
+    if st.session_state.get('switch_to_tab1', False):
+        st.session_state.switch_to_tab1 = False
+        import streamlit.components.v1 as components
+        components.html("""
+        <script>
+            setTimeout(function() {
+                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+                if (tabs.length > 0) tabs[0].click();
+            }, 100);
+        </script>
+        """, height=0)
+
+
 def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     """Tab 1: Use case input interface."""
 
@@ -4223,7 +4265,24 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         st.session_state.show_winner_dialog = False
         st.session_state.show_options_list_expanded = False
 
+    # Transfer pending input from button clicks before rendering the text_area widget
+    if "pending_user_input" in st.session_state:
+        st.session_state.user_input = st.session_state.pending_user_input
+        del st.session_state.pending_user_input
+
     st.markdown('<div class="section-header">Describe your use case or select from 9 predefined scenarios</div>', unsafe_allow_html=True)
+
+    # Input area with validation
+    st.markdown('<div class="input-container">', unsafe_allow_html=True)
+    st.text_area(
+        "Your requirements:",
+        key="user_input",
+        height=120,
+        max_chars=2000,  # Corporate standard: limit input length
+        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 30 users. Low latency is important, and we have H100 GPUs available.",
+        label_visibility="collapsed"
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # Row 1: 5 task buttons
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -4232,31 +4291,36 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Chat Completion", use_container_width=True, key="task_chat"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Customer service chatbot for 300 users."
+            st.session_state.pending_user_input = "Customer service chatbot for 30 users."
+            st.rerun()
 
     with col2:
         if st.button("Code Completion", use_container_width=True, key="task_code"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "IDE code completion tool for 300 developers."
+            st.session_state.pending_user_input = "IDE code completion tool for 300 developers."
+            st.rerun()
 
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Document Q&A system for enterprise knowledge base, 300 users."
+            st.session_state.pending_user_input = "Document Q&A system for enterprise knowledge base, 300 users."
+            st.rerun()
 
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
             clear_dialog_states()
             # With priority (cost-effective) to show filtering
-            st.session_state.user_input = "News article summarization for 300 users, cost-effective solution preferred."
+            st.session_state.pending_user_input = "News article summarization for 300 users, cost-effective solution preferred."
+            st.rerun()
 
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Legal document analysis for 300 lawyers, accuracy is critical."
+            st.session_state.pending_user_input = "Legal document analysis for 300 lawyers, accuracy is critical."
+            st.rerun()
 
     # Row 2: 4 more task buttons
     col6, col7, col8, col9 = st.columns(4)
@@ -4265,48 +4329,40 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         if st.button("Translation", use_container_width=True, key="task_trans"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Multi-language translation service for 300 users."
+            st.session_state.pending_user_input = "Multi-language translation service for 300 users."
+            st.rerun()
 
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Content generation tool for marketing team, 300 users."
+            st.session_state.pending_user_input = "Content generation tool for marketing team, 300 users."
+            st.rerun()
 
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
             clear_dialog_states()
             # With priority (accuracy) to show filtering
-            st.session_state.user_input = "Long document summarization for research papers, 300 researchers, accuracy matters."
+            st.session_state.user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
+            st.rerun()
 
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
             clear_dialog_states()
             # Simple prompt - no priority, no hardware = show all configs
-            st.session_state.user_input = "Full code generation tool for implementing features, 300 developers."
-    
-    # Input area with validation
-    st.markdown('<div class="input-container">', unsafe_allow_html=True)
-    user_input = st.text_area(
-        "Your requirements:",
-        value=st.session_state.user_input,
-        height=120,
-        max_chars=2000,  # Corporate standard: limit input length
-        placeholder="Describe your LLM use case in natural language...\n\nExample: I need a chatbot for customer support with 300 users. Low latency is important, and we have H100 GPUs available.",
-        label_visibility="collapsed"
-    )
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.session_state.user_input = "Full code generation tool for implementing features, 30 developers."
+            st.rerun()
     
     # Show character count - white text
-    char_count = len(user_input) if user_input else 0
+    char_count = len(st.session_state.user_input) if st.session_state.user_input else 0
     st.markdown(f'<div style="text-align: right; font-size: 0.75rem; color: white; margin-top: -0.5rem;">{char_count}/2000 characters</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1.5, 1, 2])
     with col1:
         # Disable button if input is too short
-        analyze_disabled = len(user_input.strip()) < 10 if user_input else True
+        analyze_disabled = len(st.session_state.user_input.strip()) < 10 if st.session_state.user_input else True
         analyze_clicked = st.button("Analyze & Recommend", type="primary", use_container_width=True, disabled=analyze_disabled)
-        if analyze_disabled and user_input and len(user_input.strip()) < 10:
+        if analyze_disabled and st.session_state.user_input and len(st.session_state.user_input.strip()) < 10:
             st.caption("Please enter at least 10 characters")
     with col2:
         if st.button("Clear", use_container_width=True):
@@ -4320,8 +4376,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
             st.rerun()
     
     # Input validation before analysis
-    if analyze_clicked and user_input and len(user_input.strip()) >= 10:
-        st.session_state.user_input = user_input
+    if analyze_clicked and st.session_state.user_input and len(st.session_state.user_input.strip()) >= 10:
         # Reset workflow state
         st.session_state.extraction_approved = None
         st.session_state.slo_approved = None
@@ -4335,7 +4390,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
             
         try:
             progress_bar.progress(20, text="Analyzing input text...")
-            extraction = extract_business_context(user_input)
+            extraction = extract_business_context(st.session_state.user_input)
             progress_bar.progress(80, text="Extraction complete!")
             
             if extraction:
@@ -4416,22 +4471,12 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     if st.session_state.extraction_approved == True:
         render_extraction_result(st.session_state.extraction_result, used_priority)
         
-        # Left-aligned completion banner and button
-        col_btns, col_space = st.columns([2, 2])
-        with col_btns:
-            st.markdown("""
-            <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem;">
-                <strong>Step 1 Complete</strong> · Go to Technical Specification
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Next Tab →", key="next_tab_1", type="primary", use_container_width=True):
-                import streamlit.components.v1 as components
-                components.html("""
-                <script>
-                    const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                    if (tabs.length > 1) tabs[1].click();
-                </script>
-                """, height=0)
+        # Completion banner (tab auto-advances on approval)
+        st.markdown("""
+        <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
+            <strong>Step 1 Complete</strong> · You can now go to Technical Specification
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
@@ -4455,22 +4500,12 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     
     # If SLO approved, show navigation message
     if st.session_state.slo_approved == True:
-        # Left-aligned completion banner and button
-        col_btns2, col_space2 = st.columns([2, 2])
-        with col_btns2:
-            st.markdown("""
-            <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem;">
-                <strong>Step 2 Complete</strong> · Go to Recommendations
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button("Next Tab →", key="next_tab_2", type="primary", use_container_width=True):
-                import streamlit.components.v1 as components
-                components.html("""
-                <script>
-                    const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                    if (tabs.length > 2) tabs[2].click();
-                </script>
-                """, height=0)
+        # Completion banner (tab auto-advances on approval)
+        st.markdown("""
+        <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
+            <strong>Step 2 Complete</strong> · You can now view Recommendations
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def render_results_tab(priority: str, models_df: pd.DataFrame):
@@ -4647,6 +4682,7 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
     with col1:
         if st.button("Yes, Continue", type="primary", use_container_width=True, key="approve_extraction"):
             st.session_state.extraction_approved = True
+            st.session_state.switch_to_tab2 = True
             st.rerun()
     with col2:
         if st.button("No, Edit", use_container_width=True, key="edit_extraction"):
@@ -4879,6 +4915,7 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
         # Button disabled if invalid
         if st.button("Generate Recommendations", type="primary", use_container_width=True, key="generate_recs", disabled=not is_valid):
             st.session_state.slo_approved = True
+            st.session_state.switch_to_tab3 = True
             st.rerun()
 
 
@@ -4989,30 +5026,12 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
         </div>
         """, unsafe_allow_html=True)
         
-    # Show buttons to go back or start new case
-    col_back, col_new, col_spacer = st.columns([1, 1, 2])
-    with col_back:
-        if st.button("← Back to Technical Specs", key="back_to_slo", type="primary", use_container_width=True):
-            # Reset dialog states to prevent popups
-            st.session_state.show_category_dialog = False
-            st.session_state.show_full_table_dialog = False
-            st.session_state.show_winner_dialog = False
-            st.session_state.show_options_list_expanded = False
-            st.session_state.explore_category = None
-            # Keep slo_approved as True - user can adjust SLOs and click "Generate Recommendations" again
-            # The Recommendations tab will regenerate with new values when they return
-            # Use JavaScript to switch to Technical Specification tab
-            import streamlit.components.v1 as components
-            components.html("""
-            <script>
-                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs.length > 1) tabs[1].click();
-            </script>
-            """, height=0)
-    
+    # Show button to start new case
+    col_new, col_spacer = st.columns([1, 3])
+
     with col_new:
         if st.button("New Case", key="new_case_btn", type="secondary", use_container_width=True):
-            # Complete session state reset - start fresh from Tab 1
+            # Complete session state reset - start fresh from Define Use Case tab
             keys_to_clear = [
                 'user_input', 'extraction_result', 'recommendation_result',
                 'extraction_approved', 'slo_approved', 'edited_extraction',
@@ -5028,19 +5047,6 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
             # Set flag to switch to Tab 1 after rerun
             st.session_state.switch_to_tab1 = True
             st.rerun()
-    
-    # Check if we need to switch to Tab 1 (after New Case button)
-    if st.session_state.get('switch_to_tab1', False):
-        st.session_state.switch_to_tab1 = False
-        import streamlit.components.v1 as components
-        components.html("""
-        <script>
-            setTimeout(function() {
-                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs.length > 0) tabs[0].click();
-            }, 100);
-        </script>
-        """, height=0)
 
 
 def _render_winner_details(winner: dict, priority: str, extraction: dict):
