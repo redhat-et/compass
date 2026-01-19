@@ -77,29 +77,24 @@ NeuralNav consists of **five major components**:
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Recommendation Service Detail:**
+### 1. User Interface (Presentation Layer)
 
-```
+```text
 ┌───────────────────────────────────────────────────────────────────┐
-│                      Recommendation Service                       │
+│                    User Interface (Presentation)                  │
 │                                                                   │
-│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
-│  │  Config Finder  │   │     Scorer      │   │    Analyzer     │  │
-│  │                 │   │                 │   │                 │  │
-│  │ Query benchmarks│──▶│ Score configs   │──▶│ Generate        │  │
-│  │ Filter by SLOs  │   │ on 5 dimensions:│   │ ranked views:   │  │
-│  │ Calculate       │   │ - Accuracy      │   │ - Best Accuracy │  │
-│  │ replicas        │   │ - Cost          │   │ - Lowest Cost   │  │
-│  │                 │   │ - Latency       │   │ - Lowest Latency│  │
-│  │                 │   │ - Complexity    │   │ - Simplest      │  │
-│  │                 │   │ - Balanced      │   │ - Balanced      │  │
-│  └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────┐ │
+│  │Conversational│  │Specification │  │Recommendation│  │ Config │ │
+│  │  Interface   │  │   Editor     │  │Viewer/Select │  │ Viewer │ │
+│  │              │  │              │  │              │  │        │ │
+│  │ Natural lang │  │ Edit SLOs,   │  │ 5 ranked     │  │ Display│ │
+│  │ input, show  │  │ priorities,  │  │ views, trade │  │ YAML,  │ │
+│  │ intent       │  │ thresholds   │  │ off analysis │  │download│ │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └────────┘ │
 │                                                                   │
-│  Specification ─────────────────────────────────▶ Ranked Options  │
+│  User Conversation ────────────────────────────▶ Config Files     │
 └───────────────────────────────────────────────────────────────────┘
 ```
-
-### 1. User Interface (Presentation Layer)
 
 **Current Implementation**: Streamlit **Future Migration**: React + WebSocket
 backend
@@ -156,6 +151,22 @@ Backend components interact with the UI via **FastAPI** REST endpoints.
 
 ### 2. Intent Extraction Service
 
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│                    Intent Extraction Service                      │
+│                                                                   │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
+│  │  LLM Processor  │   │ Schema Validator│   │ Intent Builder  │  │
+│  │                 │   │                 │   │                 │  │
+│  │ Ollama/qwen2.5  │──▶│ Pydantic schema │──▶│ Structured      │  │
+│  │ Engineered      │   │ validation      │   │ intent object   │  │
+│  │ prompts         │   │                 │   │                 │  │
+│  └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│                                                                   │
+│  User Conversation ─────────────────────────▶ Structured Intent   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
 **Purpose**: Transform natural language conversation into structured user intent
 
 **Input**: User's conversational description of use case and requirements
@@ -190,6 +201,23 @@ Backend components interact with the UI via **FastAPI** REST endpoints.
 ---
 
 ### 3. Specification Service
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│                      Specification Service                        │
+│                                                                   │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
+│  │ Traffic Profile │   │  SLO Target     │   │    Benchmark    │  │
+│  │   Generator     │   │    Mapper       │   │    Selector     │  │
+│  │                 │   │                 │   │                 │  │
+│  │ Use case →      │──▶│ Use case →      │──▶│ Use case →      │  │
+│  │ tokens, QPS     │   │ TTFT, ITL, E2E  │   │ accuracy metrics│  │
+│  │                 │   │ targets         │   │                 │  │
+│  └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│                                                                   │
+│  Structured Intent ───────────────────────▶ Complete Specification│
+└───────────────────────────────────────────────────────────────────┘
+```
 
 **Purpose**: Generate complete deployment specification from user intent
 
@@ -230,6 +258,26 @@ SLO targets, priorities, and constraints before proceeding to recommendations
 ---
 
 ### 4. Recommendation Service
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│                      Recommendation Service                       │
+│                                                                   │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
+│  │  Config Finder  │   │     Scorer      │   │    Analyzer     │  │
+│  │                 │   │                 │   │                 │  │
+│  │ Query benchmarks│──▶│ Score configs   │──▶│ Generate        │  │
+│  │ Filter by SLOs  │   │ on 5 dimensions:│   │ ranked views:   │  │
+│  │ Calculate       │   │ - Accuracy      │   │ - Best Accuracy │  │
+│  │ replicas        │   │ - Cost          │   │ - Lowest Cost   │  │
+│  │                 │   │ - Latency       │   │ - Lowest Latency│  │
+│  │                 │   │ - Complexity    │   │ - Simplest      │  │
+│  │                 │   │ - Balanced      │   │ - Balanced      │  │
+│  └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│                                                                   │
+│  Specification ─────────────────────────────────▶ Ranked Options  │
+└───────────────────────────────────────────────────────────────────┘
+```
 
 **Purpose**: Find optimal model + GPU configurations that meet specification
 requirements
@@ -335,6 +383,23 @@ without real benchmark data
 ---
 
 ### 5. Configuration Service
+
+```text
+┌───────────────────────────────────────────────────────────────────┐
+│                      Configuration Service                        │
+│                                                                   │
+│  ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
+│  │    Template     │   │    Renderer     │   │    Validator    │  │
+│  │    Library      │   │                 │   │                 │  │
+│  │                 │   │                 │   │                 │  │
+│  │ KServe, vLLM,   │──▶│ Jinja2 template │──▶│ Resource limits,│  │
+│  │ HPA, Service-   │   │ processing      │   │ security checks │  │
+│  │ Monitor         │   │                 │   │                 │  │
+│  └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│                                                                   │
+│  Selected Recommendation ───────────────────────▶ YAML Files      │
+└───────────────────────────────────────────────────────────────────┘
+```
 
 **Purpose**: Generate production-ready Kubernetes configuration files
 
@@ -535,6 +600,34 @@ recommendation and deployment workflows.
 
 - **Bring Your Own Data**: Allow users to upload custom performance and/or
   accuracy benchmarks to support new models, hardware, and traffic profiles
+
+---
+
+## Extensibility
+
+NeuralNav is designed to support pluggable components, allowing customization for
+different environments and requirements.
+
+### Pluggable LLM Providers
+
+- Support multiple LLM backends for intent extraction and other LLM tasks
+- Options: Local models (Ollama), cloud APIs (OpenAI, Anthropic), user-provided
+  endpoints
+- Standard interface: OpenAI-compatible API for interoperability
+
+### Configurable Data Sources
+
+- **Model Catalog**: User-provided or curated model lists
+- **Benchmarks**: Custom performance and accuracy data (see "Bring Your Own
+  Data" above)
+- **SLO Templates**: Custom use case definitions with organization-specific
+  defaults
+
+### Hardware and Cost Data
+
+- GPU specifications, pricing, power consumption, and cooling requirements
+- User-provided data for proprietary or on-premises hardware
+- Integration with external data sources for cloud pricing updates
 
 ---
 
