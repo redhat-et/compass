@@ -1,5 +1,11 @@
 # NeuralNav Architecture v2
 
+> **Note**: This document is a work in progress. The original
+> [ARCHITECTURE.md](ARCHITECTURE.md) captured our initial design thinking.
+> This revision reflects the production architecture vision that emerged from
+> completing the POC. Once finalized, this document will replace
+> ARCHITECTURE.md.
+
 ## Overview
 
 ### Vision
