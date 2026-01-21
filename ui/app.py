@@ -4877,7 +4877,7 @@ def render_extraction_result(extraction: dict, priority: str):
     priorities_display = ", ".join(priority_badges) if priority_badges else None
 
     # Build priorities item HTML only if there are non-default priorities
-    priorities_item = ""
+    priorities_item = "<!-- no custom priorities -->"
     if priorities_display:
         priorities_item = f'''<div class="extraction-item"><div><div class="extraction-label">Priorities</div><div class="extraction-value">{priorities_display}</div></div></div>'''
 
@@ -4934,7 +4934,7 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
     priorities_display = ", ".join(priority_badges) if priority_badges else None
 
     # Build priorities item HTML only if there are non-default priorities
-    priorities_item = ""
+    priorities_item = "<!-- no custom priorities -->"
     if priorities_display:
         priorities_item = f'''<div class="extraction-item"><div><div class="extraction-label">Priorities</div><div class="extraction-value">{priorities_display}</div></div></div>'''
 
