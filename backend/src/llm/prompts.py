@@ -7,7 +7,7 @@ Expected JSON schema:
   "experience_class": "instant|conversational|interactive|deferred|batch",
   "user_count": <integer>,
   "domain_specialization": ["general"|"code"|"multilingual"|"enterprise"],
-  "preferred_gpu_type": "<GPU type if mentioned (H100, H200, A100, L4), or 'Any GPU' if not specified>",
+  "preferred_gpu_types": ["<list of GPU types if mentioned, empty list if not specified>"],
   "accuracy_priority": "low|medium|high",
   "cost_priority": "low|medium|high",
   "latency_priority": "low|medium|high",
@@ -27,11 +27,11 @@ Use case descriptions:
 - research_legal_analysis: Research/legal document analysis (very long prompts, detailed analysis)
 
 Experience class guidance:
-- instant: Extremely low latency required (<200ms TTFT) - code completion, autocomplete
-- conversational: Real-time user interaction (chatbots, interactive tools) - low latency needed
-- interactive: User waiting but can tolerate slight delay (RAG Q&A, content generation) - balanced
-- deferred: User can wait for quality (long summarization, detailed analysis) - quality over speed
-- batch: Background/async processing (research, legal analysis) - optimize for quality and cost
+- instant: Sub-200ms response time - code completion, autocomplete
+- conversational: Real-time user interaction - chatbots, interactive tools
+- interactive: User waiting but tolerates slight delay - RAG Q&A, content generation
+- deferred: Quality over speed - long summarization, detailed analysis
+- batch: Background/async processing - research, legal analysis
 """
 
 
@@ -68,7 +68,7 @@ Your task is to extract structured information about their deployment requiremen
 5. **Throughput priority**: Is high request volume more important than low latency?
 6. **Budget constraint**: How price-sensitive are they?
 7. **Domain specialization**: Any specific domains mentioned (code, multilingual, enterprise, etc.)
-8. **Preferred GPU**: If user mentions a specific GPU type (H100, H200, A100, A100-80, L4, B200), extract it
+8. **Preferred GPU(s)**: If user mentions specific GPU types (H100, H200, A100, A100-80, A100-40, L4, B200), extract them as a list
 
 Be intelligent about inference:
 - "thousands of users" → estimate specific number
@@ -76,23 +76,32 @@ Be intelligent about inference:
 - "RAG" or "retrieval" → use_case: document_analysis_rag
 - "chatbot" or "customer service" or "conversational" → use_case: chatbot_conversational
 - "summarize document" or "summarization" → use_case: summarization_short or long_document_summarization
-- "running on h200" or "h200" or "H200" → preferred_gpu_type: "H200"
-- "h100" or "H100" → preferred_gpu_type: "H100"
-- "a100" or "A100" → preferred_gpu_type: "A100"
-- "l4" or "L4" → preferred_gpu_type: "L4"
-- No GPU mentioned → preferred_gpu_type: "Any GPU"
+
+GPU extraction examples (canonical names: L4, A100-40, A100-80, H100, H200, B200):
+- "running on h200" or "h200" or "H200" → preferred_gpu_types: ["H200"]
+- "h100 or h200" → preferred_gpu_types: ["H100", "H200"]
+- "a100" or "A100" (unspecified variant) → preferred_gpu_types: ["A100-80", "A100-40"]
+- "a100-80" or "A100-80GB" → preferred_gpu_types: ["A100-80"]
+- "l4" or "L4" → preferred_gpu_types: ["L4"]
+- No GPU mentioned → preferred_gpu_types: []
 
 Priority extraction (for scoring weights - use "medium" as baseline, adjust based on context):
 - accuracy_priority: "high" if user mentions accuracy matters, quality is important, accuracy is critical, best model, or top quality. "low" if user says good enough or accuracy less important.
-- cost_priority: "high" if user mentions cost-effective, cost-sensitive, budget constrained, minimize cost, cost is important, or budget is tight. "low" if user says cost doesn't matter or budget is unlimited. Default to "medium" if not mentioned.
-- latency_priority: "high" if the use case requires fast responses (e.g., real-time, interactive, instant). "low" if async/batch is acceptable.
+- cost_priority: "high" if user EXPLICITLY says cost-effective, cost-sensitive, budget constrained, minimize cost, cost is important, or budget is tight. "low" ONLY if user EXPLICITLY says "cost doesn't matter" or "budget is unlimited" or "money is no object". Default to "medium" if not mentioned. DO NOT infer from GPU choice.
+- latency_priority: "high" if user mentions low latency needed, fast response critical, speed is important, real-time performance required, or instant responses needed. "low" if user says latency less important or async/batch is acceptable. Default to "medium" if not mentioned.
 - complexity_priority: "high" if user wants simple deployment, easy setup. "low" if they're okay with complex setups.
-IMPORTANT: Explicit user statements override inferences (e.g., "cost-effective preferred" → cost_priority: high)
+IMPORTANT - Priority Extraction Rules (FOLLOW STRICTLY):
+- Only extract priorities from EXPLICIT user statements about priorities, not from hardware choices or use case type
+- Hardware preference (H100, L4, etc.) does NOT imply cost_priority - user may have GPUs available or budget allocated
+- Use case type does NOT imply latency_priority - default to "medium" unless user explicitly mentions speed/latency concerns
+- When in doubt, use "medium" - only deviate when user EXPLICITLY states a priority
+Examples:
+- "chatbot with H100" → cost_priority: "medium" (H100 doesn't mean cost doesn't matter)
+- "low latency is important" → latency_priority: "high" (explicit statement)
+- "cost-effective solution" → cost_priority: "high" (explicit statement)
+- "chatbot for 300 users, low latency important, H100 gpus" → latency_priority: "high", cost_priority: "medium" (only latency explicitly mentioned)
 
 {INTENT_EXTRACTION_SCHEMA}
 """
     return prompt
 
-
-# NOTE: Experimental prompts for future conversational features have been
-# moved to prompts_experimental.py to keep this file focused on production code.
