@@ -11,7 +11,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
-from ..context_intent.schema import DeploymentRecommendation
+from ..shared.schemas import DeploymentRecommendation
 from ..knowledge_base.model_catalog import ModelCatalog
 
 logger = logging.getLogger(__name__)

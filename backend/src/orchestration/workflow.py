@@ -3,7 +3,7 @@
 import logging
 
 from ..context_intent.extractor import IntentExtractor
-from ..context_intent.schema import (
+from ..shared.schemas import (
     ConversationMessage,
     DeploymentRecommendation,
     RankedRecommendationsResponse,
@@ -52,7 +52,7 @@ class RecommendationWorkflow:
         Returns:
             Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets)
         """
-        from ..context_intent.schema import DeploymentSpecification
+        from ..shared.schemas import DeploymentSpecification
 
         logger.info("Step 1: Extracting deployment intent")
         intent = self.intent_extractor.extract_intent(user_message, conversation_history)
@@ -135,7 +135,7 @@ class RecommendationWorkflow:
         Raises:
             ValueError: If recommendation cannot be generated
         """
-        from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
+        from ..shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
 
         logger.info("Generating recommendation from specifications")
 
@@ -339,7 +339,7 @@ class RecommendationWorkflow:
         Returns:
             RankedRecommendationsResponse with 5 ranked lists
         """
-        from ..context_intent.schema import (
+        from ..shared.schemas import (
             DeploymentIntent,
             DeploymentSpecification,
             SLOTargets,

@@ -21,7 +21,7 @@ import logging
 import math
 
 from ..context_intent.gpu_normalizer import normalize_gpu_types
-from ..context_intent.schema import (
+from ..shared.schemas import (
     ConfigurationScores,
     DeploymentIntent,
     DeploymentRecommendation,

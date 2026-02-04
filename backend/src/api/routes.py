@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from ..context_intent.extractor import IntentExtractor
-from ..context_intent.schema import (
+from ..shared.schemas import (
     ConversationMessage,
     DeploymentRecommendation,
     RankedRecommendationsResponse,
@@ -567,7 +567,7 @@ async def simple_recommend(request: SimpleRecommendationRequest):
             logger.warning(f"No viable configurations found: {e}")
 
             # Create a partial recommendation with specification but no config
-            from ..context_intent.schema import DeploymentRecommendation
+            from ..shared.schemas import DeploymentRecommendation
 
             partial_recommendation = DeploymentRecommendation(
                 intent=specification.intent,

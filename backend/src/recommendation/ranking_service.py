@@ -18,7 +18,7 @@ TASK-SPECIFIC BONUSES (Balanced card only):
 
 import logging
 
-from ..context_intent.schema import DeploymentRecommendation
+from ..shared.schemas import DeploymentRecommendation
 
 logger = logging.getLogger(__name__)
 

@@ -1,25 +1,11 @@
-"""Data schemas for deployment intent and specifications."""
+"""Recommendation-related schemas for GPU configs, scores, and ranked responses."""
 
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-
-class TrafficProfile(BaseModel):
-    """GuideLLM traffic profile for the deployment."""
-
-    prompt_tokens: int = Field(..., description="Target prompt length in tokens (GuideLLM config)")
-    output_tokens: int = Field(..., description="Target output length in tokens (GuideLLM config)")
-    expected_qps: float | None = Field(None, description="Expected queries per second")
-
-
-class SLOTargets(BaseModel):
-    """Service Level Objective targets for the deployment."""
-
-    ttft_p95_target_ms: int = Field(..., description="Time to First Token target (ms)")
-    itl_p95_target_ms: int = Field(..., description="Inter-Token Latency target (ms/token)")
-    e2e_p95_target_ms: int = Field(..., description="End-to-end latency target (ms)")
-    percentile: str = Field(default="p95", description="Percentile for SLO comparison (mean, p90, p95, p99)")
+from .intent import DeploymentIntent
+from .specification import DeploymentSpecification, SLOTargets, TrafficProfile
 
 
 class GPUConfig(BaseModel):
@@ -41,58 +27,6 @@ class ConfigurationScores(BaseModel):
     balanced_score: float = Field(..., description="Weighted composite score (0-100)")
     slo_status: Literal["compliant", "near_miss", "exceeds"] = Field(
         ..., description="SLO compliance status"
-    )
-
-
-class DeploymentIntent(BaseModel):
-    """Extracted deployment requirements from user conversation."""
-
-    use_case: Literal[
-        "chatbot_conversational",
-        "code_completion",
-        "code_generation_detailed",
-        "translation",
-        "content_generation",
-        "summarization_short",
-        "document_analysis_rag",
-        "long_document_summarization",
-        "research_legal_analysis",
-    ] = Field(..., description="Primary use case type")
-
-    experience_class: Literal["instant", "conversational", "interactive", "deferred", "batch"] = Field(
-        ..., description="User experience class defining latency expectations"
-    )
-
-    user_count: int = Field(..., description="Number of users or scale")
-
-    domain_specialization: list[str] = Field(
-        default_factory=lambda: ["general"],
-        description="Domain requirements (general, code, multilingual, enterprise)",
-    )
-
-    # Hardware preference extracted from natural language
-    preferred_gpu_types: list[str] = Field(
-        default_factory=list,
-        description="List of user's preferred GPU types (empty = any GPU). "
-                    "Canonical names: L4, A100-40, A100-80, H100, H200, B200"
-    )
-
-    # Priority hints extracted from natural language (used for weight calculation)
-    accuracy_priority: Literal["low", "medium", "high"] = Field(
-        default="medium", description="Accuracy/quality importance"
-    )
-    cost_priority: Literal["low", "medium", "high"] = Field(
-        default="medium", description="Cost sensitivity (high = very cost sensitive)"
-    )
-    latency_priority: Literal["low", "medium", "high"] = Field(
-        default="medium", description="Latency importance"
-    )
-    complexity_priority: Literal["low", "medium", "high"] = Field(
-        default="medium", description="Preference for simpler deployments"
-    )
-
-    additional_context: str | None = Field(
-        None, description="Any other relevant details from conversation"
     )
 
 
@@ -118,7 +52,7 @@ class DeploymentRecommendation(BaseModel):
     predicted_itl_p95_ms: int | None = None
     predicted_e2e_p95_ms: int | None = None
     predicted_throughput_qps: float | None = None
-    
+
     # All percentile metrics from benchmark (for UI to display based on user selection)
     benchmark_metrics: Optional[dict] = Field(default=None, description="All percentile metrics from benchmark")
 
@@ -162,30 +96,6 @@ class DeploymentRecommendation(BaseModel):
             "scores": self.scores.model_dump() if self.scores else None,
             "benchmark_metrics": self.benchmark_metrics,
         }
-
-
-class DeploymentSpecification(BaseModel):
-    """
-    Deployment specification generated from user intent.
-
-    This is always generated successfully, even if no viable configurations exist.
-    Contains the extracted intent, traffic profile, and SLO targets.
-    """
-
-    # User intent
-    intent: DeploymentIntent
-
-    # Generated specifications
-    traffic_profile: TrafficProfile
-    slo_targets: SLOTargets
-
-
-class ConversationMessage(BaseModel):
-    """Single message in the conversation history."""
-
-    role: Literal["user", "assistant", "system"]
-    content: str
-    timestamp: str | None = None
 
 
 class RankedRecommendationsResponse(BaseModel):
