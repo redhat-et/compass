@@ -29,7 +29,7 @@ except ImportError:
     USE_CASE_QUALITY_AVAILABLE = False
 
 
-class SolutionScorer:
+class Scorer:
     """Score deployment configurations on 4 criteria (0-100 scale)."""
 
     # Accuracy tiers based on model parameter count (in billions)
@@ -72,7 +72,7 @@ class SolutionScorer:
     }
 
     def __init__(self):
-        """Initialize the SolutionScorer with SLO range data."""
+        """Initialize the Scorer with SLO range data."""
         self.slo_ranges = self._load_slo_ranges()
 
     def _load_slo_ranges(self) -> dict:
@@ -85,7 +85,7 @@ class SolutionScorer:
         Returns:
             Dict mapping use_case to SLO target ranges
         """
-        # Path is: backend/src/recommendation/solution_scorer.py
+        # Path is: backend/src/recommendation/scorer.py
         # Need to go up 4 levels to get to project root, then into data/
         config_path = (
             Path(__file__).parent.parent.parent.parent
@@ -291,7 +291,7 @@ class SolutionScorer:
 
         worst_ratio = max(ratios)
 
-        # Determine SLO status using the tolerance passed from capacity_planner
+        # Determine SLO status using the tolerance passed from config_finder
         if worst_ratio <= 1.0:
             slo_status = "compliant"
         elif worst_ratio <= (1.0 + near_miss_tolerance):

@@ -77,7 +77,7 @@ class DeploymentRecommendation(BaseModel):
         Convert recommendation to alternative option format.
 
         This is used when building the alternative_options list to avoid
-        code duplication across capacity_planner.py and workflow.py.
+        code duplication across config_finder.py and workflow.py.
 
         Returns:
             Dictionary with all fields needed for alternative comparison

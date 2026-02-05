@@ -9,8 +9,8 @@ from ..shared.schemas import (
     RankedRecommendationsResponse,
 )
 from ..llm.ollama_client import OllamaClient
-from ..recommendation.capacity_planner import CapacityPlanner
-from ..recommendation.ranking_service import RankingService
+from ..recommendation.config_finder import ConfigFinder
+from ..recommendation.analyzer import Analyzer
 from ..specification import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class RecommendationWorkflow:
         llm_client: OllamaClient | None = None,
         intent_extractor: IntentExtractor | None = None,
         traffic_generator: TrafficProfileGenerator | None = None,
-        capacity_planner: CapacityPlanner | None = None,
+        config_finder: ConfigFinder | None = None,
     ):
         """
         Initialize workflow orchestrator.
@@ -33,12 +33,12 @@ class RecommendationWorkflow:
             llm_client: Ollama client (creates default if not provided)
             intent_extractor: Intent extractor
             traffic_generator: Traffic profile generator
-            capacity_planner: Capacity planner
+            config_finder: Configuration finder
         """
         self.llm_client = llm_client or OllamaClient()
         self.intent_extractor = intent_extractor or IntentExtractor(self.llm_client)
         self.traffic_generator = traffic_generator or TrafficProfileGenerator()
-        self.capacity_planner = capacity_planner or CapacityPlanner()
+        self.config_finder = config_finder or ConfigFinder()
 
     def generate_specification(
         self, user_message: str, conversation_history: list[ConversationMessage] | None = None
@@ -177,7 +177,7 @@ class RecommendationWorkflow:
         # Generate all viable configurations with full scoring
         # No model pre-filtering - all benchmark configs meeting SLO are scored
         logger.info("Generating all viable configurations")
-        all_configs = self.capacity_planner.plan_all_capacities(
+        all_configs = self.config_finder.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
@@ -262,7 +262,7 @@ class RecommendationWorkflow:
         # Get ALL configurations with scores
         # No model pre-filtering - all benchmark configs meeting SLO are scored
         logger.info("Planning capacity for all model/GPU combinations")
-        all_configs = self.capacity_planner.plan_all_capacities(
+        all_configs = self.config_finder.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
@@ -282,8 +282,8 @@ class RecommendationWorkflow:
 
         # Generate ranked lists (top 10 solutions per criterion)
         # Pass use_case for task-specific bonuses on Balanced card
-        ranking_service = RankingService()
-        ranked_lists = ranking_service.generate_ranked_lists(
+        analyzer = Analyzer()
+        ranked_lists = analyzer.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
@@ -293,7 +293,7 @@ class RecommendationWorkflow:
         )
 
         # Count configs after filtering
-        configs_after_filters = ranking_service.get_unique_configs_count(ranked_lists)
+        configs_after_filters = analyzer.get_unique_configs_count(ranked_lists)
 
         logger.info(
             f"Generated ranked recommendations: {len(all_configs)} total configs, "
@@ -391,7 +391,7 @@ class RecommendationWorkflow:
         # Get ALL configurations with scores
         logger.info("Planning capacity for all model/GPU combinations")
         logger.info(f"Using weights for balanced scoring: {weights}")
-        all_configs = self.capacity_planner.plan_all_capacities(
+        all_configs = self.config_finder.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
@@ -412,8 +412,8 @@ class RecommendationWorkflow:
 
         # Generate ranked lists (top 10 solutions per criterion)
         # Pass use_case for task-specific bonuses on Balanced card
-        ranking_service = RankingService()
-        ranked_lists = ranking_service.generate_ranked_lists(
+        analyzer = Analyzer()
+        ranked_lists = analyzer.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
@@ -423,7 +423,7 @@ class RecommendationWorkflow:
         )
 
         # Count configs after filtering
-        configs_after_filters = ranking_service.get_unique_configs_count(ranked_lists)
+        configs_after_filters = analyzer.get_unique_configs_count(ranked_lists)
 
         logger.info(
             f"Generated ranked recommendations from spec: {len(all_configs)} total configs, "

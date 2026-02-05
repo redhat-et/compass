@@ -12,8 +12,8 @@ from ..shared.schemas import (
     SLOTargets,
     TrafficProfile,
 )
-from .capacity_planner import CapacityPlanner
-from .ranking_service import RankingService
+from .config_finder import ConfigFinder
+from .analyzer import Analyzer
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +23,8 @@ class RecommendationService:
 
     def __init__(self):
         """Initialize the Recommendation Service."""
-        self.capacity_planner = CapacityPlanner()
-        self.ranking_service = RankingService()
+        self.config_finder = ConfigFinder()
+        self.analyzer = Analyzer()
 
     def generate_recommendation(
         self,
@@ -47,7 +47,7 @@ class RecommendationService:
             ValueError: If no viable configuration found
         """
         # Get all viable configurations
-        all_configs = self.capacity_planner.plan_all_capacities(
+        all_configs = self.config_finder.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
@@ -111,7 +111,7 @@ class RecommendationService:
         from ..shared.schemas import DeploymentSpecification
 
         # Get all viable configurations
-        all_configs = self.capacity_planner.plan_all_capacities(
+        all_configs = self.config_finder.plan_all_capacities(
             traffic_profile=traffic_profile,
             slo_targets=slo_targets,
             intent=intent,
@@ -137,7 +137,7 @@ class RecommendationService:
             )
 
         # Generate ranked lists
-        ranked_lists = self.ranking_service.generate_ranked_lists(
+        ranked_lists = self.analyzer.generate_ranked_lists(
             configurations=all_configs,
             min_accuracy=min_accuracy,
             max_cost=max_cost,
@@ -146,7 +146,7 @@ class RecommendationService:
             use_case=intent.use_case,
         )
 
-        configs_after_filters = self.ranking_service.get_unique_configs_count(
+        configs_after_filters = self.analyzer.get_unique_configs_count(
             ranked_lists
         )
 

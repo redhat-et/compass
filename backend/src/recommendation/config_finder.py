@@ -31,13 +31,13 @@ from ..shared.schemas import (
 )
 from ..knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
-from .ranking_service import get_task_bonus
-from .solution_scorer import SolutionScorer
+from .analyzer import get_task_bonus
+from .scorer import Scorer
 
 logger = logging.getLogger(__name__)
 
 
-class CapacityPlanner:
+class ConfigFinder:
     """Plan GPU capacity to meet SLO targets and traffic requirements."""
 
     def __init__(
@@ -150,7 +150,7 @@ class CapacityPlanner:
         Returns:
             List of DeploymentRecommendations with scores attached
         """
-        scorer = SolutionScorer()
+        scorer = Scorer()
         all_configs: list[DeploymentRecommendation] = []
 
         # Determine SLO thresholds for query
