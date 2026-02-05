@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Try to import use-case quality scorer
 try:
-    from .usecase_quality_scorer import score_model_quality
+    from .quality import score_model_quality
     USE_CASE_QUALITY_AVAILABLE = True
 except ImportError:
     USE_CASE_QUALITY_AVAILABLE = False

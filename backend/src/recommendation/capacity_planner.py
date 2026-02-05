@@ -250,7 +250,7 @@ class CapacityPlanner:
             # Calculate accuracy score - USE RAW AA BENCHMARK SCORE
             # This is the actual model accuracy from Artificial Analysis benchmarks
             # NOT a composite score with latency/budget bonuses
-            from .usecase_quality_scorer import score_model_quality
+            from .quality import score_model_quality
             
             # Try to get raw AA score using the benchmark model name
             model_name_for_scoring = model.name if model else bench.model_hf_repo
