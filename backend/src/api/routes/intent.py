@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...context_intent.extractor import IntentExtractor
+from ...intent_extraction import IntentExtractor
 from ..dependencies import get_workflow
 
 logger = logging.getLogger(__name__)

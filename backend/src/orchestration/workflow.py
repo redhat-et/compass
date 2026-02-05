@@ -2,7 +2,7 @@
 
 import logging
 
-from ..context_intent.extractor import IntentExtractor
+from ..intent_extraction import IntentExtractor
 from ..shared.schemas import (
     ConversationMessage,
     DeploymentRecommendation,

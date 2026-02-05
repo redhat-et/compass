@@ -20,7 +20,7 @@ TODO (Phase 2+): Parametric Performance Models
 import logging
 import math
 
-from ..context_intent.gpu_normalizer import normalize_gpu_types
+from ..shared.utils import normalize_gpu_types
 from ..shared.schemas import (
     ConfigurationScores,
     DeploymentIntent,

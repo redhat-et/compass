@@ -36,7 +36,7 @@ cd backend
 source venv/bin/activate
 
 python -c "
-from src.context_intent.extractor import IntentExtractor
+from src.intent_extraction import IntentExtractor
 
 extractor = IntentExtractor()
 intent = extractor.extract_intent(
@@ -55,7 +55,7 @@ print(f'  Cost Priority: {intent.cost_priority}')
 
 ```bash
 python -c "
-from src.context_intent.schema import DeploymentIntent
+from src.shared.schemas import DeploymentIntent
 from src.recommendation.traffic_profile import TrafficProfileGenerator
 
 intent = DeploymentIntent(
@@ -85,7 +85,7 @@ print(f'  E2E p90: {slo.e2e_p90_target_ms}ms')
 
 ```bash
 python -c "
-from src.context_intent.schema import DeploymentIntent
+from src.shared.schemas import DeploymentIntent
 from src.recommendation.model_evaluator import ModelEvaluator
 
 intent = DeploymentIntent(
