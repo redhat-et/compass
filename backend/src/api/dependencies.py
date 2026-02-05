@@ -7,9 +7,8 @@ for the API routes. All shared state is initialized here.
 import logging
 import os
 
-from ..deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
-from ..deployment.generator import DeploymentGenerator
-from ..deployment.validator import YAMLValidator
+from ..cluster import KubernetesClusterManager, KubernetesDeploymentError
+from ..configuration import DeploymentGenerator, YAMLValidator
 from ..knowledge_base.model_catalog import ModelCatalog
 from ..knowledge_base.slo_templates import SLOTemplateRepository
 from ..orchestration.workflow import RecommendationWorkflow

@@ -7,7 +7,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ...deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
+from ...cluster import KubernetesClusterManager, KubernetesDeploymentError
 from ...shared.schemas import DeploymentRecommendation
 from ..dependencies import (
     get_cluster_manager,
