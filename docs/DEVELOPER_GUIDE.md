@@ -482,7 +482,7 @@ cd backend
 source venv/bin/activate
 python -c "
 from src.llm.ollama_client import OllamaClient
-from src.context_intent.extractor import IntentExtractor
+from src.intent_extraction.extractor import IntentExtractor
 
 client = OllamaClient()
 extractor = IntentExtractor(client)
@@ -565,7 +565,7 @@ curl http://localhost:8080/health
 }
 ```
 
-2. Update `backend/src/context_intent/extractor.py` USE_CASE_MAP
+2. Update `backend/src/intent_extraction/extractor.py` USE_CASE_MAP
 3. Restart backend
 
 ### Modifying the UI
@@ -579,14 +579,14 @@ UI code is in `ui/app.py`. Changes auto-reload in the browser.
 
 ### Modifying the Recommendation Algorithm
 
-**Model scoring:** `backend/src/recommendation/model_evaluator.py`
-- `score_model()` - Adjust scoring weights
+**Model scoring:** `backend/src/recommendation/scorer.py`
+- `Scorer` class - Adjust scoring weights
 
-**Capacity planning:** `backend/src/recommendation/capacity_planner.py`
+**Capacity planning:** `backend/src/recommendation/config_finder.py`
 - `plan_capacity()` - GPU sizing logic
 - `_calculate_required_replicas()` - Scaling calculations
 
-**Traffic profiling:** `backend/src/recommendation/traffic_profile.py`
+**Traffic profiling:** `backend/src/specification/traffic_profile.py`
 - `generate_profile()` - Traffic estimation
 - `generate_slo_targets()` - SLO target generation
 

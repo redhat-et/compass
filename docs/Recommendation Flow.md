@@ -41,7 +41,7 @@ Return best recommendation or all ranked lists
 
 ### Step 1: Intent Extraction
 
-**File**: [backend/src/context_intent/extractor.py](../backend/src/context_intent/extractor.py)
+**File**: [backend/src/intent_extraction/extractor.py](../backend/src/intent_extraction/extractor.py)
 
 The `IntentExtractor` uses an LLM (Ollama qwen2.5:7b) to parse the user's natural language request into structured deployment intent.
 
@@ -65,7 +65,7 @@ intent = intent_extractor.infer_missing_fields(intent)
 
 ### Step 2: Traffic Profile Generation
 
-**File**: [backend/src/context_intent/traffic_profile.py](../backend/src/context_intent/traffic_profile.py)
+**File**: [backend/src/specification/traffic_profile.py](../backend/src/specification/traffic_profile.py)
 
 The `TrafficProfileGenerator` maps the use case to a GuideLLM traffic profile and calculates SLO targets.
 
@@ -122,9 +122,9 @@ The `BenchmarkRepository` queries PostgreSQL for all (model, GPU, tensor_paralle
 
 ### Step 4: Capacity Planning and Scoring
 
-**File**: [backend/src/recommendation/capacity_planner.py](../backend/src/recommendation/capacity_planner.py)
+**File**: [backend/src/recommendation/config_finder.py](../backend/src/recommendation/config_finder.py)
 
-The `CapacityPlanner.plan_all_capacities()` method processes each benchmark configuration and calculates four scores.
+The `ConfigFinder.plan_all_capacities()` method processes each benchmark configuration and calculates four scores.
 
 **Input**:
 - Traffic profile and SLO targets
@@ -157,9 +157,8 @@ all_configs = capacity_planner.plan_all_capacities(
 ### Step 5: Multi-Criteria Scoring
 
 **Files**:
-- [backend/src/recommendation/solution_scorer.py](../backend/src/recommendation/solution_scorer.py) - Calculates 4 scores
-- [backend/src/recommendation/model_evaluator.py](../backend/src/recommendation/model_evaluator.py) - Accuracy scoring
-- [backend/src/recommendation/usecase_quality_scorer.py](../backend/src/recommendation/usecase_quality_scorer.py) - Benchmark-based quality
+- [backend/src/recommendation/scorer.py](../backend/src/recommendation/scorer.py) - Calculates 4 scores
+- [backend/src/recommendation/quality/usecase_scorer.py](../backend/src/recommendation/quality/usecase_scorer.py) - Benchmark-based quality scoring
 
 #### 5.1 Accuracy Score (0-100)
 
@@ -246,9 +245,9 @@ Custom weights can be provided via API (0-10 scale, normalized to percentages).
 
 ### Step 6: Ranking and Filtering
 
-**File**: [backend/src/recommendation/ranking_service.py](../backend/src/recommendation/ranking_service.py)
+**File**: [backend/src/recommendation/analyzer.py](../backend/src/recommendation/analyzer.py)
 
-The `RankingService` generates 5 ranked lists from scored configurations.
+The `Analyzer` generates 5 ranked lists from scored configurations.
 
 **Input**: List of scored DeploymentRecommendations, optional filters
 
@@ -315,14 +314,13 @@ The `RecommendationWorkflow` orchestrates all steps and returns the appropriate 
 | Class | File | Responsibility |
 |-------|------|----------------|
 | `RecommendationWorkflow` | orchestration/workflow.py | Orchestrate end-to-end flow |
-| `IntentExtractor` | context_intent/extractor.py | Parse user message to intent |
-| `TrafficProfileGenerator` | context_intent/traffic_profile.py | Generate traffic profile and SLO targets |
+| `IntentExtractor` | intent_extraction/extractor.py | Parse user message to intent |
+| `TrafficProfileGenerator` | specification/traffic_profile.py | Generate traffic profile and SLO targets |
 | `BenchmarkRepository` | knowledge_base/benchmarks.py | Query PostgreSQL for benchmarks |
-| `CapacityPlanner` | recommendation/capacity_planner.py | Find viable configs, calculate scores |
-| `SolutionScorer` | recommendation/solution_scorer.py | Calculate 4 scores |
-| `ModelEvaluator` | recommendation/model_evaluator.py | Accuracy scoring (use-case fit) |
-| `UseCaseQualityScorer` | recommendation/usecase_quality_scorer.py | Benchmark-based quality scores |
-| `RankingService` | recommendation/ranking_service.py | Filter and sort into 5 ranked lists |
+| `ConfigFinder` | recommendation/config_finder.py | Find viable configs, calculate scores |
+| `Scorer` | recommendation/scorer.py | Calculate 4 scores |
+| `UseCaseQualityScorer` | recommendation/quality/usecase_scorer.py | Benchmark-based quality scores |
+| `Analyzer` | recommendation/analyzer.py | Filter and sort into 5 ranked lists |
 | `ModelCatalog` | knowledge_base/model_catalog.py | Model metadata and GPU pricing |
 
 ---

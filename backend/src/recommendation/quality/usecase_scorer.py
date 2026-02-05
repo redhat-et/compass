@@ -4,7 +4,7 @@ This module provides quality/accuracy scores for models based on their performan
 on task-specific benchmarks (MMLU-Pro, LiveCodeBench, IFBench, etc.).
 
 Integration with NeuralNav:
-- This REPLACES the size-based accuracy heuristic in model_evaluator.score_model()
+- Provides use-case specific quality scores (replaces legacy size-based heuristics)
 - Andre's latency/throughput benchmarks from PostgreSQL are KEPT as-is
 - The final recommendation combines: Our quality + Andre's latency/cost/complexity
 """

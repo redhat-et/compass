@@ -2854,7 +2854,7 @@ def render_how_it_works_content():
 def render_top5_table(recommendations: list, priority: str):
     """Render beautiful Top 5 recommendation leaderboard table with filtering.
     
-    NOTE: The backend now implements the ACCURACY-FIRST strategy in ranking_service.py.
+    NOTE: The backend now implements the ACCURACY-FIRST strategy in analyzer.py.
     The UI uses the backend's pre-ranked lists directly from st.session_state.ranked_response.
     """
     
@@ -3005,7 +3005,7 @@ def render_top5_table(recommendations: list, priority: str):
     
     # ==========================================================================
     # USE BACKEND'S PRE-RANKED LISTS (ACCURACY-FIRST strategy applied in backend)
-    # The backend's ranking_service.py implements:
+    # The backend's analyzer.py implements:
     # 1. Get top 5 unique models by raw accuracy (quality baseline)
     # 2. Filter all configs to only those high-quality models
     # 3. Best Latency/Cost/etc. are ranked WITHIN that quality tier

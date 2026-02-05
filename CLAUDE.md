@@ -34,9 +34,9 @@ This repository contains the architecture design for **NeuralNav**, an open-sour
     - `traffic_profile.py`: Traffic profile and SLO target generation
     - `service.py`: SpecificationService facade
   - **recommendation/**: Recommendation Service
-    - `capacity_planner.py`: GPU capacity planning with SLO filtering
-    - `solution_scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
-    - `ranking_service.py`: 5 ranked list generation
+    - `config_finder.py`: GPU capacity planning with SLO filtering
+    - `scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
+    - `analyzer.py`: 5 ranked list generation
     - `service.py`: RecommendationService facade
     - **quality/**: Use-case quality scoring (Artificial Analysis benchmarks)
   - **configuration/**: Configuration Service
@@ -165,11 +165,11 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 - `balanced`: Sorted by weighted composite score
 
 **Key Files**:
-- `backend/src/recommendation/solution_scorer.py` - Calculates 4 scores
-- `backend/src/recommendation/model_evaluator.py` - Legacy accuracy scoring (use-case fit)
-- `backend/src/recommendation/usecase_quality_scorer.py` - Artificial Analysis benchmark scoring
-- `backend/src/recommendation/ranking_service.py` - Generates 5 ranked lists
-- `backend/src/recommendation/capacity_planner.py` - Orchestrates scoring during capacity planning
+
+- `backend/src/recommendation/scorer.py` - Calculates 4 scores
+- `backend/src/recommendation/quality/usecase_scorer.py` - Artificial Analysis benchmark scoring
+- `backend/src/recommendation/analyzer.py` - Generates 5 ranked lists
+- `backend/src/recommendation/config_finder.py` - Orchestrates scoring during capacity planning
 
 ## Working with This Repository
 
