@@ -23,17 +23,34 @@ This repository contains the architecture design for **NeuralNav**, an open-sour
   - Entity-relationship diagrams for data models
 
 - **backend/**: Python backend implementation
-  - **api/**: FastAPI REST endpoints with CORS support
-  - **context_intent/**: Intent extraction, traffic profiles, Pydantic schemas
-  - **recommendation/**: Multi-criteria scoring and ranking
-    - `solution_scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
-    - `model_evaluator.py`: Use-case fit scoring
-    - `usecase_quality_scorer.py`: Artificial Analysis benchmark integration
-    - `ranking_service.py`: 5 ranked list generation
+  - **api/**: FastAPI REST API layer
+    - `app.py`: FastAPI app factory
+    - `dependencies.py`: Singleton dependency injection
+    - **routes/**: Modular endpoint handlers (health, intent, specification, recommendation, configuration, reference_data)
+  - **intent_extraction/**: Intent Extraction Service
+    - `extractor.py`: LLM-powered intent extraction from natural language
+    - `service.py`: IntentExtractionService facade
+  - **specification/**: Specification Service
+    - `traffic_profile.py`: Traffic profile and SLO target generation
+    - `service.py`: SpecificationService facade
+  - **recommendation/**: Recommendation Service
     - `capacity_planner.py`: GPU capacity planning with SLO filtering
-  - **knowledge_base/**: Data access (benchmark database, JSON catalogs)
+    - `solution_scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
+    - `ranking_service.py`: 5 ranked list generation
+    - `service.py`: RecommendationService facade
+    - **quality/**: Use-case quality scoring (Artificial Analysis benchmarks)
+  - **configuration/**: Configuration Service
+    - `generator.py`: Jinja2 YAML generation for KServe/vLLM
+    - `validator.py`: YAML validation
+    - `service.py`: ConfigurationService facade
+    - **templates/**: Jinja2 deployment templates
+  - **cluster/**: Kubernetes cluster management
+    - `manager.py`: K8s deployment lifecycle management
+  - **shared/**: Shared modules
+    - **schemas/**: Pydantic data models (intent, specification, recommendation)
+    - **utils/**: Shared utilities (GPU normalization)
+  - **knowledge_base/**: Data access layer (benchmark database, JSON catalogs)
   - **orchestration/**: Workflow coordination
-  - **deployment/**: Jinja2 templates for KServe/vLLM YAML generation
   - **llm/**: Ollama client for intent extraction
 
 - **ui/**: Streamlit UI
