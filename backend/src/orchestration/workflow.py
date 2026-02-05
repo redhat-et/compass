@@ -11,7 +11,7 @@ from ..shared.schemas import (
 from ..llm.ollama_client import OllamaClient
 from ..recommendation.capacity_planner import CapacityPlanner
 from ..recommendation.ranking_service import RankingService
-from ..context_intent.traffic_profile import TrafficProfileGenerator
+from ..specification import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
 

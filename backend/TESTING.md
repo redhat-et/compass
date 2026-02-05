@@ -56,7 +56,7 @@ print(f'  Cost Priority: {intent.cost_priority}')
 ```bash
 python -c "
 from src.shared.schemas import DeploymentIntent
-from src.recommendation.traffic_profile import TrafficProfileGenerator
+from src.specification import TrafficProfileGenerator
 
 intent = DeploymentIntent(
     use_case='chatbot_conversational',
