@@ -186,7 +186,7 @@ start-backend: ## Start FastAPI backend
 		printf "$(YELLOW)Backend already running (PID: $$(cat $(BACKEND_PID)))$(NC)\n"; \
 	else \
 		cd $(BACKEND_DIR) && \
-		( uv run uvicorn src.api.routes:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
+		( uv run uvicorn src.api.app:app --reload --host 0.0.0.0 --port 8000 > ../$(LOG_DIR)/backend.log 2>&1 & echo $$! > ../$(BACKEND_PID) ); \
 		sleep 2; \
 		printf "$(GREEN)✓ Backend started (PID: $$(cat $(BACKEND_PID)))$(NC)\n"; \
 	fi
@@ -215,12 +215,12 @@ stop: ## Stop all services
 	fi
 	@# Kill any remaining NeuralNav processes by pattern matching
 	@pkill -f "streamlit run ui/app.py" 2>/dev/null || true
-	@pkill -f "uvicorn src.api.routes:app" 2>/dev/null || true
+	@pkill -f "uvicorn src.api.app:app" 2>/dev/null || true
 	@# Give processes time to exit gracefully
 	@sleep 1
 	@# Force kill if still running
 	@pkill -9 -f "streamlit run ui/app.py" 2>/dev/null || true
-	@pkill -9 -f "uvicorn src.api.routes:app" 2>/dev/null || true
+	@pkill -9 -f "uvicorn src.api.app:app" 2>/dev/null || true
 	@printf "$(GREEN)✓ All NeuralNav services stopped$(NC)\n"
 	@# Don't stop Ollama as it might be used by other apps
 	@printf "$(YELLOW)Note: Ollama left running (use 'pkill ollama' to stop manually)$(NC)\n"
