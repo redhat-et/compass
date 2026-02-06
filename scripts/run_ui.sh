@@ -1,31 +1,24 @@
 #!/bin/bash
 
 # Start the NeuralNav UI
-# This script activates the virtual environment and starts the Streamlit UI
+# This script installs dependencies with uv and starts the Streamlit UI
 
 set -e
 
 echo "🤖 Starting NeuralNav UI..."
 echo ""
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "❌ Virtual environment not found!"
-    echo "Creating virtual environment..."
-    python -m venv venv
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "❌ uv not found! Install it: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
 fi
 
-# Activate virtual environment
-source venv/bin/activate
-
-# Check if requirements are installed
-echo "Checking dependencies..."
-if ! python -c "import streamlit" &> /dev/null; then
-    echo "⚠️  Dependencies not found. Installing from requirements.txt..."
-    pip install -r requirements.txt
-    echo "✅ Dependencies installed"
-    echo ""
-fi
+# Install/sync dependencies
+echo "Syncing dependencies..."
+uv sync
+echo "✅ Dependencies ready"
+echo ""
 
 # Check if FastAPI backend is running
 echo "Checking if FastAPI backend is running..."
@@ -42,4 +35,4 @@ echo ""
 # Disable Streamlit's email collection prompt on first run
 export STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 
-streamlit run ui/app.py --server.headless true
+uv run streamlit run ui/app.py --server.headless true

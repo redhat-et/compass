@@ -173,6 +173,19 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 - `backend/src/recommendation/analyzer.py` - Generates 5 ranked lists
 - `backend/src/recommendation/config_finder.py` - Orchestrates scoring during capacity planning
 
+## Development Environment
+
+This project uses **uv** (by Astral) for Python package management. **Do not use `pip` or `pip install`.**
+
+- **Install dependencies**: `uv sync` (reads from `pyproject.toml` + `uv.lock`)
+- **Run Python commands**: `uv run python ...` (not bare `python`)
+- **Run tools**: `uv run pytest`, `uv run ruff`, `uv run uvicorn`, etc.
+- **Add a dependency**: `uv add <package>` (updates `pyproject.toml` and `uv.lock`)
+- **Source of truth**: `pyproject.toml` defines all dependencies; there is no top-level `requirements.txt`
+- **Makefile targets** already use `uv` — see `make setup-backend`, `make start-backend`, etc.
+
+Note: `ui/requirements.txt` and `simulator/requirements.txt` exist separately for their Docker builds.
+
 ## Working with This Repository
 
 ### When Modifying Architecture Documents
