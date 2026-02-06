@@ -68,18 +68,13 @@ logs/
 # Data
 *.sql
 !scripts/schema.sql
-data/benchmarks_redhat_performance.json
-data/benchmarks_GuideLLM.json
+data/benchmarks/performance/benchmarks_GuideLLM.json
 
 # Presentation images (large files, regeneratable)
-data/benchmarks/models/presentation/
+data/archive/presentation/
 
 # Old branding (replaced by neuralnav-*)
 docs/ai_assistant_*
 
 # macOS system files (all directories)
 **/.DS_Store
-
-# Redundant/unused data files (identified in data audit)
-data/slo_ranges_from_benchmarks.json
-data/research/benchmark_slo_ranges.json

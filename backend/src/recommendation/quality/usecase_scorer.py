@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Base path for weighted scores CSVs
 # Path: quality/usecase_scorer.py -> recommendation -> src -> backend -> project root -> data
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data")
-WEIGHTED_SCORES_DIR = os.path.join(DATA_DIR, "business_context", "use_case", "weighted_scores")
+WEIGHTED_SCORES_DIR = os.path.join(DATA_DIR, "benchmarks", "accuracy", "weighted_scores")
 
 
 class UseCaseQualityScorer:

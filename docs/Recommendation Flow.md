@@ -75,7 +75,7 @@ The `TrafficProfileGenerator` maps the use case to a GuideLLM traffic profile an
 - `TrafficProfile`: prompt_tokens, output_tokens, expected_qps
 - `SLOTargets`: ttft_p95_target_ms, itl_p95_target_ms, e2e_p95_target_ms
 
-**Data Source**: [data/slo_templates.json](../data/slo_templates.json)
+**Data Source**: [data/configuration/slo_templates.json](../data/configuration/slo_templates.json)
 
 **Traffic Profiles** (aligned with GuideLLM):
 | Use Case | Prompt Tokens | Output Tokens |
@@ -114,7 +114,7 @@ The `BenchmarkRepository` queries PostgreSQL for all (model, GPU, tensor_paralle
 - Uses window functions to select highest QPS per configuration
 - Returns one benchmark per unique (model, hardware, hardware_count) combination
 
-**Data Source**: `exported_summaries` table in PostgreSQL (loaded from [data/benchmarks_BLIS.json](../data/benchmarks_BLIS.json))
+**Data Source**: `exported_summaries` table in PostgreSQL (loaded from [data/benchmarks/performance/benchmarks_BLIS.json](../data/benchmarks/performance/benchmarks_BLIS.json))
 
 **Near-Miss Tolerance**: When `include_near_miss=True`, SLO thresholds are relaxed by 20% to include configurations that nearly meet targets.
 
@@ -164,7 +164,7 @@ all_configs = capacity_planner.plan_all_capacities(
 
 **Primary Source**: Use-case specific quality scores from Artificial Analysis benchmarks
 
-**Data Files**: [data/business_context/use_case/weighted_scores/*.csv](../data/business_context/use_case/weighted_scores/)
+**Data Files**: [data/benchmarks/accuracy/weighted_scores/*.csv](../data/benchmarks/accuracy/weighted_scores/)
 
 The `UseCaseQualityScorer` loads pre-calculated weighted scores for each use case. Each use case has different benchmark weights (e.g., code_completion weights LiveCodeBench 35%, SciCode 30%).
 
@@ -301,11 +301,11 @@ The `RecommendationWorkflow` orchestrates all steps and returns the appropriate 
 
 | File | Description | Used By |
 |------|-------------|---------|
-| [data/slo_templates.json](../data/slo_templates.json) | 9 use case templates with SLO targets | TrafficProfileGenerator |
-| [data/model_catalog.json](../data/model_catalog.json) | 47 curated models with metadata | ModelCatalog, ModelEvaluator |
-| [data/benchmarks_BLIS.json](../data/benchmarks_BLIS.json) | Latency benchmarks (loaded to PostgreSQL) | BenchmarkRepository |
-| [data/business_context/use_case/weighted_scores/*.csv](../data/business_context/use_case/weighted_scores/) | 9 use-case quality score files | UseCaseQualityScorer |
-| [data/business_context/use_case/configs/usecase_weights.json](../data/business_context/use_case/configs/usecase_weights.json) | Benchmark weight definitions per use case | Documentation |
+| [data/configuration/slo_templates.json](../data/configuration/slo_templates.json) | 9 use case templates with SLO targets | TrafficProfileGenerator |
+| [data/configuration/model_catalog.json](../data/configuration/model_catalog.json) | 47 curated models with metadata | ModelCatalog, ModelEvaluator |
+| [data/benchmarks/performance/benchmarks_BLIS.json](../data/benchmarks/performance/benchmarks_BLIS.json) | Latency benchmarks (loaded to PostgreSQL) | BenchmarkRepository |
+| [data/benchmarks/accuracy/weighted_scores/*.csv](../data/benchmarks/accuracy/weighted_scores/) | 9 use-case quality score files | UseCaseQualityScorer |
+| [data/archive/usecase_weights.json](../data/archive/usecase_weights.json) | Benchmark weight definitions per use case | Documentation |
 
 ---
 

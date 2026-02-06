@@ -2,7 +2,7 @@
 """
 Load benchmark data from benchmarks.json into PostgreSQL.
 
-This script reads the synthetic benchmark data from data/benchmarks.json
+This script reads benchmark data from a JSON file
 and inserts it into the PostgreSQL exported_summaries table.
 """
 
@@ -40,12 +40,12 @@ def load_benchmarks_json(json_file=None):
 
     Args:
         json_file: Optional path to JSON file relative to project root.
-                  Defaults to "data/benchmarks_BLIS.json" if not specified.
+                  Defaults to "data/benchmarks/performance/benchmarks_BLIS.json" if not specified.
     """
     if json_file:
         json_path = Path(__file__).parent.parent / json_file
     else:
-        json_path = Path(__file__).parent.parent / "data" / "benchmarks_BLIS.json"
+        json_path = Path(__file__).parent.parent / "data" / "benchmarks" / "performance" / "benchmarks_BLIS.json"
 
     if not json_path.exists():
         print(f"❌ Error: {json_path} not found")

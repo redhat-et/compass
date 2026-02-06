@@ -73,7 +73,7 @@ class SLOTemplateRepository:
             data_path: Path to slo_templates.json
         """
         if data_path is None:
-            data_path = Path(__file__).parent.parent.parent.parent / "data" / "slo_templates.json"
+            data_path = Path(__file__).parent.parent.parent.parent / "data" / "configuration" / "slo_templates.json"
 
         self.data_path = data_path
         self._templates: dict[str, SLOTemplate] = {}

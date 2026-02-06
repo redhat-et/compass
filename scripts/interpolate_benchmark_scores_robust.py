@@ -341,7 +341,7 @@ def main():
     }
     
     # Load data
-    csv_path = 'data/benchmarks/models/opensource_all_benchmarks.csv'
+    csv_path = 'data/benchmarks/accuracy/opensource_all_benchmarks.csv'
     df, le_provider, le_family = load_and_prepare_data(csv_path)
     
     print(f"\nLoaded {len(df)} models")
@@ -411,7 +411,7 @@ def main():
     print(f"Fill rate: {report['summary']['fill_rate']}")
     
     # Save interpolated data
-    output_path = 'data/benchmarks/models/opensource_all_benchmarks_interpolated.csv'
+    output_path = 'data/benchmarks/accuracy/opensource_all_benchmarks_interpolated.csv'
     
     for col in BENCHMARK_COLS:
         if col in df.columns:
@@ -422,13 +422,13 @@ def main():
     print(f"\n✅ Saved interpolated data: {output_path}")
     
     # Save detailed report
-    report_path = 'data/benchmarks/models/interpolation_report.json'
+    report_path = 'data/archive/interpolation_report.json'
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2)
     print(f"✅ Saved detailed report: {report_path}")
     
     # Save predictions with confidence intervals
-    ci_path = 'data/benchmarks/models/predictions_with_confidence.json'
+    ci_path = 'data/benchmarks/accuracy/predictions_with_confidence.json'
     with open(ci_path, 'w') as f:
         json.dump(predictions_data, f, indent=2)
     print(f"✅ Saved confidence intervals: {ci_path}")

@@ -187,7 +187,7 @@ Models are sorted by score (descending), with top performers listed first.
 
 ## Configuration File
 
-Weights are stored in `data/research/optimized_weights.json` for programmatic access.
+Weights are stored in `data/archive/optimized_weights.json` for programmatic access.
 
 ## Results Summary (December 2024)
 

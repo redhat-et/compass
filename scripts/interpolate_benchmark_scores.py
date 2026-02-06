@@ -169,7 +169,7 @@ def main():
     print("=" * 70)
     
     # Load data
-    csv_path = 'data/benchmarks/models/opensource_all_benchmarks.csv'
+    csv_path = 'data/benchmarks/accuracy/opensource_all_benchmarks.csv'
     df, le_provider, le_family = load_and_prepare_data(csv_path)
     
     print(f"\nLoaded {len(df)} models")
@@ -208,7 +208,7 @@ def main():
     print(f"Filled: {initial_missing - final_missing} values")
     
     # Save interpolated data
-    output_path = 'data/benchmarks/models/opensource_all_benchmarks_interpolated.csv'
+    output_path = 'data/benchmarks/accuracy/opensource_all_benchmarks_interpolated.csv'
     
     # Convert back to percentage format
     for col in BENCHMARK_COLS:

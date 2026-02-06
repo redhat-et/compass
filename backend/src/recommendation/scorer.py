@@ -90,6 +90,7 @@ class Scorer:
         config_path = (
             Path(__file__).parent.parent.parent.parent
             / "data"
+            / "configuration"
             / "usecase_slo_workload.json"
         )
         try:

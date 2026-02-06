@@ -62,7 +62,7 @@ async def list_use_cases():
 async def get_benchmarks():
     """Get all 206 models benchmark data from opensource_all_benchmarks.csv."""
     try:
-        csv_path = _get_data_path() / "benchmarks" / "models" / "opensource_all_benchmarks.csv"
+        csv_path = _get_data_path() / "benchmarks" / "accuracy" / "opensource_all_benchmarks.csv"
 
         if not csv_path.exists():
             logger.error(f"Benchmark CSV not found at: {csv_path}")
@@ -95,7 +95,7 @@ async def get_priority_weights():
     when setting initial weights based on priority dropdowns.
     """
     try:
-        json_path = _get_data_path() / "priority_weights.json"
+        json_path = _get_data_path() / "configuration" / "priority_weights.json"
 
         if not json_path.exists():
             logger.error(f"Priority weights config not found at: {json_path}")
@@ -137,7 +137,7 @@ async def get_weighted_scores(use_case: str):
                 detail=f"Invalid use case: {use_case}. Valid options: {list(use_case_to_file.keys())}",
             )
 
-        csv_path = _get_data_path() / "business_context" / "use_case" / "weighted_scores" / filename
+        csv_path = _get_data_path() / "benchmarks" / "accuracy" / "weighted_scores" / filename
 
         if not csv_path.exists():
             logger.error(f"Weighted scores CSV not found at: {csv_path}")
