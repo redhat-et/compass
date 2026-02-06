@@ -1,31 +1,24 @@
 #!/bin/bash
 
 # Start the NeuralNav FastAPI backend
-# This script activates the virtual environment and starts the API server
+# This script installs dependencies with uv and starts the API server
 
 set -e
 
 echo "🚀 Starting NeuralNav API..."
 echo ""
 
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "❌ Virtual environment not found!"
-    echo "Creating virtual environment..."
-    python -m venv venv
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "❌ uv not found! Install it: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
 fi
 
-# Activate virtual environment
-source venv/bin/activate
-
-# Check if requirements are installed
-echo "Checking dependencies..."
-if ! python -c "import fastapi" &> /dev/null; then
-    echo "⚠️  Dependencies not found. Installing from requirements.txt..."
-    pip install -r requirements.txt
-    echo "✅ Dependencies installed"
-    echo ""
-fi
+# Install/sync dependencies
+echo "Syncing dependencies..."
+uv sync
+echo "✅ Dependencies ready"
+echo ""
 
 # Check if Ollama is running
 echo "Checking if Ollama is running..."
@@ -39,4 +32,4 @@ fi
 echo "Starting FastAPI backend on http://localhost:8000..."
 echo ""
 cd backend
-uvicorn src.api.routes:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn src.api.routes:app --host 0.0.0.0 --port 8000 --reload

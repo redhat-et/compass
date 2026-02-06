@@ -721,32 +721,15 @@ make open-backend
 
 ### Manual Backend Installation
 
-**Terminal 1:**
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Verify correct venv
-which python  # Should show: .../venv/bin/python
-
-pip install -r requirements.txt
+uv sync
 ```
 
 ### Manual Frontend Installation
 
-**Terminal 2 (or deactivate first):**
+The UI shares the same virtual environment as the backend (managed by uv):
 ```bash
-# If in same terminal: deactivate first
-deactivate
-
-cd frontend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Verify correct venv
-which python  # Should show: .../frontend/venv/bin/python
-
-pip install -r requirements.txt
+uv sync  # Same command — all deps are in pyproject.toml
 ```
 
 ### Manual Ollama Model Pull
@@ -863,11 +846,8 @@ ollama pull llama3.2:3b
 ### Import Errors
 
 ```bash
-# Make sure you're in the right venv
-which python  # Should show path to venv
-
 # Reinstall dependencies
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Manual Kubernetes Cluster Setup
