@@ -1,6 +1,5 @@
-"""Intent Extraction Service module."""
+"""Intent Extraction module."""
 
 from .extractor import IntentExtractor
-from .service import IntentExtractionService
 
-__all__ = ["IntentExtractor", "IntentExtractionService"]
+__all__ = ["IntentExtractor"]
