@@ -24,7 +24,7 @@ def _calculate_percentile_value(min_val: int, max_val: int, percentile: float = 
 
 def _get_slo_workload_path() -> Path:
     """Get path to the SLO workload config file."""
-    return Path(__file__).parent.parent.parent.parent.parent / "data" / "usecase_slo_workload.json"
+    return Path(__file__).parent.parent.parent.parent.parent / "data" / "configuration" / "usecase_slo_workload.json"
 
 
 @router.get("/slo-defaults/{use_case}")

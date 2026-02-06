@@ -86,7 +86,7 @@ def main():
     print("✅ Workflow initialized")
 
     # Load demo scenarios
-    scenarios_path = Path(__file__).parent.parent / "data" / "demo_scenarios.json"
+    scenarios_path = Path(__file__).parent.parent / "data" / "configuration" / "demo_scenarios.json"
     with open(scenarios_path) as f:
         data = json.load(f)
         scenarios = data["scenarios"]

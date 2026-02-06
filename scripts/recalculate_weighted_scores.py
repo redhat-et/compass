@@ -119,11 +119,11 @@ def main():
     print("=" * 70)
     
     # Load interpolated data
-    df = pd.read_csv('data/benchmarks/models/opensource_all_benchmarks_interpolated.csv')
+    df = pd.read_csv('data/benchmarks/accuracy/opensource_all_benchmarks_interpolated.csv')
     print(f"Loaded {len(df)} models with complete benchmark data")
     
     # Output directory
-    output_dir = 'data/business_context/use_case/weighted_scores'
+    output_dir = 'data/benchmarks/accuracy/weighted_scores'
     os.makedirs(output_dir, exist_ok=True)
     
     # Calculate scores for each use case

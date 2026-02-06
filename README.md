@@ -80,7 +80,7 @@ make cluster-stop   # Delete cluster (optional)
 
 ## Demo Scenarios
 
-The POC includes 3 pre-configured scenarios (see [data/demo_scenarios.json](data/demo_scenarios.json)):
+The POC includes 3 pre-configured scenarios (see [data/configuration/demo_scenarios.json](data/configuration/demo_scenarios.json)):
 
 1. **Customer Service Chatbot** - High volume (5000 users), strict latency (<500ms)
    - Expected: Llama 3.1 8B on 2x A100-80GB

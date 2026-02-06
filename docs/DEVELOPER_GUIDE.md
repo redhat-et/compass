@@ -534,7 +534,7 @@ curl http://localhost:8080/health
 
 ### Adding a New Model
 
-1. Add model to `data/model_catalog.json`:
+1. Add model to `data/configuration/model_catalog.json`:
 ```json
 {
   "model_id": "new-model-id",
@@ -547,12 +547,12 @@ curl http://localhost:8080/health
 }
 ```
 
-2. Add benchmarks to `data/benchmarks.json`
+2. Add benchmarks to the benchmark database
 3. Restart backend: `make restart`
 
 ### Adding a New Use Case Template
 
-1. Add template to `data/slo_templates.json`:
+1. Add template to `data/configuration/slo_templates.json`:
 ```json
 {
   "use_case": "new_use_case",

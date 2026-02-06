@@ -48,8 +48,8 @@ SIMULATOR_FULL_IMAGE := $(REGISTRY)/$(REGISTRY_ORG)/$(SIMULATOR_IMAGE):$(SIMULAT
 OLLAMA_MODEL ?= qwen2.5:7b
 KIND_CLUSTER_NAME ?= neuralnav
 
-PGDUMP_INPUT ?= data/integ-oct-29.sql
-PGDUMP_OUTPUT ?= data/benchmarks_GuideLLM.json
+PGDUMP_INPUT ?= data/benchmarks/performance/integ-oct-29.sql
+PGDUMP_OUTPUT ?= data/benchmarks/performance/benchmarks_GuideLLM.json
 
 BACKEND_DIR := backend
 UI_DIR := ui
@@ -419,32 +419,32 @@ db-init: db-start ## Initialize PostgreSQL schema
 
 db-load-synthetic: db-start ## Load synthetic benchmark data (appends)
 	@printf "$(BLUE)Loading synthetic benchmark data...$(NC)\n"
-	@uv run python scripts/load_benchmarks.py data/benchmarks_synthetic.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks/performance/benchmarks_synthetic.json
 	@printf "$(GREEN)✓ Synthetic data loaded$(NC)\n"
 
 db-load-blis: db-start ## Load BLIS benchmark data (appends)
 	@printf "$(BLUE)Loading BLIS benchmark data...$(NC)\n"
-	@uv run python scripts/load_benchmarks.py data/benchmarks_BLIS.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks/performance/benchmarks_BLIS.json
 	@printf "$(GREEN)✓ BLIS data loaded$(NC)\n"
 
 db-load-estimated: db-start ## Load estimated performance benchmarks (appends)
 	@printf "$(BLUE)Loading estimated performance data...$(NC)\n"
-	@uv run python scripts/load_benchmarks.py data/benchmarks_estimated_performance.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks/performance/benchmarks_estimated_performance.json
 	@printf "$(GREEN)✓ Estimated data loaded$(NC)\n"
 
 db-load-interpolated: db-start ## Load interpolated benchmark data (appends)
 	@printf "$(BLUE)Loading interpolated benchmark data...$(NC)\n"
-	@uv run python scripts/load_benchmarks.py data/benchmarks_interpolated_v2.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks/performance/benchmarks_interpolated_v2.json
 	@printf "$(GREEN)✓ Interpolated data loaded$(NC)\n"
 
 db-load-guidellm: db-start ## Load GuideLLM benchmark data (appends)
 	@printf "$(BLUE)Loading GuideLLM benchmark data...$(NC)\n"
-	@if [ ! -f data/benchmarks_GuideLLM.json ]; then \
-		printf "$(RED)✗ data/benchmarks_GuideLLM.json not found$(NC)\n"; \
+	@if [ ! -f data/benchmarks/performance/benchmarks_GuideLLM.json ]; then \
+		printf "$(RED)✗ data/benchmarks/performance/benchmarks_GuideLLM.json not found$(NC)\n"; \
 		printf "$(YELLOW)Run 'make db-convert-pgdump' first to create it from a pg_dump file$(NC)\n"; \
 		exit 1; \
 	fi
-	@uv run python scripts/load_benchmarks.py data/benchmarks_GuideLLM.json
+	@uv run python scripts/load_benchmarks.py data/benchmarks/performance/benchmarks_GuideLLM.json
 	@printf "$(GREEN)✓ GuideLLM data loaded$(NC)\n"
 
 db-convert-pgdump: db-start ## Convert PostgreSQL dump to JSON format

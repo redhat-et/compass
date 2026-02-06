@@ -6,10 +6,10 @@ This script extracts benchmark data from a PostgreSQL custom dump file
 and converts it to the JSON format used by load_benchmarks.py.
 
 Usage:
-    python scripts/convert_pgdump_to_json.py data/integ-oct-29.sql
-    # Creates: data/benchmarks_GuideLLM.json
+    python scripts/convert_pgdump_to_json.py data/benchmarks/performance/integ-oct-29.sql
+    # Creates: data/benchmarks/performance/benchmarks_GuideLLM.json
 
-    python scripts/convert_pgdump_to_json.py data/integ-oct-29.sql -o data/custom_output.json
+    python scripts/convert_pgdump_to_json.py data/benchmarks/performance/integ-oct-29.sql -o data/custom_output.json
     # Creates: data/custom_output.json
 
 The output JSON file will have the same format as benchmarks_BLIS.json and can be
@@ -192,7 +192,7 @@ def main():
         "-o", "--output",
         type=Path,
         default=None,
-        help="Path to output JSON file (default: data/benchmarks_GuideLLM.json)",
+        help="Path to output JSON file (default: data/benchmarks/performance/benchmarks_GuideLLM.json)",
     )
     parser.add_argument(
         "--pretty",

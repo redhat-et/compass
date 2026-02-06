@@ -186,7 +186,7 @@ def create_comparison_chart(data, title, output_path):
     print(f"✅ Saved: {output_path}")
 
 def main():
-    output_dir = Path(__file__).parent.parent / 'data/benchmarks/models/presentation'
+    output_dir = Path(__file__).parent.parent / 'data/archive/presentation'
     
     # Generate BEFORE chart
     create_comparison_chart(

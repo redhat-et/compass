@@ -60,18 +60,20 @@ This repository contains the architecture design for **NeuralNav**, an open-sour
   - Action buttons for YAML generation and deployment
   - Monitoring dashboard with cluster status, SLO compliance, and inference testing
 
-- **data/**: Benchmark and catalog data
-  - **model_catalog.json**: 47 curated models with task/domain metadata
-  - **slo_templates.json**: 9 use case templates with SLO targets
-  - **benchmarks/models/**: Model benchmark data
-    - `opensource_all_benchmarks.csv`: 204 open-source models from Artificial Analysis
-    - `model_pricing.csv`: GPU pricing data
-  - **business_context/use_case/**: Use-case specific quality scoring
-    - `weighted_scores/`: 9 CSV files with pre-ranked models per use case
-    - `configs/`: Use case configuration files (weights, SLOs, workloads)
-    - `USE_CASE_METHODOLOGY.md`: Explains benchmark weighting strategy
-  - **benchmarks_BLIS.json**: Latency/throughput benchmarks from BLIS simulator (loaded into PostgreSQL)
-  - **demo_scenarios.json**: 3 test scenarios
+- **data/**: Benchmark, configuration, and archive data
+  - **benchmarks/**: Benchmark data
+    - **performance/**: Latency/throughput benchmarks (JSON, loaded into PostgreSQL)
+      - `benchmarks_BLIS.json`: Latency/throughput benchmarks from BLIS simulator
+    - **accuracy/**: Model quality/capability scores (CSV)
+      - `opensource_all_benchmarks.csv`: 204 open-source models from Artificial Analysis
+      - `weighted_scores/`: 9 CSV files with pre-ranked models per use case
+  - **configuration/**: Runtime configuration files (JSON)
+    - `model_catalog.json`: 47 curated models with task/domain metadata
+    - `slo_templates.json`: 9 use case templates with SLO targets
+    - `demo_scenarios.json`: 3 test scenarios
+    - `priority_weights.json`: Scoring priority weights
+    - `usecase_slo_workload.json`: Use case SLO and workload profiles
+  - **archive/**: Unused/reference-only files
 
 ## Important Behavioral Notes for Claude
 
@@ -149,7 +151,7 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 
 **4 Scoring Dimensions** (each 0-100 scale):
 1. **Accuracy/Quality**: Use-case specific model capability from Artificial Analysis benchmarks
-   - Source: `data/business_context/use_case/weighted_scores/*.csv`
+   - Source: `data/benchmarks/accuracy/weighted_scores/*.csv`
    - Fallback: Parameter count heuristic if model not in benchmark data
 2. **Price**: Cost efficiency (inverse of monthly cost, normalized)
 3. **Latency**: SLO compliance and headroom from performance benchmark database
@@ -226,10 +228,10 @@ All API endpoints **must** follow these rules:
 ### Common Editing Patterns
 
 **Adding a new use case template**:
-1. Add corresponding entry to `data/slo_templates.json`
-2. Create weighted scores CSV in `data/business_context/use_case/weighted_scores/`
+1. Add corresponding entry to `data/configuration/slo_templates.json`
+2. Create weighted scores CSV in `data/benchmarks/accuracy/weighted_scores/`
 3. Add use case to `UseCaseQualityScorer.USE_CASE_FILES` in `usecase_quality_scorer.py`
-4. Update `USE_CASE_METHODOLOGY.md` with benchmark weighting rationale
+4. Update `docs/USE_CASE_METHODOLOGY.md` with benchmark weighting rationale
 5. Update docs/ARCHITECTURE.md if needed
 
 **Adding a new SLO metric**:
