@@ -1850,7 +1850,7 @@ def fetch_ranked_recommendations(
 
     try:
         response = requests.post(
-            f"{API_BASE_URL}/api/ranked-recommend-from-spec",
+            f"{API_BASE_URL}/api/v1/ranked-recommend-from-spec",
             json=payload,
             timeout=30,
         )
@@ -2568,7 +2568,7 @@ def render_deployment_tab():
                 try:
                     # Call backend API to generate YAML files
                     response = requests.post(
-                        f"{API_BASE_URL}/api/deploy",
+                        f"{API_BASE_URL}/api/v1/deploy",
                         json={
                             "recommendation": selected_config,
                             "namespace": "default"
@@ -2584,7 +2584,7 @@ def render_deployment_tab():
 
                         # Fetch the actual YAML content
                         yaml_response = requests.get(
-                            f"{API_BASE_URL}/api/deployments/{deployment_id}/yaml",
+                            f"{API_BASE_URL}/api/v1/deployments/{deployment_id}/yaml",
                             timeout=10
                         )
                         yaml_response.raise_for_status()
@@ -2854,7 +2854,7 @@ def render_how_it_works_content():
 def render_top5_table(recommendations: list, priority: str):
     """Render beautiful Top 5 recommendation leaderboard table with filtering.
     
-    NOTE: The backend now implements the ACCURACY-FIRST strategy in ranking_service.py.
+    NOTE: The backend now implements the ACCURACY-FIRST strategy in analyzer.py.
     The UI uses the backend's pre-ranked lists directly from st.session_state.ranked_response.
     """
     
@@ -3005,7 +3005,7 @@ def render_top5_table(recommendations: list, priority: str):
     
     # ==========================================================================
     # USE BACKEND'S PRE-RANKED LISTS (ACCURACY-FIRST strategy applied in backend)
-    # The backend's ranking_service.py implements:
+    # The backend's analyzer.py implements:
     # 1. Get top 5 unique models by raw accuracy (quality baseline)
     # 2. Filter all configs to only those high-quality models
     # 3. Best Latency/Cost/etc. are ranked WITHIN that quality tier
@@ -3251,7 +3251,7 @@ def render_top5_table(recommendations: list, priority: str):
                         # Auto-generate YAML files
                         try:
                             response = requests.post(
-                                f"{API_BASE_URL}/api/deploy",
+                                f"{API_BASE_URL}/api/v1/deploy",
                                 json={
                                     "recommendation": rec,
                                     "namespace": "default"
@@ -3267,7 +3267,7 @@ def render_top5_table(recommendations: list, priority: str):
 
                                 # Fetch the actual YAML content
                                 yaml_response = requests.get(
-                                    f"{API_BASE_URL}/api/deployments/{deployment_id}/yaml",
+                                    f"{API_BASE_URL}/api/v1/deployments/{deployment_id}/yaml",
                                     timeout=10
                                 )
                                 yaml_response.raise_for_status()

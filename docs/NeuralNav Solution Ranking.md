@@ -158,10 +158,10 @@ Configurations within 20% of SLO targets are included with clear warnings:
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| `SolutionScorer` | `backend/src/recommendation/solution_scorer.py` | Calculate 4 scores (0-100 scale) |
-| `ModelEvaluator.score_model()` | `backend/src/recommendation/model_evaluator.py` | Accuracy scoring based on use case fit |
-| `CapacityPlanner.plan_all_capacities()` | `backend/src/recommendation/capacity_planner.py` | Query benchmarks, score all configs |
-| `RankingService` | `backend/src/recommendation/ranking_service.py` | Filter and sort into 5 ranked lists |
+| `Scorer` | `backend/src/recommendation/scorer.py` | Calculate 4 scores (0-100 scale) |
+| `UseCaseQualityScorer` | `backend/src/recommendation/quality/usecase_scorer.py` | Accuracy scoring based on use case fit |
+| `ConfigFinder.plan_all_capacities()` | `backend/src/recommendation/config_finder.py` | Query benchmarks, score all configs |
+| `Analyzer` | `backend/src/recommendation/analyzer.py` | Filter and sort into 5 ranked lists |
 | `RecommendationWorkflow` | `backend/src/orchestration/workflow.py` | Orchestrate end-to-end flow |
 
 #### Data Flow
@@ -191,8 +191,8 @@ RankedRecommendationsResponse
 
 #### API Endpoints
 
-- **`POST /api/recommend`**: Returns single best recommendation (balanced score)
-- **`POST /api/ranked-recommend`**: Returns all 5 ranked lists with filter support
+- **`POST /api/v1/recommend`**: Returns single best recommendation (balanced score)
+- **`POST /api/v1/ranked-recommend-from-spec`**: Returns all 5 ranked lists with filter support
 
 ***
 

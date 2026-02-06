@@ -18,7 +18,7 @@ TASK-SPECIFIC BONUSES (Balanced card only):
 
 import logging
 
-from ..context_intent.schema import DeploymentRecommendation
+from ..shared.schemas import DeploymentRecommendation
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +131,7 @@ def get_task_bonus(model_name: str, use_case: str) -> int:
     return 0
 
 
-class RankingService:
+class Analyzer:
     """Generate ranked recommendation lists from scored configurations."""
 
     def generate_ranked_lists(

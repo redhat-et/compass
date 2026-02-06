@@ -24,9 +24,9 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
-from src.deployment.generator import DeploymentGenerator
-from src.deployment.cluster import KubernetesClusterManager, KubernetesDeploymentError
-from src.context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile, GPUConfig, DeploymentRecommendation
+from src.configuration.generator import DeploymentGenerator
+from src.cluster.manager import KubernetesClusterManager, KubernetesDeploymentError
+from src.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile, GPUConfig, DeploymentRecommendation
 
 def test_simulator_deployment():
     """Test end-to-end simulator deployment"""

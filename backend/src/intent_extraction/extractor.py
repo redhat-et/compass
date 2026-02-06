@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..llm.ollama_client import OllamaClient
 from ..llm.prompts import INTENT_EXTRACTION_SCHEMA, build_intent_extraction_prompt
-from .schema import ConversationMessage, DeploymentIntent
+from ..shared.schemas import ConversationMessage, DeploymentIntent
 
 logger = logging.getLogger(__name__)
 

@@ -20,8 +20,8 @@ TODO (Phase 2+): Parametric Performance Models
 import logging
 import math
 
-from ..context_intent.gpu_normalizer import normalize_gpu_types
-from ..context_intent.schema import (
+from ..shared.utils import normalize_gpu_types
+from ..shared.schemas import (
     ConfigurationScores,
     DeploymentIntent,
     DeploymentRecommendation,
@@ -31,13 +31,13 @@ from ..context_intent.schema import (
 )
 from ..knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
 from ..knowledge_base.model_catalog import ModelCatalog, ModelInfo
-from .ranking_service import get_task_bonus
-from .solution_scorer import SolutionScorer
+from .analyzer import get_task_bonus
+from .scorer import Scorer
 
 logger = logging.getLogger(__name__)
 
 
-class CapacityPlanner:
+class ConfigFinder:
     """Plan GPU capacity to meet SLO targets and traffic requirements."""
 
     def __init__(
@@ -150,7 +150,7 @@ class CapacityPlanner:
         Returns:
             List of DeploymentRecommendations with scores attached
         """
-        scorer = SolutionScorer()
+        scorer = Scorer()
         all_configs: list[DeploymentRecommendation] = []
 
         # Determine SLO thresholds for query
@@ -250,7 +250,7 @@ class CapacityPlanner:
             # Calculate accuracy score - USE RAW AA BENCHMARK SCORE
             # This is the actual model accuracy from Artificial Analysis benchmarks
             # NOT a composite score with latency/budget bonuses
-            from .usecase_quality_scorer import score_model_quality
+            from .quality import score_model_quality
             
             # Try to get raw AA score using the benchmark model name
             model_name_for_scoring = model.name if model else bench.model_hf_repo

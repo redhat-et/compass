@@ -14,15 +14,15 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from src.context_intent.schema import (
+from src.shared.schemas import (
     DeploymentIntent,
     TrafficProfile,
     SLOTargets,
     GPUConfig,
     DeploymentRecommendation
 )
-from src.deployment.generator import DeploymentGenerator
-from src.deployment.validator import YAMLValidator, ValidationError
+from src.configuration.generator import DeploymentGenerator
+from src.configuration.validator import YAMLValidator, ValidationError
 
 # Configure logging
 logging.basicConfig(

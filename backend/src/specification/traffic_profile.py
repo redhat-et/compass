@@ -2,7 +2,7 @@
 
 import logging
 
-from ..context_intent.schema import DeploymentIntent, SLOTargets, TrafficProfile
+from ..shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
 from ..knowledge_base.slo_templates import SLOTemplateRepository
 
 logger = logging.getLogger(__name__)

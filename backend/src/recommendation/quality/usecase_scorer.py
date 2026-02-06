@@ -4,7 +4,7 @@ This module provides quality/accuracy scores for models based on their performan
 on task-specific benchmarks (MMLU-Pro, LiveCodeBench, IFBench, etc.).
 
 Integration with NeuralNav:
-- This REPLACES the size-based accuracy heuristic in model_evaluator.score_model()
+- Provides use-case specific quality scores (replaces legacy size-based heuristics)
 - Andre's latency/throughput benchmarks from PostgreSQL are KEPT as-is
 - The final recommendation combines: Our quality + Andre's latency/cost/complexity
 """
@@ -17,7 +17,8 @@ from typing import Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # Base path for weighted scores CSVs
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "data")
+# Path: quality/usecase_scorer.py -> recommendation -> src -> backend -> project root -> data
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "data")
 WEIGHTED_SCORES_DIR = os.path.join(DATA_DIR, "business_context", "use_case", "weighted_scores")
 
 

@@ -23,17 +23,34 @@ This repository contains the architecture design for **NeuralNav**, an open-sour
   - Entity-relationship diagrams for data models
 
 - **backend/**: Python backend implementation
-  - **api/**: FastAPI REST endpoints with CORS support
-  - **context_intent/**: Intent extraction, traffic profiles, Pydantic schemas
-  - **recommendation/**: Multi-criteria scoring and ranking
-    - `solution_scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
-    - `model_evaluator.py`: Use-case fit scoring
-    - `usecase_quality_scorer.py`: Artificial Analysis benchmark integration
-    - `ranking_service.py`: 5 ranked list generation
-    - `capacity_planner.py`: GPU capacity planning with SLO filtering
-  - **knowledge_base/**: Data access (benchmark database, JSON catalogs)
+  - **api/**: FastAPI REST API layer
+    - `app.py`: FastAPI app factory
+    - `dependencies.py`: Singleton dependency injection
+    - **routes/**: Modular endpoint handlers (health, intent, specification, recommendation, configuration, reference_data)
+  - **intent_extraction/**: Intent Extraction Service
+    - `extractor.py`: LLM-powered intent extraction from natural language
+    - `service.py`: IntentExtractionService facade
+  - **specification/**: Specification Service
+    - `traffic_profile.py`: Traffic profile and SLO target generation
+    - `service.py`: SpecificationService facade
+  - **recommendation/**: Recommendation Service
+    - `config_finder.py`: GPU capacity planning with SLO filtering
+    - `scorer.py`: 4-dimension scoring (accuracy, price, latency, complexity)
+    - `analyzer.py`: 5 ranked list generation
+    - `service.py`: RecommendationService facade
+    - **quality/**: Use-case quality scoring (Artificial Analysis benchmarks)
+  - **configuration/**: Configuration Service
+    - `generator.py`: Jinja2 YAML generation for KServe/vLLM
+    - `validator.py`: YAML validation
+    - `service.py`: ConfigurationService facade
+    - **templates/**: Jinja2 deployment templates
+  - **cluster/**: Kubernetes cluster management
+    - `manager.py`: K8s deployment lifecycle management
+  - **shared/**: Shared modules
+    - **schemas/**: Pydantic data models (intent, specification, recommendation)
+    - **utils/**: Shared utilities (GPU normalization)
+  - **knowledge_base/**: Data access layer (benchmark database, JSON catalogs)
   - **orchestration/**: Workflow coordination
-  - **deployment/**: Jinja2 templates for KServe/vLLM YAML generation
   - **llm/**: Ollama client for intent extraction
 
 - **ui/**: Streamlit UI
@@ -148,11 +165,11 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 - `balanced`: Sorted by weighted composite score
 
 **Key Files**:
-- `backend/src/recommendation/solution_scorer.py` - Calculates 4 scores
-- `backend/src/recommendation/model_evaluator.py` - Legacy accuracy scoring (use-case fit)
-- `backend/src/recommendation/usecase_quality_scorer.py` - Artificial Analysis benchmark scoring
-- `backend/src/recommendation/ranking_service.py` - Generates 5 ranked lists
-- `backend/src/recommendation/capacity_planner.py` - Orchestrates scoring during capacity planning
+
+- `backend/src/recommendation/scorer.py` - Calculates 4 scores
+- `backend/src/recommendation/quality/usecase_scorer.py` - Artificial Analysis benchmark scoring
+- `backend/src/recommendation/analyzer.py` - Generates 5 ranked lists
+- `backend/src/recommendation/config_finder.py` - Orchestrates scoring during capacity planning
 
 ## Working with This Repository
 
@@ -196,6 +213,16 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 - Use "**p95**" for 95th percentile metrics (Phase 2 standard, more conservative than p90)
 - GPU configurations: "2x NVIDIA L4" or "4x A100-80GB" (not "2 L4s")
 
+### API Endpoint Conventions
+
+All API endpoints **must** follow these rules:
+
+- **Prefix**: Every route file uses `APIRouter(prefix="/api/v1")`. Individual route decorators use relative paths (e.g., `@router.post("/recommend")`), **not** full paths.
+- **Health check exception**: `/health` stays at root with no prefix (standard for load balancer probes). This is the only endpoint outside `/api/v1/`.
+- **Versioning**: All endpoints are under `/api/v1/`. When a v2 is needed, add new route files with `prefix="/api/v2"`.
+- **Naming**: Use kebab-case for multi-word paths (e.g., `/deploy-to-cluster`, `/ranked-recommend-from-spec`).
+- **When adding a new route file**: Set `prefix="/api/v1"` on the `APIRouter` and use relative paths in all decorators. Register the router in `backend/src/api/routes/__init__.py` and include it in `backend/src/api/app.py`.
+
 ### Common Editing Patterns
 
 **Adding a new use case template**:
@@ -213,6 +240,13 @@ The recommendation engine uses **multi-criteria scoring** to rank configurations
 4. Update Inference Observability section
 5. Update dashboard example if applicable
 6. Update docs/architecture-diagram.md data model ERD
+
+**Adding a new API endpoint**:
+1. Add the route to the appropriate file in `backend/src/api/routes/` (or create a new route file)
+2. Use a relative path in the decorator (e.g., `@router.get("/my-endpoint")`) — the `/api/v1` prefix comes from the router
+3. If creating a new route file, set `APIRouter(prefix="/api/v1")` and register it in `routes/__init__.py` and `app.py`
+4. Update `ui/app.py` if the UI calls the new endpoint
+5. Update documentation (docs/DEVELOPER_GUIDE.md, docs/ARCHITECTUREv2.md) with the new endpoint
 
 **Adding a new component**:
 1. Add numbered section to docs/ARCHITECTURE.md (maintain sequential numbering)
@@ -294,7 +328,7 @@ The system now supports two deployment modes:
 - **Purpose**: GPU-free development and testing on local machines
 - **Location**: `simulator/` directory contains the vLLM simulator service
 - **Docker Image**: `vllm-simulator:latest` (single image for all models)
-- **Configuration**: Set `DeploymentGenerator(simulator_mode=True)` in `backend/src/api/routes.py`
+- **Configuration**: Set `DeploymentGenerator(simulator_mode=True)` in `backend/src/api/dependencies.py`
 - **Benefits**:
   - No GPU hardware required
   - Fast deployment (~10-15 seconds to Ready)
@@ -304,7 +338,7 @@ The system now supports two deployment modes:
 
 ### Real vLLM Mode (Production)
 - **Purpose**: Actual model inference with GPUs
-- **Configuration**: Set `DeploymentGenerator(simulator_mode=False)` in `backend/src/api/routes.py`
+- **Configuration**: Set `DeploymentGenerator(simulator_mode=False)` in `backend/src/api/dependencies.py`
 - **Requirements**:
   - GPU-enabled Kubernetes cluster
   - NVIDIA GPU Operator installed
@@ -332,7 +366,7 @@ The system now supports two deployment modes:
 
 ### Technical Details
 
-The deployment template (`backend/src/deployment/templates/kserve-inferenceservice.yaml.j2`) uses Jinja2 conditionals:
+The deployment template (`backend/src/configuration/templates/kserve-inferenceservice.yaml.j2`) uses Jinja2 conditionals:
 - `{% if simulator_mode %}` - Uses `vllm-simulator:latest`, no GPU resources, fast health checks
 - `{% else %}` - Uses `vllm/vllm-openai:v0.6.2`, requests GPUs, longer health checks
 

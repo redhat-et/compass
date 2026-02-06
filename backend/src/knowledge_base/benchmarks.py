@@ -15,7 +15,7 @@ but preserved for future use:
 - get_all_benchmarks() - Full table dump (unused - debugging only)
 
 PRODUCTION METHOD:
-- find_configurations_meeting_slo() - Primary method used by CapacityPlanner
+- find_configurations_meeting_slo() - Primary method used by ConfigFinder
 
 These methods are kept for potential Phase 2 API endpoints, debugging, interactive
 testing, or future UI features that may need to display available options.

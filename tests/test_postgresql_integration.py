@@ -19,7 +19,7 @@ sys.path.insert(0, str(backend_dir))
 
 from src.knowledge_base.benchmarks import BenchmarkRepository, BenchmarkData
 from src.knowledge_base.slo_templates import SLOTemplateRepository
-from src.context_intent.schema import SLOTargets
+from src.shared.schemas import SLOTargets
 
 
 # Test database configuration
