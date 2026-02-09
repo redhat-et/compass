@@ -4,14 +4,14 @@
 services:
   backend:
     # Override command to enable auto-reload
-    command: ["uvicorn", "backend.src.api.routes:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["uvicorn", "neuralnav.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
       # Development-specific environment variables
       DEBUG: "true"
       LOG_LEVEL: debug
     volumes:
       # Additional volume mounts for development
-      - ./backend:/app/backend:delegated
+      - ./src:/app/src:delegated
       - ./data:/app/data:delegated
       - ./config:/app/config:delegated
 

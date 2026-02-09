@@ -45,7 +45,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: Dockerfile
     container_name: neuralnav-backend
     environment:
       # Database configuration
@@ -63,7 +63,7 @@ services:
       CORS_ORIGINS: http://localhost:8501,http://ui:8501
     volumes:
       # Mount source code for development (hot reload)
-      - ./backend/src:/app/backend/src
+      - ./src/neuralnav:/app/src/neuralnav
       - ./data:/app/data
       - ./generated_configs:/app/generated_configs
       - ./logs:/app/logs

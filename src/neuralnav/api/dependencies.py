@@ -7,11 +7,11 @@ for the API routes. All shared state is initialized here.
 import logging
 import os
 
-from src.cluster import KubernetesClusterManager, KubernetesDeploymentError
-from src.configuration import DeploymentGenerator, YAMLValidator
-from src.knowledge_base.model_catalog import ModelCatalog
-from src.knowledge_base.slo_templates import SLOTemplateRepository
-from src.orchestration.workflow import RecommendationWorkflow
+from neuralnav.cluster import KubernetesClusterManager, KubernetesDeploymentError
+from neuralnav.configuration import DeploymentGenerator, YAMLValidator
+from neuralnav.knowledge_base.model_catalog import ModelCatalog
+from neuralnav.knowledge_base.slo_templates import SLOTemplateRepository
+from neuralnav.orchestration.workflow import RecommendationWorkflow
 
 # Configure logging
 debug_mode = os.getenv("NEURALNAV_DEBUG", "false").lower() == "true"

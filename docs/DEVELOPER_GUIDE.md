@@ -197,9 +197,8 @@ make start-backend
 
 **Manual start:**
 ```bash
-cd backend
 source venv/bin/activate
-uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn neuralnav.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Verify:**
@@ -338,7 +337,6 @@ make test-unit
 
 **Run specific test:**
 ```bash
-cd backend
 source venv/bin/activate
 pytest tests/test_model_evaluator.py -v
 ```
@@ -374,7 +372,7 @@ Test the complete recommendation workflow:
 make test-workflow
 ```
 
-This runs `backend/test_workflow.py` which tests all 3 demo scenarios.
+This runs `test_workflow.py` which tests all 3 demo scenarios.
 
 ### Watch Mode
 
@@ -478,11 +476,10 @@ Checks:
 Test LLM client directly:
 
 ```bash
-cd backend
 source venv/bin/activate
 python -c "
-from src.llm.ollama_client import OllamaClient
-from src.intent_extraction.extractor import IntentExtractor
+from neuralnav.llm.ollama_client import OllamaClient
+from neuralnav.intent_extraction.extractor import IntentExtractor
 
 client = OllamaClient()
 extractor = IntentExtractor(client)
@@ -498,10 +495,9 @@ print(intent)
 Test recommendation engine:
 
 ```bash
-cd backend
 source venv/bin/activate
 python -c "
-from src.orchestration.workflow import RecommendationWorkflow
+from neuralnav.orchestration.workflow import RecommendationWorkflow
 
 workflow = RecommendationWorkflow()
 rec = workflow.generate_recommendation('I need a chatbot for 1000 users')
@@ -565,7 +561,7 @@ curl http://localhost:8080/health
 }
 ```
 
-2. Update `backend/src/intent_extraction/extractor.py` USE_CASE_MAP
+2. Update `src/neuralnav/intent_extraction/extractor.py` USE_CASE_MAP
 3. Restart backend
 
 ### Modifying the UI
@@ -579,14 +575,14 @@ UI code is in `ui/app.py`. Changes auto-reload in the browser.
 
 ### Modifying the Recommendation Algorithm
 
-**Model scoring:** `backend/src/recommendation/scorer.py`
+**Model scoring:** `src/neuralnav/recommendation/scorer.py`
 - `Scorer` class - Adjust scoring weights
 
-**Capacity planning:** `backend/src/recommendation/config_finder.py`
+**Capacity planning:** `src/neuralnav/recommendation/config_finder.py`
 - `plan_capacity()` - GPU sizing logic
 - `_calculate_required_replicas()` - Scaling calculations
 
-**Traffic profiling:** `backend/src/specification/traffic_profile.py`
+**Traffic profiling:** `src/neuralnav/specification/traffic_profile.py`
 - `generate_profile()` - Traffic estimation
 - `generate_slo_targets()` - SLO target generation
 
@@ -669,19 +665,19 @@ make lint
 Or manually:
 ```bash
 source venv/bin/activate
-ruff check backend/ ui/
+ruff check src/ ui/
 ```
 
 **Auto-fix issues:**
 ```bash
 source venv/bin/activate
-ruff check backend/ ui/ --fix
+ruff check src/ ui/ --fix
 ```
 
 **Format code:**
 ```bash
 source venv/bin/activate
-ruff format backend/ ui/
+ruff format src/ ui/
 ```
 
 **Configuration:**
@@ -775,7 +771,6 @@ Then open http://localhost:8501 in your browser.
 Test the complete recommendation workflow with demo scenarios:
 
 ```bash
-cd backend
 source venv/bin/activate
 python test_workflow.py
 ```
@@ -813,10 +808,9 @@ curl -X POST http://localhost:8000/api/v1/recommend \
 Test the LLM client:
 
 ```bash
-cd backend
 source venv/bin/activate
 python -c "
-from src.llm.ollama_client import OllamaClient
+from neuralnav.llm.ollama_client import OllamaClient
 client = OllamaClient(model='llama3.2:3b')
 print('Ollama available:', client.is_available())
 print('Pulling model...')
@@ -974,7 +968,7 @@ Once deployed:
 To use real vLLM with actual GPUs (requires GPU-enabled cluster):
 
 ```python
-# In backend/src/api/routes.py
+# In src/neuralnav/api/routes.py
 deployment_generator = DeploymentGenerator(simulator_mode=False)
 ```
 
@@ -1000,8 +994,7 @@ Then deploy to a GPU-enabled cluster with:
 
 ```bash
 # Test end-to-end workflow
-cd backend && source venv/bin/activate
-cd ..
+source venv/bin/activate
 python tests/test_workflow.py
 
 # Test FastAPI endpoints
@@ -1010,4 +1003,4 @@ scripts/run_api.sh  # Start server in terminal 1
 curl -X POST http://localhost:8000/api/v1/test
 ```
 
-For comprehensive testing instructions, see [backend/TESTING.md](../backend/TESTING.md).
+For comprehensive testing instructions, see [TESTING.md](TESTING.md).

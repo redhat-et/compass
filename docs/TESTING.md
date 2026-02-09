@@ -16,9 +16,7 @@ Sprint 2 implements the core recommendation logic:
 Run the test script with all 3 demo scenarios:
 
 ```bash
-cd backend
 source venv/bin/activate
-cd ..
 python tests/test_sprint2.py
 ```
 
@@ -32,11 +30,10 @@ This will test:
 #### Test Intent Extraction
 
 ```bash
-cd backend
 source venv/bin/activate
 
 python -c "
-from src.intent_extraction import IntentExtractor
+from neuralnav.intent_extraction import IntentExtractor
 
 extractor = IntentExtractor()
 intent = extractor.extract_intent(
@@ -55,8 +52,8 @@ print(f'  Cost Priority: {intent.cost_priority}')
 
 ```bash
 python -c "
-from src.shared.schemas import DeploymentIntent
-from src.specification import TrafficProfileGenerator
+from neuralnav.shared.schemas import DeploymentIntent
+from neuralnav.specification import TrafficProfileGenerator
 
 intent = DeploymentIntent(
     use_case='chatbot_conversational',
@@ -85,8 +82,8 @@ print(f'  E2E p90: {slo.e2e_p90_target_ms}ms')
 
 ```bash
 python -c "
-from src.shared.schemas import DeploymentIntent
-from src.recommendation.model_evaluator import ModelEvaluator
+from neuralnav.shared.schemas import DeploymentIntent
+from neuralnav.recommendation.model_evaluator import ModelEvaluator
 
 intent = DeploymentIntent(
     use_case='code_generation_detailed',
@@ -124,7 +121,7 @@ for i, (model, score) in enumerate(top_models, 1):
 
 ```bash
 python -c "
-from src.orchestration.workflow import RecommendationWorkflow
+from neuralnav.orchestration.workflow import RecommendationWorkflow
 
 workflow = RecommendationWorkflow()
 
@@ -147,9 +144,8 @@ print(f'Meets SLO: {recommendation.meets_slo}')
 Start the API server:
 
 ```bash
-cd backend
 source venv/bin/activate
-python -m src.api.routes
+python -m neuralnav.api.routes
 ```
 
 In another terminal, test the API:
@@ -182,9 +178,9 @@ curl http://localhost:8000/api/v1/use-cases
 
 ```bash
 python -c "
-from src.knowledge_base.benchmarks import BenchmarkRepository
-from src.knowledge_base.model_catalog import ModelCatalog
-from src.knowledge_base.slo_templates import SLOTemplateRepository
+from neuralnav.knowledge_base.benchmarks import BenchmarkRepository
+from neuralnav.knowledge_base.model_catalog import ModelCatalog
+from neuralnav.knowledge_base.slo_templates import SLOTemplateRepository
 
 # Test benchmarks
 bench_repo = BenchmarkRepository()
@@ -240,10 +236,9 @@ ollama serve
 
 ### ModuleNotFoundError
 ```bash
-# Make sure you're in the backend directory and venv is activated
-cd backend
+# Make sure the venv is activated
 source venv/bin/activate
-which python  # Should show backend/venv/bin/python
+which python  # Should show venv/bin/python
 ```
 
 ### LLM Returns Invalid JSON

@@ -20,9 +20,9 @@ TODO (Phase 2+): Parametric Performance Models
 import logging
 import math
 
-from src.knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
-from src.knowledge_base.model_catalog import ModelCatalog, ModelInfo
-from src.shared.schemas import (
+from neuralnav.knowledge_base.benchmarks import BenchmarkData, BenchmarkRepository
+from neuralnav.knowledge_base.model_catalog import ModelCatalog, ModelInfo
+from neuralnav.shared.schemas import (
     ConfigurationScores,
     DeploymentIntent,
     DeploymentRecommendation,
@@ -30,7 +30,7 @@ from src.shared.schemas import (
     SLOTargets,
     TrafficProfile,
 )
-from src.shared.utils import normalize_gpu_types
+from neuralnav.shared.utils import normalize_gpu_types
 
 from .analyzer import get_task_bonus
 from .scorer import Scorer
