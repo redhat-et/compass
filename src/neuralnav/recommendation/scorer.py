@@ -85,7 +85,7 @@ class Scorer:
         Returns:
             Dict mapping use_case to SLO target ranges
         """
-        # Path is: backend/src/recommendation/scorer.py
+        # Path is: src/neuralnav/recommendation/scorer.py
         # Need to go up 4 levels to get to project root, then into data/
         config_path = (
             Path(__file__).parent.parent.parent.parent

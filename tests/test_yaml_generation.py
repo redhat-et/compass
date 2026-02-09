@@ -11,18 +11,15 @@ import sys
 import logging
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from src.shared.schemas import (
+from neuralnav.shared.schemas import (
     DeploymentIntent,
     TrafficProfile,
     SLOTargets,
     GPUConfig,
     DeploymentRecommendation
 )
-from src.configuration.generator import DeploymentGenerator
-from src.configuration.validator import YAMLValidator, ValidationError
+from neuralnav.configuration.generator import DeploymentGenerator
+from neuralnav.configuration.validator import YAMLValidator, ValidationError
 
 # Configure logging
 logging.basicConfig(

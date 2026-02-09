@@ -21,7 +21,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Copy backend source code
-COPY backend/src ./backend/src
+COPY src/neuralnav ./src/neuralnav
 
 # Copy data files (Knowledge Base)
 COPY data ./data
@@ -30,7 +30,7 @@ COPY data ./data
 RUN mkdir -p /app/generated_configs /app/logs
 
 # Set environment variables
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 
 # Expose backend API port
@@ -41,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD uv run python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
 
 # Run the backend API server
-CMD ["uv", "run", "uvicorn", "backend.src.api.routes:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "neuralnav.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

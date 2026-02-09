@@ -13,13 +13,9 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import sys
 from pathlib import Path
 
-# Add backend to path
-backend_dir = Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(backend_dir))
-
-from src.knowledge_base.benchmarks import BenchmarkRepository, BenchmarkData
-from src.knowledge_base.slo_templates import SLOTemplateRepository
-from src.shared.schemas import SLOTargets
+from neuralnav.knowledge_base.benchmarks import BenchmarkRepository, BenchmarkData
+from neuralnav.knowledge_base.slo_templates import SLOTemplateRepository
+from neuralnav.shared.schemas import SLOTargets
 
 
 # Test database configuration

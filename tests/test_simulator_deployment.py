@@ -20,13 +20,9 @@ import time
 import subprocess
 from pathlib import Path
 
-# Add backend to path
-backend_dir = Path(__file__).parent.parent / "backend"
-sys.path.insert(0, str(backend_dir))
-
-from src.configuration.generator import DeploymentGenerator
-from src.cluster.manager import KubernetesClusterManager, KubernetesDeploymentError
-from src.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile, GPUConfig, DeploymentRecommendation
+from neuralnav.configuration.generator import DeploymentGenerator
+from neuralnav.cluster.manager import KubernetesClusterManager, KubernetesDeploymentError
+from neuralnav.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile, GPUConfig, DeploymentRecommendation
 
 def test_simulator_deployment():
     """Test end-to-end simulator deployment"""

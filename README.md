@@ -178,7 +178,7 @@ NeuralNav includes a **GPU-free simulator** for local development:
 
 **Simulator Mode (default):**
 ```python
-# In backend/src/api/routes.py
+# In src/neuralnav/api/routes.py
 deployment_generator = DeploymentGenerator(simulator_mode=True)
 ```
 

@@ -158,11 +158,11 @@ Configurations within 20% of SLO targets are included with clear warnings:
 
 | Component | Location | Responsibility |
 |-----------|----------|----------------|
-| `Scorer` | `backend/src/recommendation/scorer.py` | Calculate 4 scores (0-100 scale) |
-| `UseCaseQualityScorer` | `backend/src/recommendation/quality/usecase_scorer.py` | Accuracy scoring based on use case fit |
-| `ConfigFinder.plan_all_capacities()` | `backend/src/recommendation/config_finder.py` | Query benchmarks, score all configs |
-| `Analyzer` | `backend/src/recommendation/analyzer.py` | Filter and sort into 5 ranked lists |
-| `RecommendationWorkflow` | `backend/src/orchestration/workflow.py` | Orchestrate end-to-end flow |
+| `Scorer` | `src/neuralnav/recommendation/scorer.py` | Calculate 4 scores (0-100 scale) |
+| `UseCaseQualityScorer` | `src/neuralnav/recommendation/quality/usecase_scorer.py` | Accuracy scoring based on use case fit |
+| `ConfigFinder.plan_all_capacities()` | `src/neuralnav/recommendation/config_finder.py` | Query benchmarks, score all configs |
+| `Analyzer` | `src/neuralnav/recommendation/analyzer.py` | Filter and sort into 5 ranked lists |
+| `RecommendationWorkflow` | `src/neuralnav/orchestration/workflow.py` | Orchestrate end-to-end flow |
 
 #### Data Flow
 

@@ -272,7 +272,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 make docker-up-dev
 ```
 
-Edit files in `backend/src/` or `ui/` - changes will be reflected immediately.
+Edit files in `src/neuralnav/` or `ui/` - changes will be reflected immediately.
 
 ### Debugging
 
@@ -350,7 +350,7 @@ All services communicate via a bridge network (`neuralnav-network`):
 ### Volume Mounts
 
 **Development Volumes** (source code - hot reload):
-- `./backend/src` → `/app/backend/src`
+- `./src/neuralnav` → `/app/src/neuralnav`
 - `./ui` → `/app/ui`
 - `./data` → `/app/data`
 
@@ -508,7 +508,7 @@ server {
 - See [README.md](README.md) for overall project documentation
 - See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
 - See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system architecture
-- See [backend/TESTING.md](backend/TESTING.md) for testing procedures
+- See [docs/TESTING.md](TESTING.md) for testing procedures
 
 ## Support
 

@@ -7,13 +7,13 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.api.dependencies import (
+from neuralnav.api.dependencies import (
     get_cluster_manager_or_raise,
     get_deployment_generator,
     get_yaml_validator,
 )
-from src.cluster import KubernetesClusterManager
-from src.shared.schemas import DeploymentRecommendation
+from neuralnav.cluster import KubernetesClusterManager
+from neuralnav.shared.schemas import DeploymentRecommendation
 
 logger = logging.getLogger(__name__)
 

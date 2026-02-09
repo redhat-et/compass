@@ -2,8 +2,8 @@
 
 import logging
 
-from src.knowledge_base.slo_templates import SLOTemplateRepository
-from src.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
+from neuralnav.knowledge_base.slo_templates import SLOTemplateRepository
+from neuralnav.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
 
 logger = logging.getLogger(__name__)
 

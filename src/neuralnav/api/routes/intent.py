@@ -5,8 +5,8 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from src.api.dependencies import get_workflow
-from src.intent_extraction import IntentExtractor
+from neuralnav.api.dependencies import get_workflow
+from neuralnav.intent_extraction import IntentExtractor
 
 logger = logging.getLogger(__name__)
 

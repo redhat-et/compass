@@ -2,16 +2,16 @@
 
 import logging
 
-from src.intent_extraction import IntentExtractor
-from src.llm.ollama_client import OllamaClient
-from src.recommendation.analyzer import Analyzer
-from src.recommendation.config_finder import ConfigFinder
-from src.shared.schemas import (
+from neuralnav.intent_extraction import IntentExtractor
+from neuralnav.llm.ollama_client import OllamaClient
+from neuralnav.recommendation.analyzer import Analyzer
+from neuralnav.recommendation.config_finder import ConfigFinder
+from neuralnav.shared.schemas import (
     ConversationMessage,
     DeploymentRecommendation,
     RankedRecommendationsResponse,
 )
-from src.specification import TrafficProfileGenerator
+from neuralnav.specification import TrafficProfileGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class RecommendationWorkflow:
         Returns:
             Tuple of (DeploymentSpecification, intent, traffic_profile, slo_targets)
         """
-        from src.shared.schemas import DeploymentSpecification
+        from neuralnav.shared.schemas import DeploymentSpecification
 
         logger.info("Step 1: Extracting deployment intent")
         intent = self.intent_extractor.extract_intent(user_message, conversation_history)
@@ -133,7 +133,7 @@ class RecommendationWorkflow:
         Raises:
             ValueError: If recommendation cannot be generated
         """
-        from src.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
+        from neuralnav.shared.schemas import DeploymentIntent, SLOTargets, TrafficProfile
 
         logger.info("Generating recommendation from specifications")
 
@@ -335,7 +335,7 @@ class RecommendationWorkflow:
         Returns:
             RankedRecommendationsResponse with 5 ranked lists
         """
-        from src.shared.schemas import (
+        from neuralnav.shared.schemas import (
             DeploymentIntent,
             DeploymentSpecification,
             SLOTargets,

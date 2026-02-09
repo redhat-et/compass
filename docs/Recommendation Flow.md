@@ -33,7 +33,7 @@ Return best recommendation or all ranked lists
 | `POST /api/v1/re-recommend` | Re-run with edited specs | Single best config |
 | `POST /api/v1/regenerate-and-recommend` | Regenerate profile from intent | Single best config |
 
-**Entry Point**: [backend/src/api/routes/](../backend/src/api/routes/)
+**Entry Point**: [src/neuralnav/api/routes/](../src/neuralnav/api/routes/)
 
 ---
 
@@ -41,7 +41,7 @@ Return best recommendation or all ranked lists
 
 ### Step 1: Intent Extraction
 
-**File**: [backend/src/intent_extraction/extractor.py](../backend/src/intent_extraction/extractor.py)
+**File**: [src/neuralnav/intent_extraction/extractor.py](../src/neuralnav/intent_extraction/extractor.py)
 
 The `IntentExtractor` uses an LLM (Ollama qwen2.5:7b) to parse the user's natural language request into structured deployment intent.
 
@@ -65,7 +65,7 @@ intent = intent_extractor.infer_missing_fields(intent)
 
 ### Step 2: Traffic Profile Generation
 
-**File**: [backend/src/specification/traffic_profile.py](../backend/src/specification/traffic_profile.py)
+**File**: [src/neuralnav/specification/traffic_profile.py](../src/neuralnav/specification/traffic_profile.py)
 
 The `TrafficProfileGenerator` maps the use case to a GuideLLM traffic profile and calculates SLO targets.
 
@@ -100,7 +100,7 @@ slo_targets = traffic_generator.generate_slo_targets(intent)
 
 ### Step 3: Benchmark Query (PostgreSQL)
 
-**File**: [backend/src/knowledge_base/benchmarks.py](../backend/src/knowledge_base/benchmarks.py)
+**File**: [src/neuralnav/knowledge_base/benchmarks.py](../src/neuralnav/knowledge_base/benchmarks.py)
 
 The `BenchmarkRepository` queries PostgreSQL for all (model, GPU, tensor_parallel) configurations that meet SLO targets for the traffic profile.
 
@@ -122,7 +122,7 @@ The `BenchmarkRepository` queries PostgreSQL for all (model, GPU, tensor_paralle
 
 ### Step 4: Capacity Planning and Scoring
 
-**File**: [backend/src/recommendation/config_finder.py](../backend/src/recommendation/config_finder.py)
+**File**: [src/neuralnav/recommendation/config_finder.py](../src/neuralnav/recommendation/config_finder.py)
 
 The `ConfigFinder.plan_all_capacities()` method processes each benchmark configuration and calculates four scores.
 
@@ -157,8 +157,8 @@ all_configs = capacity_planner.plan_all_capacities(
 ### Step 5: Multi-Criteria Scoring
 
 **Files**:
-- [backend/src/recommendation/scorer.py](../backend/src/recommendation/scorer.py) - Calculates 4 scores
-- [backend/src/recommendation/quality/usecase_scorer.py](../backend/src/recommendation/quality/usecase_scorer.py) - Benchmark-based quality scoring
+- [src/neuralnav/recommendation/scorer.py](../src/neuralnav/recommendation/scorer.py) - Calculates 4 scores
+- [src/neuralnav/recommendation/quality/usecase_scorer.py](../src/neuralnav/recommendation/quality/usecase_scorer.py) - Benchmark-based quality scoring
 
 #### 5.1 Accuracy Score (0-100)
 
@@ -245,7 +245,7 @@ Custom weights can be provided via API (0-10 scale, normalized to percentages).
 
 ### Step 6: Ranking and Filtering
 
-**File**: [backend/src/recommendation/analyzer.py](../backend/src/recommendation/analyzer.py)
+**File**: [src/neuralnav/recommendation/analyzer.py](../src/neuralnav/recommendation/analyzer.py)
 
 The `Analyzer` generates 5 ranked lists from scored configurations.
 
@@ -281,7 +281,7 @@ ranked_lists = ranking_service.generate_ranked_lists(
 
 ### Step 7: Response Generation
 
-**File**: [backend/src/orchestration/workflow.py](../backend/src/orchestration/workflow.py)
+**File**: [src/neuralnav/orchestration/workflow.py](../src/neuralnav/orchestration/workflow.py)
 
 The `RecommendationWorkflow` orchestrates all steps and returns the appropriate response.
 
