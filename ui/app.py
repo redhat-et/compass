@@ -1678,15 +1678,7 @@ def fetch_priority_weights() -> dict | None:
         return None
     except Exception as e:
         logger.warning(f"Failed to fetch priority weights: {e}")
-        # Return hardcoded fallback defaults (complexity removed from UI, weight=0)
-        return {
-            "priority_weights": {
-                "accuracy": {"low": 3, "medium": 5, "high": 7},
-                "cost": {"low": 2, "medium": 4, "high": 6},
-                "latency": {"low": 1, "medium": 2, "high": 3},
-            },
-            "defaults": {"priority": "medium", "weights": {"accuracy": 5, "cost": 4, "latency": 2}}
-        }
+        return None
 
 
 def fetch_ranked_recommendations(
@@ -2170,13 +2162,16 @@ def get_raw_aa_accuracy(model_name: str, use_case: str) -> float:
     return 0.0
 
 # =============================================================================
-# API FUNCTIONS (with Mock fallback for demo)
+# API FUNCTIONS
 # =============================================================================
 
 from typing import Optional
 
 def extract_business_context(user_input: str) -> Optional[dict]:
-    """Extract business context using Qwen 2.5 7B."""
+    """Extract business context using the backend LLM extraction API.
+
+    Returns None on failure — caller is responsible for showing errors.
+    """
     try:
         logger.info(f"Calling LLM extraction API at {API_BASE_URL}/api/v1/extract")
         response = requests.post(
@@ -2189,9 +2184,8 @@ def extract_business_context(user_input: str) -> Optional[dict]:
             # Map preferred_gpu_types (list) to hardware for UI compatibility
             if 'preferred_gpu_types' in result:
                 gpu_list = result['preferred_gpu_types']
-                # Display as comma-separated list, or None if empty
                 result['hardware'] = ", ".join(gpu_list) if gpu_list else None
-            logger.info(f"LLM extraction successful: {result.get('use_case')}, hardware={result.get('hardware')}, priorities: acc={result.get('accuracy_priority')}, cost={result.get('cost_priority')}, lat={result.get('latency_priority')}, comp={result.get('complexity_priority')}")
+            logger.info(f"LLM extraction successful: {result.get('use_case')}")
             return result
         else:
             logger.warning(f"LLM extraction API returned status {response.status_code}: {response.text[:200]}")
@@ -2202,196 +2196,7 @@ def extract_business_context(user_input: str) -> Optional[dict]:
     except Exception as e:
         logger.warning(f"LLM extraction failed: {type(e).__name__}: {e}")
 
-    # Mock response for demo
-    logger.info("Falling back to mock extraction")
-    return mock_extraction(user_input)
-
-
-def mock_extraction(user_input: str) -> dict:
-    """Mock extraction for demo purposes - supports all 9 use cases with robust error handling."""
-    import re
-    
-    # Input validation - handle edge cases
-    if not user_input or not isinstance(user_input, str):
-        return {
-            "use_case": "chatbot_conversational",
-            "user_count": 100,
-            "hardware": None,
-            "priority": "balanced",
-            "accuracy_priority": "medium",
-            "cost_priority": "medium",
-            "latency_priority": "medium",
-            "complexity_priority": "medium",
-        }
-    
-    # Clean and normalize input
-    text_lower = user_input.lower().strip()
-    
-    # USE CASE DETECTION - Order matters! More specific patterns first
-    use_case = "chatbot_conversational"  # default
-    
-    # 1. Translation - check first (very specific)
-    if any(kw in text_lower for kw in ["translat", "language pair", "multilingual", "locali"]):
-        use_case = "translation"
-    
-    # 2. Long Document Summarization - check before short summarization
-    elif any(kw in text_lower for kw in ["long summar", "long document", "book summar", "report summar", 
-                                          "chapter", "extensive summar", "lengthy", "50+ page", "research paper"]):
-        use_case = "long_document_summarization"
-    
-    # 3. Short Summarization - check BEFORE content generation (article summarization != content generation)
-    elif any(kw in text_lower for kw in ["summar", "tldr", "brief", "condense", "digest", "news summar"]):
-        use_case = "summarization_short"
-    
-    # 4. Content Generation - check before code
-    elif any(kw in text_lower for kw in ["content generat", "content creation", "creative writ", "marketing content", 
-                                          "blog post", "copywriting", "content tool"]):
-        use_case = "content_generation"
-    
-    # 5. Code Generation (detailed) - check before code completion
-    elif any(kw in text_lower for kw in ["code generat", "full code", "implement", "build software", 
-                                          "create application", "write program"]):
-        use_case = "code_generation_detailed"
-    
-    # 6. Code Completion - IDE autocomplete
-    elif any(kw in text_lower for kw in ["code complet", "autocomplete", "code assist", "ide", "copilot",
-                                          "code suggestion", "developer tool"]):
-        use_case = "code_completion"
-    
-    # 7. Research/Legal Analysis
-    elif any(kw in text_lower for kw in ["legal", "research", "analys", "contract", "compliance", 
-                                          "academic", "scientific", "review paper"]):
-        use_case = "research_legal_analysis"
-    
-    # 8. Document RAG
-    elif any(kw in text_lower for kw in ["rag", "retriev", "knowledge base", "document q&a", 
-                                          "document search", "enterprise search"]):
-        use_case = "document_analysis_rag"
-    
-    # 9. Chatbot Conversational (default for chat-related)
-    elif any(kw in text_lower for kw in ["chatbot", "chat", "customer support", "virtual assist", 
-                                          "conversation", "support bot", "help desk"]):
-        use_case = "chatbot_conversational"
-    
-    # Detect user count - look for numbers followed by user-related words
-    # Avoid matching "50+ pages", "7B params", "80GB", etc.
-    user_patterns = [
-        r'(\d+[,.]?\d*)\s*k?\s*(users|developers|researchers|engineers|team members|people|employees|customers|daily users)',
-        r'(\d+[,.]?\d*)\s*(k|thousand)\s*(users|developers|researchers|people)?',
-        r'for\s+(\d+[,.]?\d*)\s*(k)?\s*(users|developers|researchers|people)?',
-        r'(\d+[,.]?\d*)\s+team',
-    ]
-    
-    user_count = 1000  # default
-    for pattern in user_patterns:
-        user_match = re.search(pattern, text_lower)
-        if user_match:
-            num_str = user_match.group(1).replace(',', '')
-            num = float(num_str)
-            # Check if 'k' or 'thousand' is in the match
-            full_match = user_match.group(0).lower()
-            if 'k ' in full_match or 'k\t' in full_match or full_match.endswith('k') or 'thousand' in full_match:
-                num *= 1000
-            user_count = int(num)
-            break
-    
-    # Detect hardware preference
-    hardware = None
-    if "h200" in text_lower:
-        hardware = "H200"
-    elif "h100" in text_lower:
-        hardware = "H100"
-    elif "a100" in text_lower:
-        hardware = "A100"
-    elif "l4" in text_lower:
-        hardware = "L4"
-    elif "l40" in text_lower:
-        hardware = "L40S"
-    elif "b200" in text_lower:
-        hardware = "B200"
-    
-    # Detect priority from user input
-    priority = "balanced"  # default
-    
-    # Quality keywords - check these FIRST (accuracy is more specific than generic "critical")
-    quality_keywords = ["accuracy", "accurate", "quality", "precision", "high quality", "top quality", 
-                        "accuracy is critical", "quality is critical", "quality is most important",
-                        "accuracy is most important", "best quality", "highest accuracy"]
-    
-    # Latency keywords - "critical" removed (too generic)
-    latency_keywords = ["latency", "fast", "speed", "quick", "responsive", "real-time", "instant", 
-                        "low latency", "latency is critical", "under 200ms", "under 100ms", "millisecond"]
-    
-    cost_keywords = ["cost", "cheap", "budget", "efficient", "affordable", "save money", "cost-effective",
-                     "budget is tight", "minimize cost"]
-    
-    throughput_keywords = ["throughput", "scale", "high volume", "capacity", "concurrent", "many users",
-                           "high traffic", "peak load"]
-    
-    # Check for QUALITY priority FIRST (most specific signals)
-    if any(kw in text_lower for kw in quality_keywords):
-        priority = "high_accuracy"
-    # Check for latency priority
-    elif any(kw in text_lower for kw in latency_keywords):
-        priority = "low_latency"
-    # Check for cost priority
-    elif any(kw in text_lower for kw in cost_keywords):
-        priority = "cost_saving"
-    # Check for throughput priority
-    elif any(kw in text_lower for kw in throughput_keywords):
-        priority = "high_throughput"
-    
-    # Detect priority hints for each dimension (default to "medium")
-    accuracy_priority = "medium"
-    cost_priority = "medium"
-    latency_priority = "medium"
-    complexity_priority = "medium"
-
-    # Accuracy priority detection
-    if any(kw in text_lower for kw in ["accuracy is important", "accuracy matters", "accuracy is critical",
-                                        "quality matters", "quality is critical", "best model",
-                                        "highest accuracy", "accuracy critical", "top quality"]):
-        accuracy_priority = "high"
-    elif any(kw in text_lower for kw in ["accuracy less important", "good enough", "accuracy not critical"]):
-        accuracy_priority = "low"
-
-    # Cost priority detection
-    if any(kw in text_lower for kw in ["cost is important", "cost-effective", "cost effective", 
-                                        "budget constrained", "cost-efficient", "cost critical", 
-                                        "minimize cost", "budget is tight", "cost sensitive"]):
-        cost_priority = "high"
-    elif any(kw in text_lower for kw in ["not cost sensitive", "budget flexible", "money not an issue",
-                                          "cost doesn't matter"]):
-        cost_priority = "low"
-
-    # Latency priority detection
-    if any(kw in text_lower for kw in ["latency is a concern", "speed matters", "fast response",
-                                        "low latency critical", "real-time", "instant"]):
-        latency_priority = "high"
-    elif any(kw in text_lower for kw in ["latency less important", "can wait", "latency not critical"]):
-        latency_priority = "low"
-
-    # Complexity priority detection
-    if any(kw in text_lower for kw in ["simple deployment", "easy to manage", "minimal complexity",
-                                        "simple setup", "straightforward"]):
-        complexity_priority = "high"
-    elif any(kw in text_lower for kw in ["complexity is fine", "advanced setup ok", "complex ok"]):
-        complexity_priority = "low"
-
-    # Build preferred_gpu_types list for API compatibility
-    preferred_gpu_types = [hardware] if hardware else []
-
-    return {
-        "use_case": use_case,
-        "user_count": user_count,
-        "hardware": hardware,
-        "preferred_gpu_types": preferred_gpu_types,
-        "priority": priority,
-        "accuracy_priority": accuracy_priority,
-        "cost_priority": cost_priority,
-        "latency_priority": latency_priority,
-        "complexity_priority": complexity_priority,
-    }
+    return None
 
 
 # =============================================================================
@@ -2737,18 +2542,6 @@ def render_top5_table(recommendations: list, priority: str):
     top5_cost = ranked_response.get("lowest_cost", [])[:5]
     top5_simplest = ranked_response.get("simplest", [])[:5]
     
-    # Fallback to local sorting if backend response is empty (shouldn't happen)
-    if not top5_balanced and recommendations:
-        top5_balanced = sorted(recommendations, key=lambda x: get_scores(x)["final"], reverse=True)[:5]
-    if not top5_accuracy and recommendations:
-        top5_accuracy = sorted(recommendations, key=lambda x: get_scores(x)["accuracy"], reverse=True)[:5]
-    if not top5_latency and recommendations:
-        top5_latency = sorted(recommendations, key=lambda x: get_scores(x)["latency"], reverse=True)[:5]
-    if not top5_cost and recommendations:
-        top5_cost = sorted(recommendations, key=lambda x: get_scores(x)["cost"], reverse=True)[:5]
-    if not top5_simplest and recommendations:
-        top5_simplest = sorted(recommendations, key=lambda x: get_scores(x)["complexity"], reverse=True)[:5]
-    
     # Best = first in each list
     best_overall = top5_balanced[0] if top5_balanced else None
     best_accuracy = top5_accuracy[0] if top5_accuracy else None
@@ -3092,8 +2885,8 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
     if rps_data:
         estimated_qps = int(rps_data.get("expected_rps", 1))
     else:
-        # Fallback to simple heuristic if API fails
-        estimated_qps = max(1, user_count // 50)
+        st.error("Failed to fetch expected RPS from backend. Please ensure the backend is running.")
+        return
 
     # Track if use_case or user_count changed - if so, reset custom_qps to use new default
     last_use_case = st.session_state.get("_last_rps_use_case")

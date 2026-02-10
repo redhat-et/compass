@@ -29,30 +29,15 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 2: Remove Fallback Logic and `mock_extraction()`
+## Phase 2: Remove Fallback Logic and `mock_extraction()` -- DONE (5,430 → 5,217 lines)
 
-**What to remove:**
+**What was removed:**
 
-- **`mock_extraction()`** (lines 2314-2504, ~191 lines) — keyword-based intent extraction duplicating the backend's LLM extraction. Only runs when backend `/api/v1/extract` fails.
-
-- **Modify `extract_business_context()`** (lines 2282-2311):
-  - Remove `return mock_extraction(user_input)` fallback (line 2311)
-  - Return `None` on all error paths
-  - The caller already handles `None` with `st.error()`
-
-- **`fetch_priority_weights()` hardcoded fallback** (lines 1786-1793) — returns hardcoded weight dict when API fails. Change to return `None`; let caller show `st.error()`.
-
-- **QPS fallback heuristic** (line 3405): `estimated_qps = max(1, user_count // 50)`. Replace with `st.error()` when `fetch_expected_rps()` returns `None`.
-
-- **SLO defaults fallback** (lines 3544-3546): hardcoded `500`/`50`/`10000` when API returns `None`. Show `st.error()` and return early instead.
-
-- **Local re-sorting fallback** (lines 3021-3031): 10 lines that re-sort recommendations locally when backend ranked lists are empty. Remove — if backend returns empty lists, show a message.
-
-**Estimated removal**: ~230 lines
-**Risk**: Low — behavior change only when backend is down (shows errors instead of masking them)
-**Test**:
-  - With backend running: full workflow should work identically
-  - With backend stopped: UI should show clear error messages at extraction, SLO defaults, and recommendation steps
+- `mock_extraction()` (~191 lines) — keyword-based intent extraction duplicating the backend's LLM extraction. `extract_business_context()` now returns `None` on failure; caller shows `st.error()`.
+- `fetch_priority_weights()` hardcoded fallback — was returning a hardcoded weight dict on API failure. Now returns `None`; callers already handle `None` via `if priority_config else {}`.
+- QPS fallback heuristic `estimated_qps = max(1, user_count // 50)` — `render_slo_cards()` now shows `st.error()` and returns early when `fetch_expected_rps()` fails.
+- Local re-sorting fallback (5 blocks) — UI was re-sorting recommendations locally when backend ranked lists were empty. Removed; if backend returns empty lists the UI shows the empty state.
+- SLO defaults fallback was already addressed in Phase 1 (`st.error()` and early return).
 
 ---
 
