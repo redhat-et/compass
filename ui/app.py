@@ -1884,9 +1884,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         cost = rec.get("cost_per_month_usd", 0)
         meets_slo = rec.get("meets_slo", False)
         scores = rec.get("scores", {})
-        # Use raw AA accuracy from CSV (same as cards) instead of backend score
-        use_case = st.session_state.get("detected_use_case", "chatbot_conversational")
-        accuracy_score = get_raw_aa_accuracy(model_name, use_case)
+        accuracy_score = scores.get("accuracy_score", 0) if isinstance(scores, dict) else 0
         price_score = scores.get("price_score", 0) if isinstance(scores, dict) else 0
         latency_score = scores.get("latency_score", 0) if isinstance(scores, dict) else 0
         complexity_score = scores.get("complexity_score", 0) if isinstance(scores, dict) else 0
@@ -2046,120 +2044,6 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
     ))
 
     return messages
-
-@st.cache_data
-def load_weighted_scores(use_case: str) -> pd.DataFrame:
-    """Load use-case-specific weighted scores from backend API."""
-    try:
-        # Fetch weighted scores from backend API
-        response = requests.get(
-            f"{API_BASE_URL}/api/v1/weighted-scores/{use_case}",
-            timeout=10
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        # Convert JSON to DataFrame
-        if data.get("success") and data.get("scores"):
-            df = pd.DataFrame(data["scores"])
-            return df
-        else:
-            logger.warning(f"No weighted scores returned from API for use case: {use_case}")
-            return pd.DataFrame()
-    except Exception as e:
-        logger.error(f"Failed to load weighted scores from API for {use_case}: {e}")
-        return pd.DataFrame()
-
-# Model name mapping from benchmark/backend names to AA CSV names (exact mapping)
-BENCHMARK_TO_AA_NAME_MAP = {
-    # GPT-OSS - specific size mapping
-    "gpt-oss-120b": "gpt-oss-120b (high)",
-    "gpt-oss 120b": "gpt-oss-120b (high)",
-    "gpt-oss-20b": "gpt-oss-20b (high)",
-    "gpt-oss 20b": "gpt-oss-20b (high)",
-    # Llama models
-    "llama-4-maverick-17b-128e-instruct-fp8": "llama 4 maverick",
-    "llama-4-scout-17b-16e-instruct": "llama 4 scout",
-    "llama-4-scout-17b-16e-instruct-fp8-dynamic": "llama 4 scout",
-    "llama-3.3-70b-instruct": "llama 3.3 instruct 70b",
-    # Phi
-    "phi-4": "phi-4",
-    "phi-4-fp8-dynamic": "phi-4",
-    # Mistral
-    "mistral-small-24b-instruct-2501": "mistral small 3",
-    "mistral-small-3.1-24b-instruct-2503": "mistral small 3.1",
-    "mistral-small-3.1-24b-instruct-2503-fp8-dynamic": "mistral small 3.1",
-    "mixtral-8x7b-instruct-v0.1": "mixtral 8x7b instruct",
-    # Qwen
-    "qwen2.5-7b-instruct": "qwen2.5 7b instruct",
-    "qwen2.5-7b-instruct-fp8-dynamic": "qwen2.5 7b instruct",
-}
-
-def get_raw_aa_accuracy(model_name: str, use_case: str) -> float:
-    """Get raw AA benchmark accuracy for a model from the weighted scores CSV.
-    
-    This returns the actual benchmark score, NOT the composite quality score.
-    """
-    df = load_weighted_scores(use_case)
-    if df.empty:
-        return 0.0
-    
-    # Normalize model name - remove extra spaces, convert to lowercase
-    model_lower = model_name.lower().strip().replace('  ', ' ')
-    
-    # Extract size identifier (e.g., "120b", "20b", "70b") for differentiation
-    import re
-    size_match = re.search(r'(\d+)b', model_lower)
-    model_size = size_match.group(1) if size_match else None
-    
-    # Try direct mapping first
-    aa_name = BENCHMARK_TO_AA_NAME_MAP.get(model_lower)
-    if not aa_name:
-        # Try with dashes converted to spaces
-        aa_name = BENCHMARK_TO_AA_NAME_MAP.get(model_lower.replace('-', ' '))
-    if not aa_name:
-        aa_name = model_lower
-    
-    # Look for EXACT model in CSV (case-insensitive)
-    for _, row in df.iterrows():
-        csv_model = str(row.get('Model Name', row.get('model_name', ''))).lower().strip()
-        
-        # Exact match with mapped name
-        if csv_model == aa_name.lower():
-            score_str = str(row.get('Use Case Score', row.get('Weighted Score', '0')))
-            try:
-                return float(score_str.replace('%', ''))
-            except:
-                return 0.0
-    
-    # Partial match - but must match SIZE to avoid 120B/20B confusion
-    for _, row in df.iterrows():
-        csv_model = str(row.get('Model Name', row.get('model_name', ''))).lower().strip()
-        
-        # Check if base model name matches AND size matches
-        base_name = model_lower.replace('-', ' ').replace('_', ' ').split()[0] if model_lower else ""
-        
-        if base_name and base_name in csv_model:
-            # Verify size matches to avoid 120B vs 20B confusion
-            csv_size_match = re.search(r'(\d+)b', csv_model)
-            csv_size = csv_size_match.group(1) if csv_size_match else None
-            
-            if model_size and csv_size and model_size == csv_size:
-                # Size matches - this is the right model
-                score_str = str(row.get('Use Case Score', row.get('Weighted Score', '0')))
-                try:
-                    return float(score_str.replace('%', ''))
-                except:
-                    return 0.0
-            elif not model_size and not csv_size:
-                # No size in either - match on name
-                score_str = str(row.get('Use Case Score', row.get('Weighted Score', '0')))
-                try:
-                    return float(score_str.replace('%', ''))
-                except:
-                    return 0.0
-    
-    return 0.0
 
 # =============================================================================
 # API FUNCTIONS
@@ -3417,20 +3301,6 @@ def show_category_dialog():
     # Get use case for context
     use_case = st.session_state.get("detected_use_case", "chatbot_conversational")
     
-    # Token config per use case (for throughput calculation)
-    USE_CASE_OUTPUT_TOKENS = {
-        "chatbot_conversational": 256,
-        "code_completion": 256,
-        "translation": 256,
-        "content_creation": 256,
-        "code_generation_detailed": 1024,
-        "summarization_short": 512,
-        "document_analysis_rag": 512,
-        "long_document_summarization": 1536,
-        "research_legal_analysis": 1536,
-    }
-    output_tokens = USE_CASE_OUTPUT_TOKENS.get(use_case, 256)
-    
     # Category config - theme colors (no emojis)
     category_config = {
         "balanced": {"title": "Balanced - Top 5", "color": "#EE0000", "field": "final", "top5_key": "top5_balanced"},
@@ -3481,27 +3351,16 @@ def show_category_dialog():
             st.rerun()
         return
     
-    # Helper to get scores
+    # Helper to get scores — all from backend
     def get_model_scores(rec):
         backend_scores = rec.get("scores", {}) or {}
-        ui_breakdown = rec.get("score_breakdown", {}) or {}
-        model_name = rec.get('model_name', 'Unknown')
-        raw_aa = rec.get('raw_aa_accuracy', 0)
-        if not raw_aa:
-            raw_aa = get_raw_aa_accuracy(model_name, use_case)
         return {
-            "accuracy": raw_aa,
-            "latency": backend_scores.get("latency_score", ui_breakdown.get("latency_score", 0)),
-            "cost": backend_scores.get("price_score", ui_breakdown.get("cost_score", 0)),
-            "complexity": backend_scores.get("complexity_score", ui_breakdown.get("capacity_score", 0)),
-            "final": backend_scores.get("balanced_score", rec.get("final_score", 0)),
+            "accuracy": backend_scores.get("accuracy_score", 0),
+            "latency": backend_scores.get("latency_score", 0),
+            "cost": backend_scores.get("price_score", 0),
+            "complexity": backend_scores.get("complexity_score", 0),
+            "final": backend_scores.get("balanced_score", 0),
         }
-    
-    # Helper to calculate throughput: output_tokens / (E2E_ms / 1000) = output_tokens * 1000 / E2E_ms
-    def calc_throughput(e2e_ms, output_toks):
-        if isinstance(e2e_ms, str) or e2e_ms is None or e2e_ms <= 0:
-            return None
-        return output_toks * 1000 / e2e_ms  # tok/s
     
     # Render each model in the top 5
     for i, rec in enumerate(top5_list):
@@ -3527,12 +3386,7 @@ def show_category_dialog():
         e2e = benchmark_metrics.get(f'e2e_{percentile_suffix}', rec.get('predicted_e2e_p95_ms', 'N/A'))
         tps = benchmark_metrics.get(f'tps_{percentile_suffix}', 0)
         
-        # Use TPS from benchmark if available, else calculate from E2E
-        if tps and tps > 0:
-            throughput_display = f"{tps:.0f} tok/s"
-        else:
-            throughput = calc_throughput(e2e, output_tokens)
-            throughput_display = f"{throughput:.0f} tok/s" if throughput else "N/A"
+        throughput_display = f"{tps:.0f} tok/s" if tps and tps > 0 else "N/A"
         
         highlight_score = scores.get(config["field"], 0)
         # Theme rank colors: red for #1, gray shades for others
@@ -4982,26 +4836,28 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     with col1:
         st.markdown(f'<h3 style="color: white; font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; background: linear-gradient(135deg, #D4AF37, #F4E4BA, #D4AF37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);">{winner.get("model_name", "Unknown")}</h3>', unsafe_allow_html=True)
         
-        # Get weights based on priority
-        priority_weights = {
-            "balanced": {"accuracy": 0.30, "latency": 0.30, "cost": 0.25, "capacity": 0.15},
-            "low_latency": {"accuracy": 0.15, "latency": 0.50, "cost": 0.15, "capacity": 0.20},
-            "cost_saving": {"accuracy": 0.20, "latency": 0.15, "cost": 0.50, "capacity": 0.15},
-            "high_accuracy": {"accuracy": 0.50, "latency": 0.20, "cost": 0.15, "capacity": 0.15},
-            "high_throughput": {"accuracy": 0.15, "latency": 0.15, "cost": 0.15, "capacity": 0.55},
+        # Get actual weights from session state (0-10 scale, set by user in Tech Spec tab)
+        w_accuracy = st.session_state.get("weight_accuracy", 5)
+        w_latency = st.session_state.get("weight_latency", 2)
+        w_cost = st.session_state.get("weight_cost", 4)
+        w_total = w_accuracy + w_latency + w_cost
+        # Normalize to fractions (complexity weight is 0 in UI)
+        weights = {
+            "accuracy": w_accuracy / w_total if w_total > 0 else 0.33,
+            "latency": w_latency / w_total if w_total > 0 else 0.33,
+            "cost": w_cost / w_total if w_total > 0 else 0.33,
         }
-        weights = priority_weights.get(priority, priority_weights["balanced"])
-        
+
         # Calculate contributions
         q_score = breakdown.get("quality_score", 0)
         l_score = breakdown.get("latency_score", 0)
         c_score = breakdown.get("cost_score", 0)
         cap_score = breakdown.get("capacity_score", 0)
-        
+
         q_contrib = q_score * weights["accuracy"]
         l_contrib = l_score * weights["latency"]
         c_contrib = c_score * weights["cost"]
-        cap_contrib = cap_score * weights["capacity"]
+        cap_contrib = 0  # Complexity weight is 0 in UI
         
         render_score_bar("Accuracy", "", q_score, "score-bar-accuracy", q_contrib)
         render_score_bar("Latency", "", l_score, "score-bar-latency", l_contrib)
@@ -5010,56 +4866,22 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     
     with col2:
         st.markdown('<h3 style="color: white;">Why This Model?</h3>', unsafe_allow_html=True)
-        
-        # Get use case from extraction context for use-case-specific summary
-        use_case = extraction.get('use_case', 'chatbot_conversational')
+
         model_name = winner.get('model_name', 'Unknown')
-        
-        # Use-case specific model summaries
-        use_case_context = {
-            "code_completion": f"excels at real-time code suggestions with fast TTFT, ideal for IDE integrations where developer productivity depends on instant completions",
-            "code_generation_detailed": f"provides detailed, well-documented code generation with strong reasoning capabilities, suitable for complex software engineering tasks",
-            "chatbot_conversational": f"delivers natural, engaging conversations with consistent response quality, perfect for customer service and interactive applications",
-            "translation": f"handles multilingual translation tasks with high accuracy, supporting document localization and cross-language communication",
-            "content_generation": f"creates compelling marketing copy and creative content with style consistency and brand voice alignment",
-            "summarization_short": f"efficiently compresses documents while preserving key insights, ideal for quick document digestion",
-            "document_analysis_rag": f"excels at RAG-based document Q&A with accurate information retrieval and coherent answer synthesis",
-            "long_document_summarization": f"handles long-context documents (10K+ tokens) with comprehensive summarization maintaining narrative flow",
-            "research_legal_analysis": f"provides thorough analysis for legal and research documents requiring high accuracy and nuanced understanding",
-        }
-        
-        # Model-specific traits
-        model_traits = {
-            "deepseek": "Known for exceptional coding and math performance at lower cost.",
-            "qwen": "Top performer on reasoning benchmarks with strong multilingual support.",
-            "llama": "Industry standard with excellent instruction-following.",
-            "gemma": "Lightweight yet powerful, optimized for efficiency.",
-            "mistral": "Efficient MoE architecture balancing speed and quality.",
-            "doubao": "ByteDance model excelling in code tasks.",
-            "kimi": "Moonshot AI model with strong reasoning.",
-            "phi": "Microsoft's compact model for edge deployment.",
-            "gpt-oss": "Open-source model benchmarked on diverse tasks.",
-        }
-        
-        # Build use-case specific summary
-        use_case_desc = use_case_context.get(use_case, "optimized for your specific task requirements")
-        model_trait = ""
-        for key, trait in model_traits.items():
-            if key.lower() in model_name.lower():
-                model_trait = trait
-                break
-        
-        summary = f"<strong>{model_name}</strong> {use_case_desc}."
-        if model_trait:
-            summary += f"<br><br><em>{model_trait}</em>"
-        
-        # Display model summary
+        use_case = extraction.get('use_case', 'chatbot_conversational')
+        use_case_display = format_use_case_name(use_case)
+
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(56, 239, 125, 0.1), rgba(102, 126, 234, 0.1)); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border-left: 4px solid #38ef7d;">
-            <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 0.95rem; line-height: 1.6;">{summary}</p>
+        <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border-left: 4px solid #38ef7d;">
+            <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                <strong>{model_name}</strong> ranked highest for <strong>{use_case_display}</strong>
+                with a balanced score of <strong>{breakdown.get('quality_score', 0):.0f}</strong> accuracy,
+                <strong>{breakdown.get('latency_score', 0):.0f}</strong> latency,
+                and <strong>{breakdown.get('cost_score', 0):.0f}</strong> cost efficiency.
+            </p>
         </div>
         """, unsafe_allow_html=True)
-        
+
         pros = winner.get("pros", ["Top Quality", "Fast Responses"])
         cons = winner.get("cons", [])
         

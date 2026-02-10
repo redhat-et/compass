@@ -41,25 +41,15 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 3: Remove Duplicated Backend Logic
+## Phase 3: Remove Duplicated Backend Logic -- DONE (5,217 → 5,039 lines)
 
-**What to remove:**
+**What was removed:**
 
-- **`get_raw_aa_accuracy()`** (lines 2210-2277, ~68 lines) — complex model name mapping + CSV matching for accuracy scores. The backend already provides `scores.accuracy_score` in every recommendation. Delete and use backend scores directly.
-
-- **`load_weighted_scores()`** (lines 2163-2209, ~47 lines) and **`BENCHMARK_TO_AA_NAME_MAP`** (lines 2186-2208) — CSV loading for accuracy. Only used by `get_raw_aa_accuracy()`.
-
-- **`calc_throughput()`** (lines 4047-4050) — computes `output_tokens * 1000 / e2e_ms`. Backend provides throughput in `benchmark_metrics.tps_*`.
-
-- **`USE_CASE_OUTPUT_TOKENS` dict** (lines 3967-3977) — duplicates backend's `workload_profile.output_tokens`. Only consumer is `calc_throughput()`.
-
-- **Hardcoded `priority_weights` dict** (lines 5543-5549) and **score contribution recalculation** (lines 5558-5561) in `_render_winner_details()`. Use backend's `scores` dict directly — it already has the final weighted values.
-
-- **Hardcoded `model_traits`** (lines 5589-5599) and **`use_case_context`** (lines 5576-5586) — marketing copy in UI code. Remove or replace with a simple display of the model name and scores.
-
-**Estimated removal**: ~150 lines
-**Risk**: Low — backend already provides all this data
-**Test**: Run full workflow. Verify accuracy scores in ranked tables match backend values. Verify winner details dialog shows correct score breakdowns.
+- `get_raw_aa_accuracy()`, `load_weighted_scores()`, and `BENCHMARK_TO_AA_NAME_MAP` (~115 lines) — complex model name mapping + CSV matching for accuracy scores. All callers now use `scores.accuracy_score` from the backend.
+- `calc_throughput()` and `USE_CASE_OUTPUT_TOKENS` dict (~18 lines) — throughput calculation duplicating backend's `benchmark_metrics.tps_*`. Throughput display now uses backend TPS directly, showing "N/A" if unavailable.
+- Hardcoded `priority_weights` dict in winner details dialog — replaced with actual user weights from `st.session_state.weight_accuracy/cost/latency`.
+- `use_case_context` and `model_traits` marketing copy dicts (~30 lines) — replaced with a simple score-based summary using the model name and backend scores.
+- `get_model_scores()` in category dialog simplified to use backend scores only (removed `ui_breakdown` fallback and `raw_aa_accuracy` lookup).
 
 ---
 
