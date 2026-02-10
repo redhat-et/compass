@@ -204,6 +204,11 @@ SESSION_DEFAULTS = {
     "top5_latency": [],
     "top5_cost": [],
     "top5_simplest": [],
+    # Category card navigation (index into top-5 lists)
+    "cat_idx_balanced": 0,
+    "cat_idx_accuracy": 0,
+    "cat_idx_latency": 0,
+    "cat_idx_cost": 0,
     # Deployment tab
     "deployment_selected_config": None,
     "deployment_yaml_files": {},
@@ -961,195 +966,161 @@ def render_deployment_tab():
 
 
 
-def render_top5_table(recommendations: list, priority: str):
-    """Render beautiful Top 5 recommendation leaderboard table with filtering.
-    
-    NOTE: The backend now implements the ACCURACY-FIRST strategy in analyzer.py.
-    The UI uses the backend's pre-ranked lists directly from st.session_state.ranked_response.
-    """
-    
-    st.subheader("Best Model Recommendations")
-    
-    # Show filter summary stats
-    ranked_response_stats = st.session_state.get("ranked_response", {})
-    total_configs = ranked_response_stats.get("total_configs_evaluated", 0)
-    passed_configs = ranked_response_stats.get("configs_after_filters", 0)
-    
+def _render_filter_summary():
+    """Render the SLO filter summary stats."""
+    ranked_response = st.session_state.get("ranked_response", {})
+    total_configs = ranked_response.get("total_configs_evaluated", 0)
+    passed_configs = ranked_response.get("configs_after_filters", 0)
+
+    if total_configs <= 0:
+        return
+
     # Count unique models from passed configs
     all_passed = []
     for cat in ["balanced", "best_accuracy", "lowest_cost", "lowest_latency", "simplest"]:
-        all_passed.extend(ranked_response_stats.get(cat, []))
+        all_passed.extend(ranked_response.get(cat, []))
     unique_models = len(set(r.get("model_name", "") for r in all_passed if r.get("model_name")))
-    
-    if total_configs > 0:
-        filter_pct = (passed_configs / total_configs * 100) if total_configs > 0 else 0
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 0.6rem 1rem;
-                    border-radius: 8px; ">
-            <span style="font-size: 0.85rem;">
-                <strong style="color: #10B981;">{passed_configs:,}</strong> configs passed SLO filter 
-                from <strong>{total_configs:,}</strong> total 
-                <span >({filter_pct:.0f}% match)</span>
-            </span>
-            <span >|</span>
-            <span style="font-size: 0.85rem;">
-                <strong>{unique_models}</strong> unique models
-            </span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Get use case for raw accuracy lookup
+
+    filter_pct = passed_configs / total_configs * 100
+    st.markdown(f"""
+    <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 0.6rem 1rem;
+                border-radius: 8px; ">
+        <span style="font-size: 0.85rem;">
+            <strong style="color: #10B981;">{passed_configs:,}</strong> configs passed SLO filter
+            from <strong>{total_configs:,}</strong> total
+            <span >({filter_pct:.0f}% match)</span>
+        </span>
+        <span >|</span>
+        <span style="font-size: 0.85rem;">
+            <strong>{unique_models}</strong> unique models
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def _render_category_card(title, recs_list, highlight_field, category_key, col):
+    """Render a recommendation card for a category with prev/next navigation."""
+    if not recs_list:
+        return
+
+    idx_key = f"cat_idx_{category_key}"
+    idx = st.session_state.get(idx_key, 0)
+    idx = min(idx, len(recs_list) - 1)  # Clamp if list shrank
+
+    rec = recs_list[idx]
+    scores = get_scores(rec)
+    model_name = format_display_name(rec.get('model_name', 'Unknown'))
+    gpu_cfg = rec.get('gpu_config', {}) or {}
+    hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
+    hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
+    cost = rec.get('cost_per_month_usd', 0)
+    highlight_value = scores.get(highlight_field, 0)
+
+    with col:
+        with st.container(border=True):
+            st.markdown(f"**{title}**")
+            st.write(f"{model_name}")
+            c1, c2 = st.columns(2)
+            c1.metric("Score", f"{highlight_value:.0f}")
+            c2.metric("Cost/mo", f"${cost:,.0f}")
+            st.caption(f"{hw_count}x {hw_type} | Acc {scores['accuracy']:.0f} | Lat {scores['latency']:.0f}")
+
+            # Prev/Next navigation
+            if len(recs_list) > 1:
+                nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
+                with nav_prev:
+                    if st.button("<", key=f"prev_{category_key}", disabled=(idx == 0)):
+                        st.session_state[idx_key] = idx - 1
+                        st.rerun()
+                with nav_label:
+                    st.markdown(f"<div style='text-align: center; line-height: 2.4; font-size: 0.85rem;'>#{idx + 1} of {len(recs_list)}</div>", unsafe_allow_html=True)
+                with nav_next:
+                    if st.button("\\>", key=f"next_{category_key}", disabled=(idx == len(recs_list) - 1)):
+                        st.session_state[idx_key] = idx + 1
+                        st.rerun()
+
+            selected_category = st.session_state.get("deployment_selected_category")
+            is_selected = (selected_category == category_key)
+
+            if is_selected:
+                if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
+                    st.session_state.deployment_selected_config = None
+                    st.session_state.deployment_selected_category = None
+                    st.session_state.deployment_yaml_generated = False
+                    st.session_state.deployment_yaml_files = {}
+                    st.session_state.deployment_id = None
+                    st.session_state.deployment_error = None
+                    st.rerun()
+            else:
+                if st.button("Select", key=f"select_{category_key}", use_container_width=True):
+                    st.session_state.deployment_selected_config = rec
+                    st.session_state.deployment_selected_category = category_key
+                    st.session_state.deployment_yaml_generated = False
+                    st.session_state.deployment_yaml_files = {}
+                    st.session_state.deployment_id = None
+
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/api/v1/deploy",
+                            json={"recommendation": rec, "namespace": "default"},
+                            timeout=30,
+                        )
+                        response.raise_for_status()
+                        result = response.json()
+                        if result.get("success"):
+                            deployment_id = result.get("deployment_id")
+                            st.session_state.deployment_id = deployment_id
+                            yaml_response = requests.get(
+                                f"{API_BASE_URL}/api/v1/deployments/{deployment_id}/yaml",
+                                timeout=10,
+                            )
+                            yaml_response.raise_for_status()
+                            yaml_data = yaml_response.json()
+                            st.session_state.deployment_yaml_files = yaml_data.get("files", {})
+                            st.session_state.deployment_yaml_generated = True
+                        else:
+                            st.session_state.deployment_yaml_generated = False
+                    except Exception:
+                        st.session_state.deployment_yaml_generated = False
+                    st.rerun()
+
+
+def render_top5_table(recommendations: list, priority: str):
+    """Render Top 5 recommendation cards with filtering summary.
+
+    Uses the backend's pre-ranked lists (ACCURACY-FIRST strategy in analyzer.py).
+    """
+    st.subheader("Best Model Recommendations")
+    _render_filter_summary()
+
     use_case = st.session_state.get("detected_use_case", "chatbot_conversational")
-    
+
     if not recommendations:
         st.info("No models available. Please check your requirements.")
         return
-    
-    # ==========================================================================
-    # USE BACKEND'S PRE-RANKED LISTS (ACCURACY-FIRST strategy applied in backend)
-    # The backend's analyzer.py implements:
-    # 1. Get top 5 unique models by raw accuracy (quality baseline)
-    # 2. Filter all configs to only those high-quality models
-    # 3. Best Latency/Cost/etc. are ranked WITHIN that quality tier
-    # ==========================================================================
+
+    # Get pre-ranked lists from backend
     ranked_response = st.session_state.get("ranked_response", {})
-    
-    # Get pre-ranked lists from backend (already filtered to high-quality models)
     top5_balanced = ranked_response.get("balanced", [])[:5]
     top5_accuracy = ranked_response.get("best_accuracy", [])[:5]
     top5_latency = ranked_response.get("lowest_latency", [])[:5]
     top5_cost = ranked_response.get("lowest_cost", [])[:5]
-    top5_simplest = ranked_response.get("simplest", [])[:5]
-    
-    # Best = first in each list
-    best_overall = top5_balanced[0] if top5_balanced else None
-    best_accuracy = top5_accuracy[0] if top5_accuracy else None
-    best_latency = top5_latency[0] if top5_latency else None
-    best_cost = top5_cost[0] if top5_cost else None
-    best_simplest = top5_simplest[0] if top5_simplest else None
-    
+
     # Store top 5 for each category in session state (for explore dialogs)
     st.session_state.top5_balanced = top5_balanced
     st.session_state.top5_accuracy = top5_accuracy
     st.session_state.top5_latency = top5_latency
     st.session_state.top5_cost = top5_cost
-    st.session_state.top5_simplest = top5_simplest
-    
-    # Helper to render a "Best" card
-    def render_best_card(title, icon, color, rec, highlight_field):
-        scores = get_scores(rec)
-        model_name = format_display_name(rec.get('model_name', 'Unknown'))
-        gpu_cfg = rec.get('gpu_config', {}) or {}
-        hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
-        hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
-        hw_display = f"{hw_count}x {hw_type}"
-        
-        highlight_value = scores.get(highlight_field, 0)
-        final_score = scores.get("final", 0)
-        
-        return f'''
-        <div style="border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; 
-                    ">
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-                <span style="font-size: 1.5rem;">{icon}</span>
-                <span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
-        </div>
-            <div style="display: flex; align-items: center; gap: 1rem;">
-                <div style="flex: 1;">
-                    <div style="font-weight: 700; font-size: 1.15rem;">{model_name}</div>
-                    <div style="font-size: 0.85rem;">{hw_display}</div>
-        </div>
-                <div style="text-align: right;">
-                    <div style="color: {color}; font-size: 2rem; font-weight: 800;">{highlight_value:.0f}</div>
-                    <div style="font-size: 0.7rem;">SCORE</div>
-        </div>
-        </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; ">
-                <span style="font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
-                <span style="font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
-                <span style="font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
-                <span style="font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
-    </div>
-                        </div>
-        '''
-    
-    # Helper to render a CAROUSEL card with arrows INSIDE the card design
-    def render_category_card(title, recs_list, highlight_field, category_key, col):
-        """Render the #1 recommendation for a category with a Select button."""
-        if not recs_list:
-            return
+    st.session_state.top5_simplest = ranked_response.get("simplest", [])[:5]
 
-        rec = recs_list[0]
-        scores = get_scores(rec)
-        model_name = format_display_name(rec.get('model_name', 'Unknown'))
-        gpu_cfg = rec.get('gpu_config', {}) or {}
-        hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
-        hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
-        cost = rec.get('cost_per_month_usd', 0)
-        highlight_value = scores.get(highlight_field, 0)
-
-        with col:
-            with st.container(border=True):
-                st.markdown(f"**{title}**")
-                st.write(f"{model_name}")
-                c1, c2 = st.columns(2)
-                c1.metric("Score", f"{highlight_value:.0f}")
-                c2.metric("Cost/mo", f"${cost:,.0f}")
-                st.caption(f"{hw_count}x {hw_type} | Acc {scores['accuracy']:.0f} | Lat {scores['latency']:.0f}")
-
-                selected_category = st.session_state.get("deployment_selected_category")
-                is_selected = (selected_category == category_key)
-
-                if is_selected:
-                    if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
-                        st.session_state.deployment_selected_config = None
-                        st.session_state.deployment_selected_category = None
-                        st.session_state.deployment_yaml_generated = False
-                        st.session_state.deployment_yaml_files = {}
-                        st.session_state.deployment_id = None
-                        st.session_state.deployment_error = None
-                        st.rerun()
-                else:
-                    if st.button("Select", key=f"select_{category_key}", use_container_width=True):
-                        st.session_state.deployment_selected_config = rec
-                        st.session_state.deployment_selected_category = category_key
-                        st.session_state.deployment_yaml_generated = False
-                        st.session_state.deployment_yaml_files = {}
-                        st.session_state.deployment_id = None
-
-                        try:
-                            response = requests.post(
-                                f"{API_BASE_URL}/api/v1/deploy",
-                                json={"recommendation": rec, "namespace": "default"},
-                                timeout=30,
-                            )
-                            response.raise_for_status()
-                            result = response.json()
-                            if result.get("success"):
-                                deployment_id = result.get("deployment_id")
-                                st.session_state.deployment_id = deployment_id
-                                yaml_response = requests.get(
-                                    f"{API_BASE_URL}/api/v1/deployments/{deployment_id}/yaml",
-                                    timeout=10,
-                                )
-                                yaml_response.raise_for_status()
-                                yaml_data = yaml_response.json()
-                                st.session_state.deployment_yaml_files = yaml_data.get("files", {})
-                                st.session_state.deployment_yaml_generated = True
-                            else:
-                                st.session_state.deployment_yaml_generated = False
-                        except Exception:
-                            st.session_state.deployment_yaml_generated = False
-                        st.rerun()
-
-    # Render 4 category cards: 2 on top row, 2 on bottom row
+    # Render 4 category cards in a 2x2 grid
     col1, col2 = st.columns(2)
-    render_category_card("Balanced", top5_balanced, "final", "balanced", col1)
-    render_category_card("Best Accuracy", top5_accuracy, "accuracy", "accuracy", col2)
+    _render_category_card("Balanced", top5_balanced, "final", "balanced", col1)
+    _render_category_card("Best Accuracy", top5_accuracy, "accuracy", "accuracy", col2)
 
     col3, col4 = st.columns(2)
-    render_category_card("Best Latency", top5_latency, "latency", "latency", col3)
-    render_category_card("Best Cost", top5_cost, "cost", "cost", col4)
+    _render_category_card("Best Latency", top5_latency, "latency", "latency", col3)
+    _render_category_card("Best Cost", top5_cost, "cost", "cost", col4)
 
     total_available = len(recommendations)
     if total_available <= 2:
@@ -1175,28 +1146,309 @@ def render_score_bar(label: str, icon: str, score: float, bar_class: str, contri
         st.write(f"{score:.0f} (+{contribution:.1f})")
 
 
-def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced"):
-    """Render SLO and workload impact cards with editable fields.
-    
-    SLO defaults are set to MAX (showing all configs by default).
-    User drags slider LEFT to tighten SLOs and filter down configs.
-    Priority affects the MAX - low_latency has tighter max values.
-    """
-    # Fetch SLO defaults (min, max, default) from backend
+# Benchmark weights per use case (from USE_CASE_METHODOLOGY.md)
+TASK_DATASETS = {
+    "chatbot_conversational": [
+        ("τ²-Bench", 45, "Conversational AI agentic workflow (114 tasks)"),
+        ("MMLU-Pro", 35, "General knowledge (12,032 questions)"),
+        ("GPQA", 20, "Scientific reasoning (198 questions)"),
+    ],
+    "code_completion": [
+        ("LiveCodeBench", 45, "Code benchmark (315 questions)"),
+        ("τ²-Bench", 35, "Agentic code assistance (114 tasks)"),
+        ("MMLU-Pro", 20, "Knowledge for context"),
+    ],
+    "code_generation_detailed": [
+        ("LiveCodeBench", 40, "Code generation (315 questions)"),
+        ("τ²-Bench", 40, "Agentic reasoning (114 tasks)"),
+        ("GPQA", 20, "Scientific reasoning for explanations"),
+    ],
+    "translation": [
+        ("τ²-Bench", 45, "Language agentic tasks (114 tasks)"),
+        ("MMLU-Pro", 35, "Language understanding (12,032 questions)"),
+        ("GPQA", 20, "Reasoning"),
+    ],
+    "content_generation": [
+        ("τ²-Bench", 45, "Creative agentic workflow (114 tasks)"),
+        ("MMLU-Pro", 35, "General knowledge for facts"),
+        ("GPQA", 20, "Reasoning"),
+    ],
+    "summarization_short": [
+        ("τ²-Bench", 45, "Summarization agentic (114 tasks)"),
+        ("MMLU-Pro", 35, "Comprehension (12,032 questions)"),
+        ("GPQA", 20, "Reasoning"),
+    ],
+    "document_analysis_rag": [
+        ("τ²-Bench", 50, "RAG is agentic workflow - DOMINANT (114 tasks)"),
+        ("GPQA", 30, "Scientific reasoning for factual answers"),
+        ("MMLU-Pro", 20, "Knowledge retrieval"),
+    ],
+    "long_document_summarization": [
+        ("τ²-Bench", 50, "Long doc handling is agentic (114 tasks)"),
+        ("MMLU-Pro", 30, "Knowledge for understanding"),
+        ("GPQA", 20, "Reasoning"),
+    ],
+    "research_legal_analysis": [
+        ("τ²-Bench", 55, "Research analysis is agentic reasoning - CRITICAL"),
+        ("GPQA", 25, "Scientific reasoning (198 questions)"),
+        ("MMLU-Pro", 20, "Knowledge (12,032 questions)"),
+    ],
+}
+
+
+def _render_slo_targets(slo_defaults):
+    """Render the SLO target inputs (TTFT, ITL, E2E) with percentile selectors."""
+    st.write("**SLO Targets**")
+
+    percentile_options = ["P50", "P90", "P95", "P99"]
+    percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
+    reverse_map = {"p50": "P50", "p90": "P90", "p95": "P95", "p99": "P99"}
+
+    # Track previous SLO values to detect changes
+    prev_ttft = st.session_state.get("_last_ttft")
+    prev_itl = st.session_state.get("_last_itl")
+    prev_e2e = st.session_state.get("_last_e2e")
+
+    def render_slo_input(metric: str, label: str, step: int):
+        """Render a single SLO input (value + percentile selector)."""
+        metric_key = {"ttft": "ttft_ms", "itl": "itl_ms", "e2e": "e2e_ms"}[metric]
+        val_min = int(slo_defaults[metric_key]["min"])
+        val_max = int(slo_defaults[metric_key]["max"])
+        input_key = f"input_{metric}"
+        custom_key = f"custom_{metric}"
+        pct_key = f"{metric}_percentile"
+        if input_key not in st.session_state:
+            st.session_state[input_key] = slo_defaults[metric_key]["default"]
+        st.write(f"**{label}**")
+        val_col, pct_col = st.columns([2, 1])
+        with val_col:
+            st.number_input(f"{metric.upper()} value", min_value=val_min, max_value=val_max, step=step, key=input_key, label_visibility="collapsed")
+            st.session_state[custom_key] = st.session_state[input_key]
+        with pct_col:
+            pct_display = reverse_map.get(st.session_state[pct_key], "P95")
+            selected_pct = st.selectbox(f"{metric.upper()} percentile", percentile_options, index=percentile_options.index(pct_display), key=f"{metric}_pct_selector", label_visibility="collapsed")
+            st.session_state[pct_key] = percentile_map[selected_pct]
+        st.caption(f"Recommended Range: {val_min:,} - {val_max:,} ms")
+
+    render_slo_input("ttft", "TTFT (Time to First Token)", step=100)
+    render_slo_input("itl", "ITL (Inter-Token Latency)", step=10)
+    render_slo_input("e2e", "E2E (End-to-End Latency)", step=1000)
+
+    # Check if SLO values changed - if so, clear recommendation cache
+    curr_ttft = st.session_state.get("custom_ttft")
+    curr_itl = st.session_state.get("custom_itl")
+    curr_e2e = st.session_state.get("custom_e2e")
+
+    if curr_ttft != prev_ttft or curr_itl != prev_itl or curr_e2e != prev_e2e:
+        if st.session_state.get("recommendation_result"):
+            st.session_state.recommendation_result = None
+        st.session_state._last_ttft = curr_ttft
+        st.session_state._last_itl = curr_itl
+        st.session_state._last_e2e = curr_e2e
+
+
+def _render_workload_profile(use_case, workload_profile, estimated_qps, qps, user_count):
+    """Render workload profile: QPS input, token counts, peak multiplier, insights."""
+    st.write("**Workload Profile**")
+
+    prompt_tokens = workload_profile['prompt_tokens']
+    output_tokens = workload_profile['output_tokens']
+    peak_mult = workload_profile['peak_multiplier']
+
+    # Store workload profile values in session state for Recommendations tab
+    st.session_state.spec_prompt_tokens = prompt_tokens
+    st.session_state.spec_output_tokens = output_tokens
+    st.session_state.spec_peak_multiplier = peak_mult
+
+    # Editable QPS input
+    default_qps = estimated_qps
+    new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
+    st.markdown(f'<div style="font-size: 0.9rem; margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
+
+    st.session_state.spec_expected_qps = new_qps
+
+    if new_qps != qps:
+        st.session_state.custom_qps = new_qps
+
+    # RPS change warnings
+    if new_qps > default_qps * 2:
+        qps_ratio = new_qps / max(default_qps, 1)
+        st.markdown(f'''
+        <div style="border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
+            <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High RPS Warning ({qps_ratio:.1f}x default)</div>
+            <div style="font-size: 0.75rem; margin-top: 0.3rem;">
+                • Requires <strong >{int(qps_ratio)}x more GPU replicas</strong><br/>
+                • Estimated cost increase: <strong style="color: #ef4444;">~{int((qps_ratio-1)*100)}%</strong><br/>
+                • Consider load balancing or queue-based architecture
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+    elif new_qps > default_qps * 1.5:
+        qps_ratio = new_qps / max(default_qps, 1)
+        st.markdown(f'''
+        <div style="border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
+            <div style="font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
+            <div style="font-size: 0.7rem; margin-top: 0.2rem;">
+                May need additional replicas. Cost ~{int((qps_ratio-1)*100)}% higher.
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+    elif new_qps < default_qps * 0.5 and default_qps > 1:
+        st.markdown(f'''
+        <div style="border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
+            <div style="font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
+            <div style="font-size: 0.7rem; margin-top: 0.2rem;">
+                Single replica may suffice. Consider smaller GPU or spot instances.
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    # Fixed workload values
+    st.markdown(f"""
+    <div style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 8px;">
+        <div style="padding: 0.5rem 0; ">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
+                <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
+        </div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
+        </div>
+        <div style="padding: 0.5rem 0; ">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
+                <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
+            </div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
+        </div>
+        <div style="padding: 0.5rem 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
+                <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
+            </div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Workload insights
+    workload_messages = get_workload_insights(use_case, new_qps, user_count)
+    for _, _, text, _ in workload_messages[:3]:
+        st.markdown(f'<div style="font-size: 0.85rem; padding: 0.4rem 0.5rem; line-height: 1.4; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
+
+
+def _render_accuracy_benchmarks(use_case):
+    """Render the accuracy benchmark weights for the current use case."""
+    st.write("**Accuracy Benchmarks**")
+
+    datasets = TASK_DATASETS.get(use_case, TASK_DATASETS["chatbot_conversational"])
+
+    datasets_html = '<div style="padding: 0.5rem;">'
+    for name, weight, tooltip in datasets:
+        datasets_html += f'''<div style="padding: 0.5rem 0; ">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.95rem; font-weight: 500;">{name}</span>
+                <span style="font-weight: 700; font-size: 0.95rem; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
+        </div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
+        </div>'''
+    datasets_html += '</div>'
+    datasets_html += '<div style="font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
+    st.markdown(datasets_html, unsafe_allow_html=True)
+
+
+def _render_priorities():
+    """Render priority dropdowns and weight inputs for accuracy, cost, latency."""
+    st.write("**Priorities**")
+
+    # Load priority weights config from backend (cached)
+    priority_config = fetch_priority_weights()
+    priority_weights_map = priority_config.get("priority_weights", {}) if priority_config else {}
+    defaults_config = priority_config.get("defaults", {}) if priority_config else {}
+    logger.debug(f"Priority config loaded: weights_map keys={list(priority_weights_map.keys())}, defaults={defaults_config}")
+
+    priority_options = ["Low", "Medium", "High"]
+    priority_to_value = {"Low": "low", "Medium": "medium", "High": "high"}
+    value_to_priority = {"low": "Low", "medium": "Medium", "high": "High"}
+
+    def get_weight_for_priority(dimension: str, priority_level: str) -> int:
+        pw = priority_weights_map.get(dimension, {})
+        default_weights = defaults_config.get("weights", {"accuracy": 5, "cost": 4, "latency": 2, "complexity": 2})
+        weight = pw.get(priority_level, default_weights.get(dimension, 5))
+        logger.info(f"get_weight_for_priority({dimension}, {priority_level}): pw={pw}, weight={weight}")
+        return weight
+
+    extraction = st.session_state.get('extraction_result', {})
+
+    # Update priorities from new LLM extraction
+    if st.session_state.get('new_extraction_available', False):
+        st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
+        st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
+        st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
+        st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
+        st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
+        st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
+        st.session_state.new_extraction_available = False
+        logger.info(f"Updated priorities from new extraction: accuracy={st.session_state.accuracy_priority}, "
+                   f"cost={st.session_state.cost_priority}, latency={st.session_state.latency_priority}")
+
+    # Initialize session state for priorities if not set (first load)
+    if 'accuracy_priority' not in st.session_state:
+        st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
+    if 'cost_priority' not in st.session_state:
+        st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
+    if 'latency_priority' not in st.session_state:
+        st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
+
+    # Initialize weights based on priorities
+    if 'weight_accuracy' not in st.session_state:
+        st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
+    if 'weight_cost' not in st.session_state:
+        st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
+    if 'weight_latency' not in st.session_state:
+        st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
+
+    # Priority rows: label | dropdown | weight input
+    for dimension, state_key in [("Accuracy", "accuracy"), ("Cost", "cost"), ("Latency", "latency")]:
+        label_col, dropdown_col, weight_col = st.columns([2, 1.5, 1])
+        with label_col:
+            st.markdown(f'<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">{dimension}</span>', unsafe_allow_html=True)
+        with dropdown_col:
+            current_priority = st.session_state.get(f"{state_key}_priority", "medium")
+            display = value_to_priority.get(current_priority, "Medium")
+            new_priority = st.selectbox(dimension, priority_options, index=priority_options.index(display), key=f"{state_key}_priority_select", label_visibility="collapsed")
+            new_priority_val = priority_to_value[new_priority]
+            if new_priority_val != current_priority:
+                st.session_state[f"{state_key}_priority"] = new_priority_val
+                st.session_state[f"weight_{state_key}"] = get_weight_for_priority(state_key, new_priority_val)
+        with weight_col:
+            current_weight = st.session_state.get(f"weight_{state_key}", 5)
+            new_weight = st.number_input(f"{dimension} weight", min_value=0, max_value=10, value=current_weight, key=f"{state_key}_weight_input", label_visibility="collapsed")
+            if new_weight != current_weight:
+                st.session_state[f"weight_{state_key}"] = new_weight
+
+
+def render_slo_cards(use_case: str, user_count: int):
+    """Render SLO and workload specification cards in a 4-column layout."""
+    # Fetch SLO defaults from backend
     slo_defaults = fetch_slo_defaults(use_case)
     if not slo_defaults:
         st.error(f"Failed to fetch SLO defaults for use case: {use_case}")
         return
 
-    # Fetch expected RPS from backend using research-based workload patterns
+    # Fetch expected RPS from backend
     rps_data = fetch_expected_rps(use_case, user_count)
-    if rps_data:
-        estimated_qps = int(rps_data.get("expected_rps", 1))
-    else:
+    if not rps_data:
         st.error("Failed to fetch expected RPS from backend. Please ensure the backend is running.")
         return
+    estimated_qps = int(rps_data.get("expected_rps", 1))
 
-    # Track if use_case or user_count changed - if so, reset custom_qps to use new default
+    # Fetch workload profile from backend
+    workload_profile = fetch_workload_profile(use_case)
+    if not workload_profile:
+        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+        return
+
+    # Track if use_case or user_count changed - reset custom_qps to new default
     last_use_case = st.session_state.get("_last_rps_use_case")
     last_user_count = st.session_state.get("_last_rps_user_count")
     if last_use_case != use_case or last_user_count != user_count:
@@ -1207,353 +1459,18 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             del st.session_state["edit_qps"]
 
     qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
-    
+
     st.subheader("Set Technical Specification")
-    
-    
-    # Create 4 columns for all cards in one row
+
     col1, col2, col3, col4 = st.columns(4)
-    
     with col1:
-        st.write("**SLO Targets**")
-
-        # Load workload profile from API for token config
-        workload_profile = fetch_workload_profile(use_case)
-        if not workload_profile:
-            st.error(f"Failed to fetch workload profile for use case: {use_case}")
-            return
-        # Percentile options
-        percentile_options = ["P50", "P90", "P95", "P99"]
-        percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
-        reverse_map = {"p50": "P50", "p90": "P90", "p95": "P95", "p99": "P99"}
-
-        # Track previous SLO values to detect changes
-        prev_ttft = st.session_state.get("_last_ttft")
-        prev_itl = st.session_state.get("_last_itl")
-        prev_e2e = st.session_state.get("_last_e2e")
-
-        # SLO min/max ranges from backend (already fetched above)
-        def render_slo_input(metric: str, label: str, step: int):
-            """Render a single SLO input (value + percentile selector)."""
-            metric_key = {"ttft": "ttft_ms", "itl": "itl_ms", "e2e": "e2e_ms"}[metric]
-            val_min = int(slo_defaults[metric_key]["min"])
-            val_max = int(slo_defaults[metric_key]["max"])
-            input_key = f"input_{metric}"
-            custom_key = f"custom_{metric}"
-            pct_key = f"{metric}_percentile"
-            if input_key not in st.session_state:
-                st.session_state[input_key] = slo_defaults[metric_key]["default"]
-            st.write(f"**{label}**")
-            val_col, pct_col = st.columns([2, 1])
-            with val_col:
-                st.number_input(f"{metric.upper()} value", min_value=val_min, max_value=val_max, step=step, key=input_key, label_visibility="collapsed")
-                st.session_state[custom_key] = st.session_state[input_key]
-            with pct_col:
-                pct_display = reverse_map.get(st.session_state[pct_key], "P95")
-                selected_pct = st.selectbox(f"{metric.upper()} percentile", percentile_options, index=percentile_options.index(pct_display), key=f"{metric}_pct_selector", label_visibility="collapsed")
-                st.session_state[pct_key] = percentile_map[selected_pct]
-            st.caption(f"Recommended Range: {val_min:,} - {val_max:,} ms")
-
-        render_slo_input("ttft", "TTFT (Time to First Token)", step=100)
-        render_slo_input("itl", "ITL (Inter-Token Latency)", step=10)
-        render_slo_input("e2e", "E2E (End-to-End Latency)", step=1000)
-
-        # Check if SLO values changed - if so, clear recommendation cache
-        curr_ttft = st.session_state.get("custom_ttft")
-        curr_itl = st.session_state.get("custom_itl")
-        curr_e2e = st.session_state.get("custom_e2e")
-
-        if (curr_ttft != prev_ttft or curr_itl != prev_itl or curr_e2e != prev_e2e):
-            # SLO values changed - invalidate recommendation cache
-            if st.session_state.get("recommendation_result"):
-                st.session_state.recommendation_result = None
-            # Store current values for next comparison
-            st.session_state._last_ttft = curr_ttft
-            st.session_state._last_itl = curr_itl
-            st.session_state._last_e2e = curr_e2e
-    
+        _render_slo_targets(slo_defaults)
     with col2:
-        st.write("**Workload Profile**")
-
-        # Load workload profile from API
-        workload_profile = fetch_workload_profile(use_case)
-        if not workload_profile:
-            st.error(f"Failed to fetch workload profile for use case: {use_case}")
-            return
-        prompt_tokens = workload_profile['prompt_tokens']
-        output_tokens = workload_profile['output_tokens']
-        peak_mult = workload_profile['peak_multiplier']
-
-        # Store workload profile values in session state for Recommendations tab
-        st.session_state.spec_prompt_tokens = prompt_tokens
-        st.session_state.spec_output_tokens = output_tokens
-        st.session_state.spec_peak_multiplier = peak_mult
-
-        # 1. Editable QPS - support up to 10M QPS for enterprise scale
-        # Get research-based default QPS for this use case
-        default_qps = estimated_qps  # This is the research-based default
-        new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
-
-        # Store the actual QPS value shown to user (not just custom override)
-        st.session_state.spec_expected_qps = new_qps
-
-        if new_qps != qps:
-            st.session_state.custom_qps = new_qps
-        
-        # RPS change warning - show implications of changing from research-based default
-        if new_qps > default_qps * 2:
-            qps_ratio = new_qps / max(default_qps, 1)
-            st.markdown(f'''
-            <div style="border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
-                <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High RPS Warning ({qps_ratio:.1f}x default)</div>
-                <div style="font-size: 0.75rem; margin-top: 0.3rem;">
-                    • Requires <strong >{int(qps_ratio)}x more GPU replicas</strong><br/>
-                    • Estimated cost increase: <strong style="color: #ef4444;">~{int((qps_ratio-1)*100)}%</strong><br/>
-                    • Consider load balancing or queue-based architecture
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        elif new_qps > default_qps * 1.5:
-            qps_ratio = new_qps / max(default_qps, 1)
-            st.markdown(f'''
-            <div style="border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
-                <div style="font-size: 0.7rem; margin-top: 0.2rem;">
-                    May need additional replicas. Cost ~{int((qps_ratio-1)*100)}% higher.
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-        elif new_qps < default_qps * 0.5 and default_qps > 1:
-            st.markdown(f'''
-            <div style="border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
-                <div style="font-size: 0.7rem; margin-top: 0.2rem;">
-                    Single replica may suffice. Consider smaller GPU or spot instances.
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
-
-        # 2-4. Fixed workload values with inline descriptions (like datasets)
-        st.markdown(f"""
-        <div style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 8px;">
-            <div style="padding: 0.5rem 0; ">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
-                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
-            </div>
-                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
-            </div>
-            <div style="padding: 0.5rem 0; ">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
-                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
-                </div>
-                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
-            </div>
-            <div style="padding: 0.5rem 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
-                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
-                </div>
-                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # 5. Informational messages from research data - black background, no emojis
-        workload_messages = get_workload_insights(use_case, new_qps, user_count)
-        
-        for icon, color, text, severity in workload_messages[:3]:  # Limit to 3 for space
-            st.markdown(f'<div style="font-size: 0.85rem; padding: 0.4rem 0.5rem; line-height: 1.4; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
-
+        _render_workload_profile(use_case, workload_profile, estimated_qps, qps, user_count)
     with col3:
-        # Accuracy Benchmarks - show which benchmarks are used for this use case
-        # Each entry: (name, weight, color, tooltip_description) - all black background
-        # Updated based on USE_CASE_METHODOLOGY.md (December 2024)
-        # Focus on TOP 3 benchmarks: τ²-Bench (91%), LiveCodeBench (84%), MMLU-Pro (83%), GPQA (82%)
-        TASK_DATASETS = {
-            "chatbot_conversational": [
-                ("τ²-Bench", 45, "Conversational AI agentic workflow (114 tasks)"),
-                ("MMLU-Pro", 35, "General knowledge (12,032 questions)"),
-                ("GPQA", 20, "Scientific reasoning (198 questions)"),
-            ],
-            "code_completion": [
-                ("LiveCodeBench", 45, "Code benchmark (315 questions)"),
-                ("τ²-Bench", 35, "Agentic code assistance (114 tasks)"),
-                ("MMLU-Pro", 20, "Knowledge for context"),
-            ],
-            "code_generation_detailed": [
-                ("LiveCodeBench", 40, "Code generation (315 questions)"),
-                ("τ²-Bench", 40, "Agentic reasoning (114 tasks)"),
-                ("GPQA", 20, "Scientific reasoning for explanations"),
-            ],
-            "translation": [
-                ("τ²-Bench", 45, "Language agentic tasks (114 tasks)"),
-                ("MMLU-Pro", 35, "Language understanding (12,032 questions)"),
-                ("GPQA", 20, "Reasoning"),
-            ],
-            "content_generation": [
-                ("τ²-Bench", 45, "Creative agentic workflow (114 tasks)"),
-                ("MMLU-Pro", 35, "General knowledge for facts"),
-                ("GPQA", 20, "Reasoning"),
-            ],
-            "summarization_short": [
-                ("τ²-Bench", 45, "Summarization agentic (114 tasks)"),
-                ("MMLU-Pro", 35, "Comprehension (12,032 questions)"),
-                ("GPQA", 20, "Reasoning"),
-            ],
-            "document_analysis_rag": [
-                ("τ²-Bench", 50, "RAG is agentic workflow - DOMINANT (114 tasks)"),
-                ("GPQA", 30, "Scientific reasoning for factual answers"),
-                ("MMLU-Pro", 20, "Knowledge retrieval"),
-            ],
-            "long_document_summarization": [
-                ("τ²-Bench", 50, "Long doc handling is agentic (114 tasks)"),
-                ("MMLU-Pro", 30, "Knowledge for understanding"),
-                ("GPQA", 20, "Reasoning"),
-            ],
-            "research_legal_analysis": [
-                ("τ²-Bench", 55, "Research analysis is agentic reasoning - CRITICAL"),
-                ("GPQA", 25, "Scientific reasoning (198 questions)"),
-                ("MMLU-Pro", 20, "Knowledge (12,032 questions)"),
-            ],
-        }
-        
-        datasets = TASK_DATASETS.get(use_case, TASK_DATASETS["chatbot_conversational"])
-        
-        st.write("**Accuracy Benchmarks**")
-
-        # Display datasets with weights
-        datasets_html = '<div style="padding: 0.5rem;">'
-        for item in datasets:
-            name = item[0]
-            weight = item[1]
-            tooltip = item[2] if len(item) > 2 else ""
-            datasets_html += f'''<div style="padding: 0.5rem 0; ">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.95rem; font-weight: 500;">{name}</span>
-                    <span style="font-weight: 700; font-size: 0.95rem; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
-            </div>
-                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
-            </div>'''
-        datasets_html += '</div>'
-        datasets_html += '<div style="font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
-        st.markdown(datasets_html, unsafe_allow_html=True)
-
+        _render_accuracy_benchmarks(use_case)
     with col4:
-        # PRIORITIES card - interactive priority dropdowns with weights
-        st.write("**Priorities**")
-
-        # Load priority weights config from backend (cached)
-        priority_config = fetch_priority_weights()
-        # priority_config structure: {priority_weights: {accuracy: {low: 3, ...}, ...}, defaults: {...}}
-        priority_weights_map = priority_config.get("priority_weights", {}) if priority_config else {}
-        defaults_config = priority_config.get("defaults", {}) if priority_config else {}
-        logger.debug(f"Priority config loaded: weights_map keys={list(priority_weights_map.keys())}, defaults={defaults_config}")
-
-        # Priority options for dropdowns
-        priority_options = ["Low", "Medium", "High"]
-        priority_to_value = {"Low": "low", "Medium": "medium", "High": "high"}
-        value_to_priority = {"low": "Low", "medium": "Medium", "high": "High"}
-
-        # Helper to get weight for a priority level
-        def get_weight_for_priority(dimension: str, priority_level: str) -> int:
-            pw = priority_weights_map.get(dimension, {})
-            default_weights = defaults_config.get("weights", {"accuracy": 5, "cost": 4, "latency": 2, "complexity": 2})
-            weight = pw.get(priority_level, default_weights.get(dimension, 5))
-            logger.info(f"get_weight_for_priority({dimension}, {priority_level}): pw={pw}, weight={weight}")
-            return weight
-
-        # Get extraction result to check for LLM-detected priorities
-        extraction = st.session_state.get('extraction_result', {})
-
-        # Check if new extraction is available - force update priorities from LLM
-        # This ensures "accuracy matters" in user input updates the UI dropdowns
-        if st.session_state.get('new_extraction_available', False):
-            st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
-            st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
-            st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
-            st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
-            st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
-            st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
-            st.session_state.new_extraction_available = False  # Clear flag after processing
-            logger.info(f"Updated priorities from new extraction: accuracy={st.session_state.accuracy_priority}, "
-                       f"cost={st.session_state.cost_priority}, latency={st.session_state.latency_priority}")
-        
-        # Initialize session state for priorities if not set (first load)
-        if 'accuracy_priority' not in st.session_state:
-            st.session_state.accuracy_priority = extraction.get('accuracy_priority', 'medium')
-        if 'cost_priority' not in st.session_state:
-            st.session_state.cost_priority = extraction.get('cost_priority', 'medium')
-        if 'latency_priority' not in st.session_state:
-            st.session_state.latency_priority = extraction.get('latency_priority', 'medium')
-        # Note: complexity_priority removed from UI (backend still extracts it)
-
-        # Initialize weights based on priorities
-        if 'weight_accuracy' not in st.session_state:
-            st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
-        if 'weight_cost' not in st.session_state:
-            st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
-        if 'weight_latency' not in st.session_state:
-            st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
-        # Note: weight_complexity removed from UI (hardcoded to 0)
-
-        # Container for the priority rows
-        st.markdown('<div style="padding: 0.5rem; border-radius: 8px; margin-top: 0.5rem;">', unsafe_allow_html=True)
-
-        # Row 1: Accuracy
-        acc_col1, acc_col2, acc_col3 = st.columns([2, 1.5, 1])
-        with acc_col1:
-            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Accuracy</span>', unsafe_allow_html=True)
-        with acc_col2:
-            acc_priority_display = value_to_priority.get(st.session_state.accuracy_priority, "Medium")
-            new_acc_priority = st.selectbox("Accuracy", priority_options, index=priority_options.index(acc_priority_display), key="acc_priority_select", label_visibility="collapsed")
-            new_acc_priority_val = priority_to_value[new_acc_priority]
-            if new_acc_priority_val != st.session_state.accuracy_priority:
-                st.session_state.accuracy_priority = new_acc_priority_val
-                st.session_state.weight_accuracy = get_weight_for_priority("accuracy", new_acc_priority_val)
-        with acc_col3:
-            new_acc_weight = st.number_input("Accuracy weight", min_value=0, max_value=10, value=st.session_state.weight_accuracy, key="acc_weight_input", label_visibility="collapsed")
-            if new_acc_weight != st.session_state.weight_accuracy:
-                st.session_state.weight_accuracy = new_acc_weight
-
-        # Row 2: Cost
-        cost_col1, cost_col2, cost_col3 = st.columns([2, 1.5, 1])
-        with cost_col1:
-            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Cost</span>', unsafe_allow_html=True)
-        with cost_col2:
-            cost_priority_display = value_to_priority.get(st.session_state.cost_priority, "Medium")
-            new_cost_priority = st.selectbox("Cost", priority_options, index=priority_options.index(cost_priority_display), key="cost_priority_select", label_visibility="collapsed")
-            new_cost_priority_val = priority_to_value[new_cost_priority]
-            if new_cost_priority_val != st.session_state.cost_priority:
-                st.session_state.cost_priority = new_cost_priority_val
-                st.session_state.weight_cost = get_weight_for_priority("cost", new_cost_priority_val)
-        with cost_col3:
-            new_cost_weight = st.number_input("Cost weight", min_value=0, max_value=10, value=st.session_state.weight_cost, key="cost_weight_input", label_visibility="collapsed")
-            if new_cost_weight != st.session_state.weight_cost:
-                st.session_state.weight_cost = new_cost_weight
-
-        # Row 3: Latency
-        lat_col1, lat_col2, lat_col3 = st.columns([2, 1.5, 1])
-        with lat_col1:
-            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Latency</span>', unsafe_allow_html=True)
-        with lat_col2:
-            lat_priority_display = value_to_priority.get(st.session_state.latency_priority, "Medium")
-            new_lat_priority = st.selectbox("Latency", priority_options, index=priority_options.index(lat_priority_display), key="lat_priority_select", label_visibility="collapsed")
-            new_lat_priority_val = priority_to_value[new_lat_priority]
-            if new_lat_priority_val != st.session_state.latency_priority:
-                st.session_state.latency_priority = new_lat_priority_val
-                st.session_state.weight_latency = get_weight_for_priority("latency", new_lat_priority_val)
-        with lat_col3:
-            new_lat_weight = st.number_input("Latency weight", min_value=0, max_value=10, value=st.session_state.weight_latency, key="lat_weight_input", label_visibility="collapsed")
-            if new_lat_weight != st.session_state.weight_latency:
-                st.session_state.weight_latency = new_lat_weight
-
-        # Note: Complexity row removed from UI but scoring logic preserved in backend
-        # Complexity weight is hardcoded to 0 in fetch_ranked_recommendations()
-
-        st.markdown('</div>', unsafe_allow_html=True)
+        _render_priorities()
 
 
 # =============================================================================
@@ -1996,7 +1913,7 @@ def main():
         render_use_case_input_tab(priority, models_df)
 
     with tab2:
-        render_technical_specs_tab(priority, models_df)
+        render_technical_specs_tab()
 
     with tab3:
         render_results_tab(priority, models_df)
@@ -2228,10 +2145,8 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         """, unsafe_allow_html=True)
 
 
-def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
+def render_technical_specs_tab():
     """Tab 2: Technical Specification (SLO targets and workload settings)."""
-    used_priority = st.session_state.get("used_priority", priority)
-    
     # Check if extraction is approved first
     if not st.session_state.extraction_approved:
         st.markdown("""
@@ -2245,7 +2160,7 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     final_extraction = st.session_state.edited_extraction or st.session_state.extraction_result or {}
     
     # Show SLO section
-    render_slo_with_approval(final_extraction, used_priority, models_df)
+    render_slo_with_approval(final_extraction)
     
     # If SLO approved, show navigation message
     if st.session_state.slo_approved == True:
@@ -2595,13 +2510,13 @@ def render_extraction_edit_form(extraction: dict, models_df: pd.DataFrame):
             st.rerun()
 
 
-def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.DataFrame):
+def render_slo_with_approval(extraction: dict):
     """Render SLO section with approval to proceed to recommendations."""
     use_case = extraction.get("use_case", "chatbot_conversational")
     user_count = extraction.get("user_count", 1000)
 
     # SLO and Impact Cards - all 4 cards in one row
-    render_slo_cards(use_case, user_count, priority)
+    render_slo_cards(use_case, user_count)
     
     # ==========================================================================
     # VALIDATE SLO VALUES - Use case-specific ranges (same as sliders)
@@ -2654,6 +2569,9 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
         # Button disabled if invalid
         if st.button("Generate Recommendations", type="primary", use_container_width=True, key="generate_recs", disabled=not is_valid):
             st.session_state.slo_approved = True
+            # Reset category card navigation to show #1 for fresh results
+            for _cat in ("balanced", "accuracy", "latency", "cost"):
+                st.session_state[f"cat_idx_{_cat}"] = 0
             st.rerun()
 
 

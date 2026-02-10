@@ -83,24 +83,31 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 6: Break `render_slo_cards()` and `render_top5_table()`
+## Phase 6: Break `render_slo_cards()` and `render_top5_table()` -- DONE (3,117 → 3,035 lines)
 
-**What to change:**
+**What was changed:**
 
-These two functions are the largest remaining (577 and 461 lines respectively after prior phases). Break them into focused sub-functions:
+- **`render_top5_table()`** broken into 3 focused functions:
+  - `_render_filter_summary()` — SLO filter stats (configs passed, unique models)
+  - `_render_category_card()` — single category card with prev/next navigation and Select button (moved from nested to module level)
+  - `render_top5_table()` — now a slim orchestrator (~30 lines)
 
-- **`render_slo_cards()`** → split into:
-  - `_render_slo_inputs(use_case, slo_defaults)` — the 3 SLO number inputs
-  - `_render_workload_profile(use_case, user_count)` — workload info display
-  - `_render_weight_controls()` — already exists, just call it
+- **`render_slo_cards()`** broken into 4 focused functions + data moved to module level:
+  - `TASK_DATASETS` dict — moved from inside function to module level
+  - `_render_slo_targets(slo_defaults)` — 3 SLO inputs with percentile selectors + change detection
+  - `_render_workload_profile(use_case, workload_profile, estimated_qps, qps, user_count)` — QPS input, RPS warnings, token counts, workload insights
+  - `_render_accuracy_benchmarks(use_case)` — benchmark weight display per use case
+  - `_render_priorities()` — priority dropdowns and weight inputs (accuracy, cost, latency), deduplicated 3 near-identical rows into a loop
+  - `render_slo_cards()` — now a slim orchestrator (~25 lines)
 
-- **`render_top5_table()`** → split into:
-  - `_render_category_card(category, recs, ...)` — single category display (was repeated 5x as carousel, now simplified in Phase 4)
-  - `_render_recommendation_row(rec)` — single recommendation display
+- **Dead code removed:**
+  - `render_best_card()` (36 lines) — defined but never called
+  - Unused `best_*` variables (5 lines) — set but never read
+  - Duplicate `fetch_workload_profile()` call in SLO Targets column — result was unused
+  - Unused `priority` parameter cascading through `render_slo_cards()`, `render_slo_with_approval()`, `render_technical_specs_tab()`
+  - Unused `models_df` parameter in `render_slo_with_approval()` and `render_technical_specs_tab()`
 
-**Estimated removal**: 0 (reorganization)
-**Risk**: Low — pure refactor, no behavior change
-**Test**: Full workflow, verify all recommendation displays and SLO inputs work identically.
+- **Feature restored:** Prev/next navigation (`< #1 of 5 >`) added to category cards, allowing users to browse and select from all top-5 recommendations per category.
 
 ---
 
