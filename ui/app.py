@@ -2641,12 +2641,11 @@ def render_deployment_tab():
 
         if yaml_files:
             # Sort files for consistent display order
-            file_order = ["inferenceservice", "autoscaling", "servicemonitor", "vllm-config"]
+            file_order = ["inferenceservice", "autoscaling", "servicemonitor"]
             file_labels = {
                 "inferenceservice": "InferenceService (KServe)",
                 "autoscaling": "Autoscaling (HPA)",
                 "servicemonitor": "ServiceMonitor (Prometheus)",
-                "vllm-config": "vLLM Config (Reference)"
             }
 
             for file_key in file_order:

@@ -239,7 +239,6 @@ class DeploymentGenerator:
         # Generate each config file
         configs = [
             ("kserve-inferenceservice.yaml.j2", f"{deployment_id}-inferenceservice.yaml"),
-            ("vllm-config.yaml.j2", f"{deployment_id}-vllm-config.yaml"),
             ("autoscaling.yaml.j2", f"{deployment_id}-autoscaling.yaml"),
             ("servicemonitor.yaml.j2", f"{deployment_id}-servicemonitor.yaml"),
         ]
