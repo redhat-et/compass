@@ -150,1280 +150,12 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CUSTOM CSS - Beautiful Enterprise Styling
+# MINIMAL CSS OVERRIDES
 # =============================================================================
-
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600;700&display=swap');
-    
-    /* Global Styles */
-    .stApp {
-        font-family: 'Inter', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-        /* Dark background */
-        background: 
-            radial-gradient(ellipse at 20% 0%, rgba(238, 0, 0, 0.05) 0%, transparent 50%),
-            radial-gradient(ellipse at 80% 100%, rgba(238, 0, 0, 0.03) 0%, transparent 50%),
-            linear-gradient(180deg, #0c0c0c 0%, #151515 25%, #1a1a1a 50%, #151515 75%, #0c0c0c 100%);
-        background-attachment: fixed;
-        color: #ffffff;
-        font-size: 16px;
-        line-height: 1.7;
-        letter-spacing: -0.01em;
-    }
-    
-    /* Keyframe Animations - Subtle, Professional */
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-6px); }
-    }
-    @keyframes slide-up {
-        from { opacity: 0; transform: translateY(15px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fade-in {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    
-    /* Corporate Color Palette */
-    :root {
-        --bg-primary: #0c0c0c;
-        --bg-secondary: #151515;
-        --bg-tertiary: #1a1a1a;
-        --bg-card: rgba(21, 21, 21, 0.9);
-        --bg-card-hover: rgba(26, 26, 26, 0.95);
-        --border-default: rgba(255, 255, 255, 0.1);
-        --border-accent: rgba(238, 0, 0, 0.5);
-        --border-success: rgba(255, 255, 255, 0.3);
-        --text-primary: #ffffff;
-        --text-secondary: #a0a0a0;
-        --text-muted: #6a6a6a;
-        --accent-indigo: #EE0000;
-        --accent-purple: #EE0000;
-        --accent-blue: #EE0000;
-        --accent-cyan: #ffffff;
-        --accent-emerald: #ffffff;
-        --accent-green: #ffffff;
-        --accent-yellow: #EE0000;
-        --accent-orange: #EE0000;
-        --accent-rose: #EE0000;
-        --accent-pink: #EE0000;
-        --gradient-primary: linear-gradient(135deg, #EE0000 0%, #cc0000 50%, #a00000 100%);
-        --gradient-success: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
-        --gradient-hero: linear-gradient(135deg, #151515 0%, #1a1a1a 50%, #151515 100%);
-        --gradient-card: linear-gradient(145deg, rgba(238, 0, 0, 0.03) 0%, rgba(255, 255, 255, 0.02) 100%);
-        --shadow-lg: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-        --shadow-glow: 0 0 40px rgba(238, 0, 0, 0.1);
-    }
-    
-    /* Hero Section */
-    .hero-container {
-        background: linear-gradient(135deg, #151515 0%, #1a1a1a 50%, #151515 100%);
-        padding: 1.5rem 2rem;
-        border-radius: 1rem;
-        margin-bottom: 1.5rem;
-        box-shadow: var(--shadow-lg);
-        border: 1px solid rgba(238, 0, 0, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    .hero-container::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: radial-gradient(circle at 20% 80%, rgba(238, 0, 0, 0.08) 0%, transparent 50%),
-                    radial-gradient(circle at 80% 20%, rgba(238, 0, 0, 0.05) 0%, transparent 50%);
-        pointer-events: none;
-    }
-    .hero-container::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    .hero-emoji {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-        animation: float 5s ease-in-out infinite;
-        filter: drop-shadow(0 5px 15px rgba(0,0,0,0.4));
-        position: relative;
-        z-index: 1;
-    }
-    .hero-logo {
-        margin-bottom: 0.5rem;
-        filter: drop-shadow(0 5px 15px rgba(238,0,0,0.4));
-        position: relative;
-        z-index: 1;
-        display: inline-block;
-        margin-right: 1rem;
-        vertical-align: middle;
-    }
-    .hero-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: white;
-        margin-bottom: 0.5rem;
-        text-shadow: 0 2px 15px rgba(0,0,0,0.4);
-        letter-spacing: -1px;
-        font-family: 'Space Grotesk', 'Inter', sans-serif;
-        position: relative;
-        z-index: 1;
-        display: inline-block;
-        vertical-align: middle;
-    }
-    .hero-subtitle {
-        font-size: 1rem;
-        color: rgba(255,255,255,0.85);
-        font-weight: 400;
-        max-width: 700px;
-        line-height: 1.4;
-        position: relative;
-        z-index: 1;
-        margin-top: 0.5rem;
-    }
-    
-    /* Stats Cards - HuggingFace Leaderboard Inspired */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 1.25rem;
-        margin: 2.5rem 0;
-    }
-    .stat-card {
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        padding: 1.75rem 1.25rem;
-        border-radius: 1rem;
-        text-align: center;
-        border: 1px solid var(--border-default);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-        overflow: hidden;
-    }
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: var(--gradient-primary);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    .stat-card::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: var(--gradient-card);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-        pointer-events: none;
-    }
-    .stat-card:hover {
-        transform: translateY(-4px);
-        border-color: var(--border-accent);
-        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.1), 0 8px 20px rgba(0,0,0,0.2);
-    }
-    .stat-card:hover::before {
-        opacity: 1;
-    }
-    .stat-card:hover::after {
-        opacity: 1;
-    }
-    .stat-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-        display: block;
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15));
-    }
-    .stat-value {
-        font-size: 2.5rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple), var(--accent-emerald));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-family: 'Space Grotesk', 'Inter', sans-serif;
-        letter-spacing: -1px;
-        line-height: 1.2;
-    }
-    .stat-label {
-        font-size: 0.8rem;
-        color: var(--text-secondary);
-        font-weight: 600;
-        margin-top: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    /* Editable Fields with Pencil Icons */
-    .editable-field {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        border-radius: 0.5rem;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    .editable-field:hover {
-        background: rgba(102, 126, 234, 0.15);
-    }
-    .pencil-icon {
-        font-size: 0.9rem;
-        color: #38ef7d;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-    .editable-field:hover .pencil-icon {
-        opacity: 1;
-    }
-    .edit-input {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(102, 126, 234, 0.4);
-        border-radius: 0.5rem;
-        padding: 0.5rem 0.75rem;
-        color: white;
-        font-weight: 600;
-        width: 100px;
-        text-align: center;
-    }
-    .edit-input:focus {
-        border-color: #38ef7d;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(56, 239, 125, 0.25);
-    }
-
-    .leaderboard-container {
-        background: var(--bg-card);
-        backdrop-filter: blur(12px);
-        border-radius: 1rem;
-        border: 1px solid var(--border-default);
-        overflow-x: auto;
-        overflow-y: hidden;
-        margin: 2rem 0;
-        animation: fade-in 0.5s ease-out;
-        box-shadow: 0 4px 24px rgba(0,0,0,0.15);
-        width: 100%;
-    }
-    .leaderboard-header {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
-        padding: 1.25rem 1.75rem;
-        border-bottom: 1px solid var(--border-default);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    }
-    .leaderboard-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        font-family: 'Space Grotesk', 'Inter', sans-serif;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .leaderboard-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        table-layout: fixed;
-    }
-    .leaderboard-table th {
-        background: rgba(88, 166, 255, 0.08);
-        color: var(--text-secondary);
-        font-weight: 700;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 1rem 0.5rem;
-        text-align: center;
-        border-bottom: 1px solid var(--border-default);
-        white-space: nowrap;
-    }
-    /* Column widths - FIXED layout with explicit widths (must add to 100%) */
-    .leaderboard-table th:nth-child(1),
-    .leaderboard-table td:nth-child(1) { width: 5%; }     /* Rank */
-    .leaderboard-table th:nth-child(2),
-    .leaderboard-table td:nth-child(2) { width: 18%; text-align: left; }  /* Model */
-    .leaderboard-table th:nth-child(3),
-    .leaderboard-table td:nth-child(3) { width: 10%; }    /* Accuracy */
-    .leaderboard-table th:nth-child(4),
-    .leaderboard-table td:nth-child(4) { width: 10%; }    /* Latency */
-    .leaderboard-table th:nth-child(5),
-    .leaderboard-table td:nth-child(5) { width: 10%; }    /* Cost */
-    .leaderboard-table th:nth-child(6),
-    .leaderboard-table td:nth-child(6) { width: 10%; }    /* Capacity */
-    .leaderboard-table th:nth-child(7),
-    .leaderboard-table td:nth-child(7) { width: 10%; }    /* Final Score */
-    .leaderboard-table th:nth-child(8),
-    .leaderboard-table td:nth-child(8) { width: 17%; }    /* Pros & Cons */
-    .leaderboard-table th:nth-child(9),
-    .leaderboard-table td:nth-child(9) { width: 10%; }    /* Action */
-    .leaderboard-table td {
-        padding: 1rem 0.5rem;
-        border-bottom: 1px solid var(--border-default);
-        color: var(--text-primary);
-        vertical-align: middle;
-        text-align: center;
-    }
-    .leaderboard-table tr:hover td {
-        background: rgba(88, 166, 255, 0.05);
-    }
-    .leaderboard-table tr:last-child td {
-        border-bottom: none;
-    }
-    /* Consistent row height */
-    .leaderboard-table tr {
-        height: 85px;
-    }
-    
-    /* Rank Badges - HuggingFace Style Medals */
-    .rank-badge {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        font-size: 1rem;
-        color: white;
-        margin: 0 auto;
-        font-family: 'Space Grotesk', 'Inter', sans-serif;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .rank-badge:hover {
-        transform: scale(1.08);
-    }
-    .rank-1 {
-        background: linear-gradient(145deg, #fcd34d, #f59e0b);
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
-        color: #78350f;
-    }
-    .rank-2 {
-        background: linear-gradient(145deg, #e5e7eb, #9ca3af);
-        box-shadow: 0 4px 12px rgba(156, 163, 175, 0.4);
-        color: #374151;
-    }
-    .rank-3 {
-        background: linear-gradient(145deg, #fdba74, #ea580c);
-        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
-        color: #7c2d12;
-    }
-    /* Ranks 4-10 - Indigo gradient */
-    .rank-4, .rank-5, .rank-6, .rank-7, .rank-8, .rank-9, .rank-10 {
-        background: linear-gradient(145deg, #6366f1, #8b5cf6);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-    
-    /* Score Bars - Corporate Enhanced Style */
-    .score-mini-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        width: 100%;
-        max-width: 120px;
-        margin: 0 auto;
-        padding: 0.5rem 0;
-    }
-    .score-mini-bar {
-        height: 6px;
-        border-radius: 3px;
-        background: rgba(255,255,255,0.08);
-        overflow: hidden;
-        width: 100%;
-        position: relative;
-    }
-    .score-mini-fill {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .score-mini-label {
-        font-size: 1.4rem;
-        font-weight: 700;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        letter-spacing: -0.02em;
-    }
-    .score-num {
-        display: none;
-    }
-    .fill-accuracy { background: linear-gradient(90deg, #db2777, #ec4899); }
-    .fill-quality { background: linear-gradient(90deg, #059669, #10b981); }
-    .fill-latency { background: linear-gradient(90deg, #2563eb, #3b82f6); }
-    .fill-cost { background: linear-gradient(90deg, #ea580c, #f97316); }
-    .fill-capacity { background: linear-gradient(90deg, #7c3aed, #8b5cf6); }
-    
-    /* Score label colors - Enhanced visibility */
-    .label-accuracy { color: #f472b6; text-shadow: 0 0 12px rgba(244, 114, 182, 0.3); }
-    .label-quality { color: #34d399; text-shadow: 0 0 12px rgba(16, 185, 129, 0.3); }
-    .label-latency { color: #60a5fa; text-shadow: 0 0 12px rgba(59, 130, 246, 0.3); }
-    .label-cost { color: #fb923c; text-shadow: 0 0 12px rgba(249, 115, 22, 0.3); }
-    .label-capacity { color: #a78bfa; text-shadow: 0 0 12px rgba(139, 92, 246, 0.3); }
-    
-    /* Model Card in Table - Corporate Typography */
-    .model-cell {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .model-info {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    .model-name {
-        font-weight: 600;
-        font-size: 1.05rem;
-        color: #f9fafb;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        line-height: 1.3;
-        letter-spacing: -0.01em;
-    }
-    .model-provider {
-        font-size: 0.85rem;
-        color: #9ca3af;
-        font-weight: 500;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* Enhanced Select Button - Corporate Style */
-    .select-btn {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        border: none;
-        padding: 0.6rem 1.25rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-    }
-    .select-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
-    }
-    
-    /* Final Score Display - BIG and prominent */
-    .final-score {
-        font-size: 2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        letter-spacing: -0.02em;
-        display: block;
-        text-align: center;
-    }
-    
-    /* Enhanced table row spacing */
-    .leaderboard-table tbody tr {
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-    }
-    .leaderboard-table tbody tr:hover {
-        background: rgba(99, 102, 241, 0.08);
-    }
-    .leaderboard-table td {
-        padding: 1rem 0.75rem !important;
-        vertical-align: middle;
-    }
-    .leaderboard-table th {
-        padding: 1rem 0.75rem !important;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: rgba(255,255,255,0.5);
-        font-weight: 600;
-    }
-    
-    /* Enhanced Slider Styling */
-    .stSlider {
-        padding: 0.5rem 0;
-    }
-    .stSlider > div > div > div {
-        background: linear-gradient(90deg, rgba(102, 126, 234, 0.3), rgba(56, 239, 125, 0.3)) !important;
-        height: 8px !important;
-        border-radius: 4px !important;
-    }
-    .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, #667eea, #38ef7d) !important;
-        height: 8px !important;
-        border-radius: 4px !important;
-    }
-    .stSlider [data-testid="stThumbValue"] {
-        background: linear-gradient(135deg, #667eea, #38ef7d) !important;
-        color: white !important;
-        font-weight: 700 !important;
-        border-radius: 0.5rem !important;
-        padding: 0.25rem 0.5rem !important;
-    }
-    .stSlider label {
-        color: white !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Pros/Cons Tags - Clean pill design like HuggingFace */
-    .tag-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        flex-wrap: wrap;
-    }
-    .tag {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        white-space: nowrap;
-        text-align: center;
-        transition: all 0.2s ease;
-    }
-    .tag:hover {
-        transform: scale(1.05);
-    }
-    .tag-pro {
-        background: rgba(63, 185, 80, 0.15);
-        color: var(--accent-green);
-        border: 1px solid rgba(63, 185, 80, 0.3);
-    }
-    .tag-con {
-        background: rgba(248, 81, 73, 0.15);
-        color: var(--accent-orange);
-        border: 1px solid rgba(248, 81, 73, 0.3);
-    }
-    .tag-neutral {
-        background: rgba(255,255,255,0.08);
-        color: var(--text-secondary);
-        border: 1px solid var(--border-default);
-    }
-    
-    /* Action Button - HuggingFace style rounded */
-    .action-cell {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    
-    /* Extraction Card - Clean, spacious design */
-    .extraction-card {
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        padding: 2.5rem;
-        border-radius: 1.25rem;
-        border: 1px solid var(--border-default);
-        margin: 2rem 0;
-        animation: slide-up 0.4s ease-out;
-    }
-    .extraction-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1.5rem;
-    }
-    .extraction-item {
-        background: var(--bg-secondary);
-        padding: 1.5rem;
-        border-radius: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 1.25rem;
-        border: 1px solid var(--border-default);
-        transition: all 0.25s ease;
-    }
-    .extraction-item:hover {
-        border-color: var(--accent-blue);
-        transform: translateY(-4px);
-        box-shadow: 0 8px 25px rgba(88, 166, 255, 0.1);
-    }
-    .extraction-label {
-        font-size: 0.8rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 700;
-    }
-    .extraction-value {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-top: 4px;
-        font-family: 'Inter', sans-serif;
-    }
-    
-    /* SLO & Workload Cards - Clean, readable design */
-    .slo-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1.5rem;
-        margin: 2rem 0;
-    }
-    .slo-card {
-        background: var(--bg-card);
-        backdrop-filter: blur(10px);
-        padding: 1.75rem;
-        border-radius: 1rem;
-        border: 1px solid var(--border-default);
-        transition: all 0.25s ease;
-        position: relative;
-    }
-    .slo-card:hover {
-        border-color: var(--accent-blue);
-        transform: translateY(-4px);
-        box-shadow: 0 12px 35px rgba(88, 166, 255, 0.12);
-    }
-    .slo-card-editable {
-        cursor: pointer;
-    }
-    .slo-card .edit-indicator {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        font-size: 0.9rem;
-        color: var(--accent-green);
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-    .slo-card:hover .edit-indicator {
-        opacity: 1;
-    }
-    .slo-header {
-        display: flex;
-        align-items: center;
-        gap: 0.85rem;
-        margin-bottom: 1.25rem;
-    }
-    .slo-icon {
-        font-size: 1.75rem;
-    }
-    .slo-title {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: var(--accent-purple);
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    .slo-metrics {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    .slo-metric {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        white-space: nowrap;
-        padding: 0.5rem;
-        border-radius: 8px;
-        transition: background 0.2s ease;
-    }
-    .slo-metric:hover {
-        background: rgba(88, 166, 255, 0.08);
-    }
-    .slo-metric-name {
-        font-size: 0.95rem;
-        color: var(--text-secondary);
-        flex-shrink: 0;
-    }
-    .slo-metric-value {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-primary);
-        text-align: right;
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-family: 'Inter', sans-serif;
-    }
-    .slo-metric-value .edit-icon {
-        font-size: 0.85rem;
-        color: var(--accent-green);
-        opacity: 0;
-        cursor: pointer;
-        transition: opacity 0.2s ease;
-    }
-    .slo-metric:hover .edit-icon {
-        opacity: 1;
-    }
-    .slo-metric-good {
-        color: var(--accent-green);
-    }
-    .slo-metric-warn {
-        color: var(--accent-orange);
-    }
-    
-    /* Impact Visualization */
-    .impact-container {
-        background: rgba(255,255,255,0.02);
-        border-radius: 1.25rem;
-        padding: 1.5rem;
-        border: 1px solid rgba(255,255,255,0.08);
-        margin: 1rem 0;
-    }
-    .impact-header {
-        font-size: 1rem;
-        font-weight: 700;
-        color: white;
-        margin-bottom: 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .impact-item {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        align-items: center;
-        gap: 1rem;
-        padding: 0.85rem 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .impact-item:last-child {
-        border-bottom: none;
-    }
-    .impact-factor {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-    .impact-icon {
-        font-size: 1.25rem;
-    }
-    .impact-name {
-        color: rgba(255,255,255,0.8);
-        font-size: 0.9rem;
-    }
-    .impact-effect {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        padding: 0.4rem 0.8rem;
-        background: rgba(56, 239, 125, 0.1);
-        border-radius: 0.5rem;
-        min-width: 180px;
-        text-align: right;
-    }
-    .impact-positive { 
-        color: #38ef7d; 
-        background: rgba(56, 239, 125, 0.1);
-    }
-    .impact-negative { 
-        color: #f5576c; 
-        background: rgba(245, 87, 108, 0.1);
-    }
-    .impact-neutral { 
-        color: rgba(255,255,255,0.7); 
-        background: rgba(255,255,255,0.05);
-    }
-    
-    /* Priority Badges - Clean pill design with black background */
-    .priority-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 18px;
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        color: white;
-        background: #000000;
-        transition: transform 0.2s ease;
-    }
-    .priority-badge:hover {
-        transform: scale(1.03);
-    }
-    .priority-low_latency { background: #000000; color: white; }
-    .priority-cost_saving { background: #000000; color: white; }
-    .priority-high_accuracy { background: #000000; color: white; }
-    .priority-high_throughput { background: #000000; color: white; }
-    .priority-balanced { background: #000000; color: white; }
-    
-    /* Score Bars - Clean, readable with AA-style */
-    .score-container {
-        margin: 1.25rem 0;
-        animation: slide-up 0.4s ease-out;
-    }
-    .score-label {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-        color: var(--text-primary);
-        font-weight: 500;
-        font-size: 1rem;
-    }
-    .score-bar-bg {
-        background: var(--bg-tertiary);
-        border-radius: 8px;
-        height: 12px;
-        overflow: hidden;
-    }
-    .score-bar-fill {
-        height: 100%;
-        border-radius: 8px;
-        transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
-        position: relative;
-    }
-    .score-bar-quality { background: linear-gradient(90deg, #059669, var(--accent-green)); }
-    .score-bar-latency { background: linear-gradient(90deg, #3b82f6, var(--accent-blue)); }
-    .score-bar-cost { background: linear-gradient(90deg, #f97316, var(--accent-orange)); }
-    .score-bar-capacity { background: linear-gradient(90deg, #8b5cf6, var(--accent-purple)); }
-    
-    /* Section Headers - Clean, modern */
-    .section-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: 2.5rem 0 2rem 0;
-        color: var(--text-primary);
-        font-size: 1.6rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, rgba(88, 166, 255, 0.08), rgba(163, 113, 247, 0.05));
-        padding: 1.25rem 1.75rem;
-        border-radius: 1rem;
-        border: 1px solid var(--border-default);
-        font-family: 'Inter', sans-serif;
-    }
-    .section-header span:first-child {
-        font-size: 2rem;
-    }
-    
-    /* Pipeline Steps - Clean card design */
-    .pipeline-container {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 2rem;
-        margin: 2.5rem 0;
-    }
-    .pipeline-step {
-        background: var(--bg-card);
-        padding: 2.5rem 2rem;
-        border-radius: 1rem;
-        border: 1px solid var(--border-default);
-        text-align: center;
-        transition: all 0.25s ease;
-        position: relative;
-    }
-    .pipeline-step:hover {
-        transform: translateY(-6px);
-        border-color: var(--accent-blue);
-        box-shadow: 0 15px 45px rgba(88, 166, 255, 0.12);
-    }
-    .pipeline-number {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 800;
-        color: white;
-        font-size: 1.75rem;
-        margin: 0 auto 1.25rem;
-        font-family: 'Inter', sans-serif;
-    }
-    .pipeline-number-1 { background: linear-gradient(135deg, var(--accent-purple), #7c3aed); }
-    .pipeline-number-2 { background: linear-gradient(135deg, #059669, var(--accent-green)); }
-    .pipeline-number-3 { background: linear-gradient(135deg, var(--accent-orange), var(--accent-pink)); }
-    .pipeline-title {
-        font-weight: 700;
-        font-size: 1.25rem;
-        color: var(--text-primary);
-        margin-bottom: 0.75rem;
-        font-family: 'Inter', sans-serif;
-    }
-    .pipeline-desc {
-        font-size: 1rem;
-        color: var(--text-secondary);
-        line-height: 1.6;
-    }
-
-    .input-container {
-        background: var(--bg-card);
-        padding: 2.5rem;
-        border-radius: 1.25rem;
-        border: 1px solid var(--border-default);
-        margin: 2rem 0;
-    }
-    
-    /* Sidebar Styling - Clean dark theme matching main */
-    section[data-testid="stSidebar"] {
-        background: var(--bg-secondary) !important;
-        border-right: 1px solid var(--border-default) !important;
-    }
-    section[data-testid="stSidebar"] * {
-        color: var(--text-primary) !important;
-    }
-    section[data-testid="stSidebar"] .stSelectbox label {
-        color: var(--text-secondary) !important;
-    }
-    .sidebar-section {
-        background: var(--bg-card);
-        padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1.25rem 0;
-        border: 1px solid var(--border-default);
-    }
-    .sidebar-title {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 1.2px;
-        color: var(--text-muted) !important;
-        font-weight: 700;
-        margin-bottom: 1.25rem;
-    }
-    
-    /* Weight Bars - Clean design */
-    .weight-item {
-        margin: 1rem 0;
-    }
-    .weight-label {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 6px;
-        font-size: 0.9rem;
-    }
-    .weight-name {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-primary) !important;
-        font-weight: 500;
-    }
-    .weight-value {
-        font-weight: 700;
-        color: var(--accent-blue) !important;
-        font-family: 'Inter', sans-serif;
-    }
-    .weight-bar {
-        height: 6px;
-        border-radius: 3px;
-        overflow: hidden;
-        background: var(--bg-tertiary);
-    }
-    .weight-fill {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.4s ease;
-    }
-    .weight-fill-quality { background: linear-gradient(90deg, #059669, var(--accent-green)); }
-    .weight-fill-latency { background: linear-gradient(90deg, #3b82f6, var(--accent-blue)); }
-    .weight-fill-cost { background: linear-gradient(90deg, #f97316, var(--accent-orange)); }
-    .weight-fill-capacity { background: linear-gradient(90deg, #8b5cf6, var(--accent-purple)); }
-    
-    /* Hide Streamlit defaults */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
-    /* Custom scrollbar */
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 5px; }
-    ::-webkit-scrollbar-thumb { 
-        background: linear-gradient(135deg, #667eea, #764ba2); 
-        border-radius: 5px; 
-    }
-    
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: #151515;
-        border-radius: 4px;
-        padding: 8px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 4px;
-        padding: 12px 24px;
-        border: none;
-        color: #a0a0a0;
-        transition: all 0.2s ease;
-        font-weight: 600;
-        font-size: 0.95rem;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        color: #ffffff;
-        background: rgba(238, 0, 0, 0.1);
-    }
-    .stTabs [aria-selected="true"] {
-        background: #EE0000 !important;
-        color: white !important;
-        box-shadow: 0 4px 15px rgba(238, 0, 0, 0.3);
-    }
-    /* Override the blue tab indicator line */
-    .stTabs [data-baseweb="tab-highlight"] {
-        background-color: #EE0000 !important;
-    }
-    .stTabs [data-baseweb="tab-border"] {
-        background-color: rgba(238, 0, 0, 0.3) !important;
-    }
-    /* Hide the default blue indicator */
-    .stTabs [role="tablist"] > div:last-child {
-        background-color: #EE0000 !important;
-    }
-    
-    /* Buttons */
-    .stButton > button {
-        border-radius: 4px;
-        font-weight: 600;
-        transition: all 0.2s ease;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        background: #1a1a1a !important;
-        color: #ffffff !important;
-        padding: 12px 24px;
-        font-size: 1rem;
-    }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(238, 0, 0, 0.2);
-        border-color: #EE0000;
-        color: white !important;
-    }
-    .stButton > button[kind="primary"] {
-        background: #EE0000 !important;
-        color: white !important;
-        border: none;
-        box-shadow: 0 4px 15px rgba(238, 0, 0, 0.35);
-    }
-    .stButton > button[kind="primary"]:hover {
-        box-shadow: 0 8px 30px rgba(238, 0, 0, 0.45);
-        transform: translateY(-3px);
-        background: #cc0000 !important;
-        color: white !important;
-    }
-    
-    /* Number Input Styling - Clean design */
-    .stNumberInput input {
-        background: var(--bg-tertiary) !important;
-        border: 2px solid var(--border-default) !important;
-        border-radius: 8px !important;
-        color: var(--accent-green) !important;
-        font-weight: 700 !important;
-        font-size: 1.15rem !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    .stNumberInput input:focus {
-        border-color: var(--accent-blue) !important;
-        box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.2) !important;
-    }
-    .stNumberInput [data-testid="stNumberInputContainer"] {
-        background: transparent !important;
-    }
-    .stNumberInput button {
-        background: var(--bg-tertiary) !important;
-        color: var(--accent-blue) !important;
-        border-radius: 6px !important;
-    }
-    .stNumberInput button:hover {
-        background: rgba(88, 166, 255, 0.2) !important;
-    }
-    
-    /* Enhanced Selectbox Styling */
-    .stSelectbox > div > div {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 10px !important;
-    }
-    .stSelectbox > div > div:hover {
-        border-color: var(--accent-blue) !important;
-    }
-    
-    /* Enhanced Slider Styling */
-    .stSlider > div > div > div {
-        background: var(--bg-tertiary) !important;
-    }
-    .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-green)) !important;
-    }
-    .stSlider > div > div > div > div > div {
-        background: white !important;
-        border: 3px solid var(--accent-blue) !important;
-        box-shadow: 0 2px 8px rgba(88, 166, 255, 0.3) !important;
-    }
-    
-    /* Filter Panel Styling */
-    .filter-panel {
-        background: var(--bg-card);
-        border: 1px solid var(--border-default);
-        border-radius: 12px;
-        padding: 1.25rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    /* Metric Badges - Clean pill design */
-    .metric-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 16px;
-        border-radius: 50px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
-    }
-    .metric-badge:hover {
-        transform: scale(1.03);
-    }
-    .metric-badge-accuracy {
-        background: rgba(63, 185, 80, 0.12);
-        color: var(--accent-green);
-        border: 1px solid rgba(63, 185, 80, 0.25);
-    }
-    .metric-badge-latency {
-        background: rgba(88, 166, 255, 0.12);
-        color: var(--accent-blue);
-        border: 1px solid rgba(88, 166, 255, 0.25);
-    }
-    .metric-badge-cost {
-        background: rgba(249, 115, 22, 0.12);
-        color: var(--accent-orange);
-        border: 1px solid rgba(249, 115, 22, 0.25);
-    }
-    .metric-badge-capacity {
-        background: rgba(163, 113, 247, 0.12);
-        color: var(--accent-purple);
-        border: 1px solid rgba(163, 113, 247, 0.25);
-    }
-    
-    /* Progress Bar Styling */
-    .stProgress > div > div {
-        background: linear-gradient(90deg, #EE0000, #CC0000, #EE0000) !important;
-        border-radius: 8px;
-    }
-    .stProgress > div {
-        background: #1a1a1a !important;
-        border-radius: 8px;
-    }
-    
-    /* Spinner Styling */
-    .stSpinner > div {
-        border-top-color: #EE0000 !important;
-    }
-    .stSpinner > div > div {
-        border-top-color: #EE0000 !important;
-    }
-    [data-testid="stSpinner"] svg {
-        color: #EE0000 !important;
-        fill: #EE0000 !important;
-    }
-    
-    /* Info/Warning/Error Message Styling */
-    .stAlert {
-        border-radius: 12px !important;
-        border: 1px solid var(--border-default) !important;
-    }
-    .stAlert > div {
-        padding: 1.25rem 1.5rem !important;
-    }
-    
-    /* Caption Styling */
-    .stCaption {
-        color: var(--text-muted) !important;
-    }
-    
-    /* Text Area Focus Styling */
-    .stTextArea textarea {
-        background: var(--bg-card) !important;
-        border: 1px solid var(--border-default) !important;
-        border-radius: 10px !important;
-        color: var(--text-primary) !important;
-        font-size: 1rem !important;
-        line-height: 1.6 !important;
-    }
-    .stTextArea textarea:focus {
-        border-color: var(--accent-blue) !important;
-        box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15) !important;
-    }
-    .stTextArea textarea::placeholder {
-        color: var(--text-muted) !important;
-    }
-    
-    /* Disabled Button Styling */
-    .stButton > button:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-    
-    /* Smooth Page Transitions */
-    .main .block-container {
-        animation: fade-in 0.25s ease-out;
-        max-width: 1400px;
-        padding: 2rem 3rem;
-    }
-    @keyframes fade-in {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Better Tooltip Styling */
-    [data-testid="stTooltipIcon"] {
-        color: var(--text-muted) !important;
-    }
-    [data-testid="stTooltipIcon"]:hover {
-        color: var(--accent-blue) !important;
-    }
-    
-    /* Custom Scrollbar - Subtle */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg-secondary); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { 
-        background: var(--bg-tertiary); 
-        border-radius: 4px; 
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: var(--accent-blue);
-    }
-    
-    /* Legend for charts - AA inspired */
-    .chart-legend {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        margin: 1.5rem 0;
-        padding: 1rem 1.5rem;
-        background: var(--bg-card);
-        border-radius: 10px;
-        border: 1px solid var(--border-default);
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-    }
-    .legend-color {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-    }
-    .legend-color-accuracy { background: var(--accent-green); }
-    .legend-color-latency { background: var(--accent-blue); }
-    .legend-color-cost { background: var(--accent-orange); }
-    .legend-color-capacity { background: var(--accent-purple); }
+    /* Hide Streamlit deploy button */
+    .stDeployButton { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1762,7 +494,7 @@ def render_weight_controls() -> None:
 
         with col1:
             st.markdown("""
-            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
                 <strong>Ranking Weights</strong> (0-10) — adjust to customize balanced score
             </div>
             """, unsafe_allow_html=True)
@@ -1807,7 +539,7 @@ def render_weight_controls() -> None:
 
         with col2:
             st.markdown("""
-            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 0.5rem;">
+            <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
                 <strong>Options</strong>
             </div>
             """, unsafe_allow_html=True)
@@ -1836,27 +568,24 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
     total_configs = response.get("total_configs_evaluated", 0)
     configs_after_filters = response.get("configs_after_filters", 0)
 
-    st.markdown(
-        '<div class="section-header" style="background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);">Recommended Solutions</div>',
-        unsafe_allow_html=True
-    )
+    st.subheader("Recommended Solutions")
 
     # Render configuration controls right under the header
     if show_config:
         render_weight_controls()
 
     st.markdown(
-        f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>',
+        f'<div style="margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="font-weight: 600;">{configs_after_filters}</span> unique options</div>',
         unsafe_allow_html=True
     )
 
     # Define categories in the requested order
     categories = [
-        ("balanced", "Balanced", "", "#EE0000"),
-        ("best_accuracy", "Best Accuracy", "", "#ffffff"),
-        ("lowest_cost", "Lowest Cost", "", "#f59e0b"),
-        ("lowest_latency", "Lowest Latency", "", "#ffffff"),
-        ("simplest", "Simplest", "", "#ec4899"),
+        ("balanced", "Balanced", ""),
+        ("best_accuracy", "Best Accuracy", ""),
+        ("lowest_cost", "Lowest Cost", ""),
+        ("lowest_latency", "Lowest Latency", ""),
+        ("simplest", "Simplest", ""),
     ]
 
     # Helper function to format GPU config with TP and replicas
@@ -1874,7 +603,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
     percentile_label = selected_percentile.upper() if selected_percentile != 'mean' else 'Mean'
     
     # Helper function to build a table row from a recommendation
-    def build_row(rec: dict, cat_color: str, cat_name: str = "", cat_emoji: str = "", is_top: bool = False, more_count: int = 0) -> str:
+    def build_row(rec: dict, cat_name: str = "", cat_emoji: str = "", is_top: bool = False, more_count: int = 0) -> str:
         model_name = format_display_name(rec.get("model_name", "Unknown"))
         gpu_config = rec.get("gpu_config", {})
         gpu_str = format_gpu_config(gpu_config)
@@ -1892,35 +621,35 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         slo_badge = "Yes" if meets_slo else "No"
 
         if is_top:
-            more_badge = f'<span style="color: rgba(255,255,255,0.4); font-size: 0.8rem; margin-left: 0.5rem;">(+{more_count})</span>' if more_count > 0 else ''
-            cat_cell = f'<td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_emoji} {cat_name}</span>{more_badge}</td>'
+            more_badge = f'<span style="font-size: 0.8rem; margin-left: 0.5rem;">(+{more_count})</span>' if more_count > 0 else ''
+            cat_cell = f'<td style="padding: 0.75rem 0.5rem;"><span style="font-weight: 600;">{cat_emoji} {cat_name}</span>{more_badge}</td>'
         else:
-            cat_cell = f'<td style="padding: 0.75rem 0.5rem; padding-left: 2rem;"><span style="color: {cat_color}40;">↳</span></td>'
+            cat_cell = f'<td style="padding: 0.75rem 0.5rem; padding-left: 2rem;"><span>↳</span></td>'
 
         return (
-            f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);{"background: rgba(255,255,255,0.02);" if not is_top else ""}">'
+            f'<tr style="{"" if not is_top else ""}">'
             f'{cat_cell}'
-            f'<td style="padding: 0.75rem 0.5rem; color: white; font-weight: {"500" if is_top else "400"};">{model_name}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.8); font-size: 0.85rem;">{gpu_str}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{ttft:.0f}ms</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${cost:,.0f}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{accuracy_score:.0f}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: center; color: #f59e0b;">{price_score:.0f}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: center; color: #06b6d4;">{latency_score:.0f}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: center; color: #ec4899;">{complexity_score:.0f}</td>'
-            f'<td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6; font-weight: 600;">{balanced_score:.1f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; font-weight: {"500" if is_top else "400"};">{model_name}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; font-size: 0.85rem;">{gpu_str}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: right; ">{ttft:.0f}ms</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: right; ">${cost:,.0f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: center; ">{accuracy_score:.0f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: center; ">{price_score:.0f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: center; ">{latency_score:.0f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: center; ">{complexity_score:.0f}</td>'
+            f'<td style="padding: 0.75rem 0.5rem; text-align: center; font-weight: 600;">{balanced_score:.1f}</td>'
             f'<td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_badge}</td>'
             f'</tr>'
         )
 
     # Table header styles
-    th_style = 'style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;"'
-    th_style_right = 'style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;"'
-    th_style_center = 'style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;"'
+    th_style = 'style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;"'
+    th_style_right = 'style="text-align: right; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;"'
+    th_style_center = 'style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;"'
 
     table_header = (
         '<thead>'
-        f'<tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">'
+        f'<tr >'
         f'<th {th_style}>Category</th>'
         f'<th {th_style}>Model</th>'
         f'<th {th_style}>GPU Config</th>'
@@ -1941,7 +670,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
 
     # Collect expansion state and category data
     category_data = []
-    for cat_key, cat_name, cat_emoji, cat_color in categories:
+    for cat_key, cat_name, cat_emoji in categories:
         recs = response.get(cat_key, [])
         is_expanded = cat_key in st.session_state.expanded_categories
         more_count = len(recs) - 1 if len(recs) > 1 else 0
@@ -1949,7 +678,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
             "key": cat_key,
             "name": cat_name,
             "emoji": cat_emoji,
-            "color": cat_color,
+            
             "recs": recs,
             "is_expanded": is_expanded,
             "more_count": more_count,
@@ -1965,7 +694,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         )
         toggle_cols = st.columns(len(expandable_cats) + 1)
         toggle_cols[0].markdown(
-            '<span style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">Expand:</span>',
+            '<span style="font-size: 0.8rem;">Expand:</span>',
             unsafe_allow_html=True
         )
         for idx, cat in enumerate(expandable_cats):
@@ -1989,7 +718,7 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         cat_key = cat["key"]
         cat_name = cat["name"]
         cat_emoji = cat["emoji"]
-        cat_color = cat["color"]
+        
         recs = cat["recs"]
         is_expanded = cat["is_expanded"]
         more_count = cat["more_count"]
@@ -1997,19 +726,19 @@ def render_ranked_recommendations(response: dict, show_config: bool = True):
         if not recs:
             # Empty category row
             all_rows.append(
-                f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">'
-                f'<td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_emoji} {cat_name}</span></td>'
-                f'<td colspan="10" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td>'
+                f'<tr >'
+                f'<td style="padding: 0.75rem 0.5rem;"><span style="font-weight: 600;">{cat_emoji} {cat_name}</span></td>'
+                f'<td colspan="10" style="padding: 0.75rem 0.5rem; font-style: italic;">No configurations found</td>'
                 f'</tr>'
             )
         else:
             # Top recommendation for this category
-            all_rows.append(build_row(recs[0], cat_color, cat_name, cat_emoji, is_top=True, more_count=more_count))
+            all_rows.append(build_row(recs[0], cat_name, cat_emoji, is_top=True, more_count=more_count))
 
             # Add additional rows if expanded
             if is_expanded and len(recs) > 1:
                 for rec in recs[1:]:
-                    all_rows.append(build_row(rec, cat_color, "", "", is_top=False, more_count=0))
+                    all_rows.append(build_row(rec, "", "", is_top=False, more_count=0))
 
     # Render the single unified table
     unified_table_html = (
@@ -2038,7 +767,7 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
     active_fraction = workload_profile.get('active_fraction', 0.2)
 
     messages.append((
-        "", "#000000",
+        "", "",
         f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
         "info"
     ))
@@ -2088,19 +817,18 @@ def extract_business_context(user_input: str) -> Optional[dict]:
 # =============================================================================
 
 def render_hero():
-    """Render compact hero section."""
-    st.markdown("""
-    <div class="hero-container">
-        <img src="app/static/neuralnav-logo.png" width="48" height="48" style="margin-right: 12px; vertical-align: middle;" alt="NeuralNav Logo">
-        <span class="hero-title">NeuralNav</span>
-        <div class="hero-subtitle">AI-Powered LLM Deployment Recommendations — From Natural Language to Production in Seconds</div>
-    </div>
-    """, unsafe_allow_html=True)
+    """Render compact hero section with logo."""
+    logo_col, title_col = st.columns([1, 11])
+    with logo_col:
+        st.image("ui/static/neuralnav-logo.png", width=48)
+    with title_col:
+        st.title("NeuralNav")
+    st.caption("AI-Powered LLM Deployment Recommendations — From Natural Language to Production in Seconds")
 
 
 def render_deployment_tab():
     """Tab 4: Deployment configuration and YAML generation."""
-    st.markdown('<h3 style="color: white; font-weight: 700;">Deployment Configuration</h3>', unsafe_allow_html=True)
+    st.subheader("Deployment Configuration")
 
     # Check if a configuration is selected
     selected_config = st.session_state.get("deployment_selected_config")
@@ -2123,20 +851,19 @@ def render_deployment_tab():
     replicas = gpu_config.get("replicas", 1)
 
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05));
-                border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+    <div style="border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
             <div>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Model:</span>
-                <span style="color: white; font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{model_name}</span>
+                <span style="font-size: 0.85rem;">Model:</span>
+                <span style="font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{model_name}</span>
             </div>
             <div>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">GPU:</span>
-                <span style="color: white; font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{gpu_count}x{gpu_type}</span>
+                <span style="font-size: 0.85rem;">GPU:</span>
+                <span style="font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{gpu_count}x{gpu_type}</span>
             </div>
             <div>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">Replicas:</span>
-                <span style="color: white; font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{replicas}</span>
+                <span style="font-size: 0.85rem;">Replicas:</span>
+                <span style="font-weight: 600; font-size: 1rem; margin-left: 0.5rem;">{replicas}</span>
             </div>
         </div>
     </div>
@@ -2145,7 +872,7 @@ def render_deployment_tab():
     # YAML Generation Section
     if not st.session_state.get("deployment_yaml_generated"):
         # YAML files not yet generated (edge case - shouldn't normally happen with auto-generation)
-        st.markdown('<h3 style="color: white; font-weight: 700;">Deployment Files</h3>', unsafe_allow_html=True)
+        st.subheader("Deployment Files")
         st.warning("YAML files have not been generated yet.")
 
         if st.button("Generate YAML Files", type="primary", key="generate_yaml_btn"):
@@ -2219,10 +946,10 @@ def render_deployment_tab():
                 st.markdown("⬇", unsafe_allow_html=True)
         with header_col2:
             if deployment_error:
-                st.markdown(f'<h3 style="color: white; font-weight: 700; margin: 0;">Deployment Files <span style="color: #EE0000; font-weight: 700;">(ERROR!)</span></h3>', unsafe_allow_html=True)
+                st.markdown(f'<h3 style="font-weight: 700; margin: 0;">Deployment Files <span style="color: #ef4444; font-weight: 700;">(ERROR!)</span></h3>', unsafe_allow_html=True)
                 st.error(deployment_error)
             else:
-                st.markdown(f'<h3 style="color: white; font-weight: 700; margin: 0;">Deployment Files <span style="color: rgba(255,255,255,0.5); font-weight: 400; font-size: 0.8rem;">({deployment_id})</span></h3>', unsafe_allow_html=True)
+                st.markdown(f'<h3 style="font-weight: 700; margin: 0;">Deployment Files <span style="font-weight: 400; font-size: 0.8rem;">({deployment_id})</span></h3>', unsafe_allow_html=True)
 
         if yaml_files:
             # Sort files for consistent display order
@@ -2265,102 +992,7 @@ def render_top5_table(recommendations: list, priority: str):
     The UI uses the backend's pre-ranked lists directly from st.session_state.ranked_response.
     """
     
-    # Filter controls
-    st.markdown("""
-    <style>
-        /* Filter section - ALL text white and visible */
-        div[data-testid="stHorizontalBlock"] label {
-            color: white !important;
-            font-weight: 600 !important;
-            font-size: 0.85rem !important;
-        }
-        /* Selectbox text - white */
-        .stSelectbox > div > div {
-            background: rgba(102, 126, 234, 0.2) !important;
-        }
-        .stSelectbox [data-baseweb="select"] > div {
-            color: white !important;
-            background: rgba(102, 126, 234, 0.15) !important;
-            border: 1px solid rgba(102, 126, 234, 0.3) !important;
-        }
-        .stSelectbox [data-baseweb="select"] span {
-            color: white !important;
-        }
-        /* Slider labels white */
-        .stSlider label {
-            color: white !important;
-            font-weight: 600 !important;
-        }
-        .stSlider [data-testid="stTickBarMin"], .stSlider [data-testid="stTickBarMax"] {
-            color: rgba(255,255,255,0.6) !important;
-        }
-        /* Red-themed SLO Sliders - Clean minimal design */
-        .stSlider > div > div > div {
-            background: rgba(238, 0, 0, 0.25) !important;
-            height: 6px !important;
-            border-radius: 3px !important;
-        }
-        .stSlider > div > div > div > div {
-            background: #EE0000 !important;
-            height: 6px !important;
-            border-radius: 3px !important;
-        }
-        /* Small fully red circle thumb */
-        .stSlider > div > div > div > div > div {
-            background: #EE0000 !important;
-            border: none !important;
-            width: 16px !important;
-            height: 16px !important;
-            top: -5px !important;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
-        }
-        /* HIDE the default tooltip with value - multiple selectors for compatibility */
-        .stSlider [data-testid="stThumbValue"],
-        .stSlider div[data-testid="stThumbValue"],
-        [data-testid="stThumbValue"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-        }
-        /* HIDE the default min/max tick labels */
-        .stSlider [data-testid="stTickBarMin"],
-        .stSlider [data-testid="stTickBarMax"],
-        [data-testid="stTickBarMin"],
-        [data-testid="stTickBarMax"],
-        .stSlider > div > div:first-child,
-        .stSlider > div > div:last-child {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        /* Hide ALL slider text except our custom ones */
-        .stSlider [data-baseweb="slider"] + div {
-            display: none !important;
-        }
-        /* Carousel navigation buttons - small, inside card aesthetic */
-        .stButton button[kind="secondary"] {
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid rgba(255,255,255,0.15) !important;
-            color: rgba(255,255,255,0.7) !important;
-            padding: 0.3rem !important;
-            min-height: 2rem !important;
-            font-size: 0.9rem !important;
-        }
-        .stButton button[kind="secondary"]:hover {
-            background: rgba(238,0,0,0.2) !important;
-            border-color: #EE0000 !important;
-            color: white !important;
-        }
-    </style>
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding: 1rem; 
-                background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(56, 239, 125, 0.05)); 
-                border-radius: 1rem; border: 1px solid rgba(102, 126, 234, 0.2);">
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.5rem;"></span>
-            <span style="color: white; font-weight: 700; font-size: 1.1rem;">Best Model Recommendations</span>
-        </div>
-        <span style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">Click ◀ ▶ to browse top 5</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("Best Model Recommendations")
     
     # Show filter summary stats
     ranked_response_stats = st.session_state.get("ranked_response", {})
@@ -2377,15 +1009,15 @@ def render_top5_table(recommendations: list, priority: str):
         filter_pct = (passed_configs / total_configs * 100) if total_configs > 0 else 0
         st.markdown(f"""
         <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 0.6rem 1rem;
-                    background: rgba(238,0,0,0.08); border-radius: 8px; border: 1px solid rgba(238,0,0,0.2);">
-            <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                    border-radius: 8px; ">
+            <span style="font-size: 0.85rem;">
                 <strong style="color: #10B981;">{passed_configs:,}</strong> configs passed SLO filter 
                 from <strong>{total_configs:,}</strong> total 
-                <span style="color: rgba(255,255,255,0.4);">({filter_pct:.0f}% match)</span>
+                <span >({filter_pct:.0f}% match)</span>
             </span>
-            <span style="color: rgba(255,255,255,0.5);">|</span>
-            <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                <strong style="color: #EE0000;">{unique_models}</strong> unique models
+            <span >|</span>
+            <span style="font-size: 0.85rem;">
+                <strong>{unique_models}</strong> unique models
             </span>
         </div>
         """, unsafe_allow_html=True)
@@ -2453,178 +1085,60 @@ def render_top5_table(recommendations: list, priority: str):
         final_score = scores.get("final", 0)
         
         return f'''
-        <div style="background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(40,40,55,0.9)); 
-                    border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; 
-                    box-shadow: 0 8px 32px {color}20;">
+        <div style="border: 2px solid {color}40; border-radius: 16px; padding: 1.25rem; 
+                    ">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
                 <span style="font-size: 1.5rem;">{icon}</span>
                 <span style="color: {color}; font-weight: 700; font-size: 1.1rem;">{title}</span>
         </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <div style="flex: 1;">
-                    <div style="color: white; font-weight: 700; font-size: 1.15rem;">{model_name}</div>
-                    <div style="color: rgba(255,255,255,0.5); font-size: 0.85rem;">{hw_display}</div>
+                    <div style="font-weight: 700; font-size: 1.15rem;">{model_name}</div>
+                    <div style="font-size: 0.85rem;">{hw_display}</div>
         </div>
                 <div style="text-align: right;">
                     <div style="color: {color}; font-size: 2rem; font-weight: 800;">{highlight_value:.0f}</div>
-                    <div style="color: rgba(255,255,255,0.4); font-size: 0.7rem;">SCORE</div>
+                    <div style="font-size: 0.7rem;">SCORE</div>
         </div>
         </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
-                <span style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
-                <span style="color: #ffffff; font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
+            <div style="display: flex; justify-content: space-between; margin-top: 1rem; padding-top: 0.75rem; ">
+                <span style="font-size: 0.8rem;">Acc {scores["accuracy"]:.0f}</span>
+                <span style="font-size: 0.8rem;">Lat {scores["latency"]:.0f}</span>
+                <span style="font-size: 0.8rem;">Cost {scores["cost"]:.0f}</span>
+                <span style="font-size: 0.8rem; font-weight: 700;">Final: {final_score:.1f}</span>
     </div>
                         </div>
         '''
     
     # Helper to render a CAROUSEL card with arrows INSIDE the card design
-    def render_carousel_card(title, color, recs_list, highlight_field, category_key, col):
-        """Render a card with ← → arrows embedded inside the card."""
+    def render_category_card(title, recs_list, highlight_field, category_key, col):
+        """Render the #1 recommendation for a category with a Select button."""
         if not recs_list:
             return
-        
-        # Initialize carousel index
-        idx_key = f"carousel_{category_key}"
-        if idx_key not in st.session_state:
-            st.session_state[idx_key] = 0
-        
-        total = min(5, len(recs_list))
-        current_idx = st.session_state[idx_key] % total
-        rec = recs_list[current_idx]
-        
+
+        rec = recs_list[0]
         scores = get_scores(rec)
-        # Normalize model name to Provider/Model format for display
-        raw_model_name = rec.get('model_name', 'Unknown')
-        model_name = format_display_name(raw_model_name)
+        model_name = format_display_name(rec.get('model_name', 'Unknown'))
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
         hw_count = gpu_cfg.get('gpu_count', rec.get('hardware_count', 1))
-        replicas = gpu_cfg.get('replicas', 1)
-        benchmark_metrics = rec.get('benchmark_metrics', {}) or {}
-        rps_per_replica = benchmark_metrics.get('requests_per_second', 0)
-        
-        # Get the primary metric selected by user (TTFT, ITL, or E2E)
-        primary_metric = st.session_state.get('slo_primary_metric', 'TTFT')
-        # Get selected percentile (mean, p90, p95, p99)
-        selected_percentile = st.session_state.get('slo_percentile', 'p95')
-        
-        # Map percentile to display label
-        percentile_labels = {'mean': 'Mean', 'p90': 'P90', 'p95': 'P95', 'p99': 'P99'}
-        percentile_display = percentile_labels.get(selected_percentile, 'P95')
-        
-        # Get metric values based on selected primary metric AND percentile
-        if primary_metric == "ITL":
-            metric_key = f'itl_{selected_percentile}'
-            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('itl_mean', 0))
-            metric_label = f"ITL ({percentile_display})"
-            metric_unit = "ms"
-        elif primary_metric == "E2E":
-            metric_key = f'e2e_{selected_percentile}'
-            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('e2e_mean', 0))
-            metric_label = f"E2E ({percentile_display})"
-            metric_unit = "ms"
-        else:  # Default to TTFT
-            metric_key = f'ttft_{selected_percentile}'
-            metric_value = benchmark_metrics.get(metric_key, benchmark_metrics.get('ttft_mean', 0))
-            metric_label = f"TTFT ({percentile_display})"
-            metric_unit = "ms"
-        
-        # Get throughput with percentile label too
-        tps_key = f'tps_{selected_percentile}'
-        throughput_tps = benchmark_metrics.get(tps_key, benchmark_metrics.get('tps_mean', 0))
-        # Check if data is estimated or real (validated)
-        is_estimated = benchmark_metrics.get('estimated', False)
-        hw_display = f"{hw_count}x{hw_type}"
+        cost = rec.get('cost_per_month_usd', 0)
         highlight_value = scores.get(highlight_field, 0)
-        final_score = scores.get("final", 0)
-        
-        # Dots indicator
-        dots_html = ""
-        for i in range(total):
-            dot_color = "#EE0000" if i == current_idx else "rgba(255,255,255,0.3)"
-            dots_html += f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:{dot_color};margin:0 2px;"></span>'
-        
-        with col:
-            # Card with arrows INSIDE using CSS absolute positioning
-            card_html = f'''<div style="background: linear-gradient(135deg, rgba(30,30,40,0.95), rgba(40,40,55,0.95)); border: 2px solid {color}40; border-radius: 16px; padding: 1.75rem; box-shadow: 0 8px 32px {color}20; min-height: 380px; position: relative;">
-<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-<span style="color: {color}; font-weight: 700; font-size: 1.3rem;">{title}</span>
-<span style="color: rgba(255,255,255,0.5); font-size: 1rem;">{current_idx + 1}/{total}</span>
-                        </div>
-<div style="color: white; font-weight: 700; font-size: 1.6rem; margin-bottom: 1.25rem; text-transform: uppercase;">{model_name}</div>
-<div style="display: flex; gap: 0.6rem; margin-bottom: 1.25rem;">
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Hardware</div>
-<div style="color: white; font-weight: 700; font-size: 1.1rem;">{hw_display}</div>
-                    </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.7rem; text-transform: uppercase;">Replicas</div>
-<div style="color: white; font-weight: 700; font-size: 1.1rem;">{replicas}</div>
-                        </div>
-<div style="flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 0.6rem 0.7rem;">
-<div style="color: rgba(255,255,255,0.5); font-size: 0.65rem; text-transform: uppercase;">RPS/Rep</div>
-<div style="color: white; font-weight: 700; font-size: 1.1rem;">{rps_per_replica:.1f}</div>
-                    </div>
-                        </div>
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-<div style="display: flex; gap: 1.5rem;">
-<div style="display: flex; align-items: center; gap: 0.4rem;">
-<span style="color: {color}; font-size: 1rem;">⏱</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">{metric_label}</span>
-<span style="color: white; font-weight: 700; font-size: 1rem;">{metric_value:.0f}{metric_unit}</span>
-                    </div>
-<div style="display: flex; align-items: center; gap: 0.4rem;">
-<span style="color: {color}; font-size: 1rem;">⚡</span>
-<span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">TPS ({percentile_display})</span>
-<span style="color: white; font-weight: 700; font-size: 1rem;">{throughput_tps:.0f} tok/s</span>
-                        </div>
-                    </div>
-<div style="text-align: right;">
-<div style="color: {color}; font-size: 2.5rem; font-weight: 800; line-height: 1;">{highlight_value:.0f}</div>
-<div style="color: rgba(255,255,255,0.4); font-size: 0.7rem; text-transform: uppercase;">Score</div>
-                        </div>
-                    </div>
-<div style="display: flex; justify-content: space-between; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem;">
-<span style="color: rgba(255,255,255,0.6);">Acc {scores["accuracy"]:.0f}</span>
-<span style="color: rgba(255,255,255,0.6);">Lat {scores["latency"]:.0f}</span>
-<span style="color: rgba(255,255,255,0.6);">Cost {scores["cost"]:.0f}</span>
-<span style="color: #ffffff; font-weight: 700;">Final: {final_score:.1f}</span>
-                    </div>
-<div style="display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem;">
-<div style="display: flex; align-items: center; gap: 0.3rem;">
-{'<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: #10B981; color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">✓</span> Validated</span>' if not is_estimated else '<span style="display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(255,165,0,0.8); color: white; font-size: 0.7rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 4px;"><span style="font-size: 0.65rem;">◐</span> Estimated</span>'}
-                    </div>
-<div style="display: flex; align-items: center; gap: 0.5rem;">
-<span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">◀</span>
-{dots_html}
-<span style="color: rgba(255,255,255,0.3); font-size: 0.7rem;">▶</span>
-</div>
-</div>
-</div>'''
-            st.markdown(card_html, unsafe_allow_html=True)
 
-            # Small arrow buttons and Select for Deployment button
-            btn_col1, btn_col2, btn_col3 = st.columns([1, 2, 1])
-            with btn_col1:
-                if st.button("◀", key=f"prev_{category_key}", use_container_width=True):
-                    # IMPORTANT: Reset dialog states to prevent table from opening
-                    st.session_state.show_full_table_dialog = False
-                    st.session_state.show_category_dialog = False
-                    st.session_state.show_winner_dialog = False
-                    # Use session state directly to get latest value
-                    st.session_state[idx_key] = (st.session_state[idx_key] - 1) % total
-            with btn_col2:
-                # Check if THIS SPECIFIC CARD is selected (by category_key, not just model/GPU)
+        with col:
+            with st.container(border=True):
+                st.markdown(f"**{title}**")
+                st.write(f"{model_name}")
+                c1, c2 = st.columns(2)
+                c1.metric("Score", f"{highlight_value:.0f}")
+                c2.metric("Cost/mo", f"${cost:,.0f}")
+                st.caption(f"{hw_count}x {hw_type} | Acc {scores['accuracy']:.0f} | Lat {scores['latency']:.0f}")
+
                 selected_category = st.session_state.get("deployment_selected_category")
                 is_selected = (selected_category == category_key)
 
                 if is_selected:
-                    # Show green "Selected" button with checkmark - clicking deselects
-                    if st.button("✓ Selected", key=f"selected_{category_key}", use_container_width=True,
-                                type="primary", help="Click to deselect this configuration"):
-                        # Clear the selection
+                    if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
                         st.session_state.deployment_selected_config = None
                         st.session_state.deployment_selected_category = None
                         st.session_state.deployment_yaml_generated = False
@@ -2633,41 +1147,30 @@ def render_top5_table(recommendations: list, priority: str):
                         st.session_state.deployment_error = None
                         st.rerun()
                 else:
-                    # Show "Select" button - clicking selects
-                    if st.button("Select", key=f"select_{category_key}", use_container_width=True,
-                                help="Select this configuration for deployment"):
-                        # Store the current recommendation and which card it came from
+                    if st.button("Select", key=f"select_{category_key}", use_container_width=True):
                         st.session_state.deployment_selected_config = rec
                         st.session_state.deployment_selected_category = category_key
                         st.session_state.deployment_yaml_generated = False
                         st.session_state.deployment_yaml_files = {}
                         st.session_state.deployment_id = None
 
-                        # Auto-generate YAML files
                         try:
                             response = requests.post(
                                 f"{API_BASE_URL}/api/v1/deploy",
-                                json={
-                                    "recommendation": rec,
-                                    "namespace": "default"
-                                },
-                                timeout=30
+                                json={"recommendation": rec, "namespace": "default"},
+                                timeout=30,
                             )
                             response.raise_for_status()
                             result = response.json()
-
                             if result.get("success"):
                                 deployment_id = result.get("deployment_id")
                                 st.session_state.deployment_id = deployment_id
-
-                                # Fetch the actual YAML content
                                 yaml_response = requests.get(
                                     f"{API_BASE_URL}/api/v1/deployments/{deployment_id}/yaml",
-                                    timeout=10
+                                    timeout=10,
                                 )
                                 yaml_response.raise_for_status()
                                 yaml_data = yaml_response.json()
-
                                 st.session_state.deployment_yaml_files = yaml_data.get("files", {})
                                 st.session_state.deployment_yaml_generated = True
                             else:
@@ -2675,80 +1178,38 @@ def render_top5_table(recommendations: list, priority: str):
                         except Exception:
                             st.session_state.deployment_yaml_generated = False
                         st.rerun()
-            with btn_col3:
-                if st.button("▶", key=f"next_{category_key}", use_container_width=True):
-                    # IMPORTANT: Reset dialog states to prevent table from opening
-                    st.session_state.show_full_table_dialog = False
-                    st.session_state.show_category_dialog = False
-                    st.session_state.show_winner_dialog = False
-                    # Use session state directly to get latest value
-                    st.session_state[idx_key] = (st.session_state[idx_key] + 1) % total
-    
-    # Render 4 carousel cards: 2 on top row, 2 on bottom row
+
+    # Render 4 category cards: 2 on top row, 2 on bottom row
     col1, col2 = st.columns(2)
-    render_carousel_card("Balanced", "#EE0000", top5_balanced, "final", "balanced", col1)
-    render_carousel_card("Best Accuracy", "#EE0000", top5_accuracy, "accuracy", "accuracy", col2)
-    
+    render_category_card("Balanced", top5_balanced, "final", "balanced", col1)
+    render_category_card("Best Accuracy", top5_accuracy, "accuracy", "accuracy", col2)
+
     col3, col4 = st.columns(2)
-    render_carousel_card("Best Latency", "#EE0000", top5_latency, "latency", "latency", col3)
-    render_carousel_card("Best Cost", "#EE0000", top5_cost, "cost", "cost", col4)
-    
-    # Show info if limited models available
+    render_category_card("Best Latency", top5_latency, "latency", "latency", col3)
+    render_category_card("Best Cost", top5_cost, "cost", "cost", col4)
+
     total_available = len(recommendations)
     if total_available <= 2:
         use_case_display = use_case.replace('_', ' ').title() if use_case else "this task"
-        st.markdown(f'''
-        <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 0.75rem; margin-top: 1rem;">
-            <span style="color: #a5b4fc; font-size: 0.85rem;">
-                Only {total_available} model(s) have benchmarks for {use_case_display}
-            </span>
-    </div>
-        ''', unsafe_allow_html=True)
+        st.info(f"Only {total_available} model(s) have benchmarks for {use_case_display}")
     
 
 
 def render_score_bar(label: str, icon: str, score: float, bar_class: str, contribution: float):
-    """Render score bar like Artificial Analysis - number ABOVE the bar."""
+    """Render a score with progress bar using native Streamlit."""
     import math
-    # Handle NaN values
     if math.isnan(score) if isinstance(score, float) else False:
-        score = 50  # Default to 50 if NaN
+        score = 50
     if math.isnan(contribution) if isinstance(contribution, float) else False:
         contribution = 0
-    
-    score = max(0, min(100, score))  # Clamp to 0-100
-    
-    # Color based on bar class
-    bar_colors = {
-        "score-bar-quality": "#38ef7d",
-        "score-bar-latency": "#667eea", 
-        "score-bar-cost": "#f5576c",
-        "score-bar-capacity": "#8b5cf6",
-    }
-    bar_color = bar_colors.get(bar_class, "#38ef7d")
-    
-    st.markdown(f"""
-    <div style="margin-bottom: 1.25rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span style="color: rgba(255,255,255,0.9); font-weight: 600; font-size: 1rem;">{icon} {label}</span>
-            <span style="font-size: 1.1rem;">
-                <strong style="color: white; font-size: 1.3rem;">{score:.0f}</strong>
-                <span style="color: rgba(255,255,255,0.5);">→</span>
-                <span style="color: #38ef7d; font-weight: 700;">+{contribution:.1f}</span>
-            </span>
-        </div>
-        <div style="position: relative; height: 28px;">
-            <!-- Score number above bar (Artificial Analysis style) -->
-            <div style="position: absolute; left: {min(score, 95)}%; transform: translateX(-50%); top: -2px; z-index: 10;">
-                <span style="background: {bar_color}; color: white; font-weight: 700; font-size: 0.9rem; padding: 0.2rem 0.5rem; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">{score:.0f}%</span>
-            </div>
-            <!-- Bar background -->
-            <div style="position: absolute; top: 8px; left: 0; right: 0; height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden;">
-                <div style="width: {score}%; height: 100%; background: linear-gradient(90deg, {bar_color}cc, {bar_color}); border-radius: 6px; transition: width 0.5s ease;"></div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    score = max(0, min(100, score))
+    col_label, col_bar, col_val = st.columns([2, 4, 2])
+    with col_label:
+        st.write(f"**{label}**")
+    with col_bar:
+        st.progress(int(score))
+    with col_val:
+        st.write(f"{score:.0f} (+{contribution:.1f})")
 
 
 def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced"):
@@ -2784,91 +1245,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
 
     qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
     
-    # Section header - Technical Specification
-    st.markdown("""
-    <div class="section-header" style="background: #000000; border: 1px solid rgba(255,255,255,0.2);">
-        Set Technical Specification
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("Set Technical Specification")
     
     
     # Create 4 columns for all cards in one row
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("""
-        <div class="slo-card">
-            <div class="slo-header">
-                <span class="slo-title">SLO Targets</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # CSS for SLO inputs - white borders, white text, red arrows
-        st.markdown("""
-        <style>
-            /* Percentile selector label - WHITE */
-            .stSelectbox label {
-                color: white !important;
-                font-weight: 600 !important;
-            }
-            .stSelectbox p {
-                color: white !important;
-            }
-            /* Percentile selector box - WHITE border */
-            .stSelectbox > div > div {
-                background: rgba(0,0,0,0.5) !important;
-                border: 2px solid rgba(255,255,255,0.6) !important;
-                border-radius: 8px !important;
-            }
-            .stSelectbox > div > div:hover {
-                border-color: #EE0000 !important;
-            }
-            .stSelectbox [data-baseweb="select"] > div {
-                background: rgba(0,0,0,0.5) !important;
-                border: 2px solid rgba(255,255,255,0.6) !important;
-                color: white !important;
-            }
-            .stSelectbox [data-baseweb="select"] span {
-                color: white !important;
-            }
-            /* Dropdown arrow - RED */
-            .stSelectbox svg {
-                fill: #EE0000 !important;
-                color: #EE0000 !important;
-            }
-            .stSelectbox [data-baseweb="select"] svg {
-                fill: #EE0000 !important;
-            }
-            /* Number inputs - WHITE border */
-            .stNumberInput > div > div > input {
-                background: rgba(0,0,0,0.5) !important;
-                border: 2px solid rgba(255,255,255,0.6) !important;
-                border-radius: 8px !important;
-                color: white !important;
-            }
-            .stNumberInput > div > div > input:focus {
-                border-color: #EE0000 !important;
-            }
-            /* Number input +/- buttons - RED */
-            .stNumberInput button {
-                color: #EE0000 !important;
-            }
-            .stNumberInput button svg {
-                fill: #EE0000 !important;
-            }
-            /* Dropdown menu styling */
-            [data-baseweb="menu"] {
-                background: #1a1a1a !important;
-            }
-            [data-baseweb="menu"] li {
-                color: white !important;
-            }
-            [data-baseweb="menu"] li:hover {
-                background: rgba(238, 0, 0, 0.3) !important;
-            }
-        </style>
-        """, unsafe_allow_html=True)
+        st.write("**SLO Targets**")
 
         # Load workload profile from API for token config
         workload_profile = fetch_workload_profile(use_case)
@@ -2906,7 +1290,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         if 'input_ttft' not in st.session_state:
             st.session_state.input_ttft = slo_defaults["ttft_ms"]["default"]
 
-        st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
         ttft_val_col, ttft_pct_col = st.columns([2, 1])
         with ttft_val_col:
             st.number_input("TTFT value", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
@@ -2915,14 +1299,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             ttft_pct_display = reverse_map.get(st.session_state.ttft_percentile, "P95")
             selected_ttft_pct = st.selectbox("TTFT percentile", percentile_options, index=percentile_options.index(ttft_pct_display), key="ttft_pct_selector", label_visibility="collapsed")
             st.session_state.ttft_percentile = percentile_map[selected_ttft_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
+        st.caption(f"Recommended Range: {ttft_min:,} - {ttft_max:,} ms")
 
         # === ITL ===
         itl_min, itl_max = get_metric_range("itl")
         if 'input_itl' not in st.session_state:
             st.session_state.input_itl = slo_defaults["itl_ms"]["default"]
 
-        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
         itl_val_col, itl_pct_col = st.columns([2, 1])
         with itl_val_col:
             st.number_input("ITL value", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
@@ -2931,14 +1315,14 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             itl_pct_display = reverse_map.get(st.session_state.itl_percentile, "P95")
             selected_itl_pct = st.selectbox("ITL percentile", percentile_options, index=percentile_options.index(itl_pct_display), key="itl_pct_selector", label_visibility="collapsed")
             st.session_state.itl_percentile = percentile_map[selected_itl_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {itl_min:,} - {itl_max:,} ms</div>', unsafe_allow_html=True)
+        st.caption(f"Recommended Range: {itl_min:,} - {itl_max:,} ms")
 
         # === E2E ===
         e2e_min, e2e_max = get_metric_range("e2e")
         if 'input_e2e' not in st.session_state:
             st.session_state.input_e2e = slo_defaults["e2e_ms"]["default"]
 
-        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
         e2e_val_col, e2e_pct_col = st.columns([2, 1])
         with e2e_val_col:
             st.number_input("E2E value", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
@@ -2947,7 +1331,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             e2e_pct_display = reverse_map.get(st.session_state.e2e_percentile, "P95")
             selected_e2e_pct = st.selectbox("E2E percentile", percentile_options, index=percentile_options.index(e2e_pct_display), key="e2e_pct_selector", label_visibility="collapsed")
             st.session_state.e2e_percentile = percentile_map[selected_e2e_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
+        st.caption(f"Recommended Range: {e2e_min:,} - {e2e_max:,} ms")
 
         # Check if SLO values changed - if so, clear recommendation cache
         curr_ttft = st.session_state.get("custom_ttft")
@@ -2964,14 +1348,8 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             st.session_state._last_e2e = curr_e2e
     
     with col2:
-        st.markdown("""
-        <div class="slo-card">
-            <div class="slo-header">
-                <span class="slo-title">Workload Profile</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.write("**Workload Profile**")
+
         # Load workload profile from API
         workload_profile = fetch_workload_profile(use_case)
         if not workload_profile:
@@ -2990,7 +1368,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         # Get research-based default QPS for this use case
         default_qps = estimated_qps  # This is the research-based default
         new_qps = st.number_input("Expected RPS", value=min(qps, 10000000), min_value=1, max_value=10000000, step=1, key="edit_qps", label_visibility="collapsed")
-        st.markdown(f'<div style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="color: white; font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="color: rgba(255,255,255,0.4); font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.9rem; margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="font-size: 0.75rem;">(default: {default_qps})</span></div>', unsafe_allow_html=True)
 
         # Store the actual QPS value shown to user (not just custom override)
         st.session_state.spec_expected_qps = new_qps
@@ -3002,10 +1380,10 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         if new_qps > default_qps * 2:
             qps_ratio = new_qps / max(default_qps, 1)
             st.markdown(f'''
-            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
+            <div style="border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
                 <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High RPS Warning ({qps_ratio:.1f}x default)</div>
-                <div style="color: rgba(255,255,255,0.7); font-size: 0.75rem; margin-top: 0.3rem;">
-                    • Requires <strong style="color: #f59e0b;">{int(qps_ratio)}x more GPU replicas</strong><br/>
+                <div style="font-size: 0.75rem; margin-top: 0.3rem;">
+                    • Requires <strong >{int(qps_ratio)}x more GPU replicas</strong><br/>
                     • Estimated cost increase: <strong style="color: #ef4444;">~{int((qps_ratio-1)*100)}%</strong><br/>
                     • Consider load balancing or queue-based architecture
                 </div>
@@ -3014,18 +1392,18 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         elif new_qps > default_qps * 1.5:
             qps_ratio = new_qps / max(default_qps, 1)
             st.markdown(f'''
-            <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="color: #f59e0b; font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
-                <div style="color: rgba(255,255,255,0.6); font-size: 0.7rem; margin-top: 0.2rem;">
+            <div style="border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
+                <div style="font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
+                <div style="font-size: 0.7rem; margin-top: 0.2rem;">
                     May need additional replicas. Cost ~{int((qps_ratio-1)*100)}% higher.
                 </div>
             </div>
             ''', unsafe_allow_html=True)
         elif new_qps < default_qps * 0.5 and default_qps > 1:
             st.markdown(f'''
-            <div style="background: rgba(56, 239, 125, 0.1); border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-                <div style="color: #38ef7d; font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
-                <div style="color: rgba(255,255,255,0.6); font-size: 0.7rem; margin-top: 0.2rem;">
+            <div style="border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
+                <div style="font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
+                <div style="font-size: 0.7rem; margin-top: 0.2rem;">
                     Single replica may suffice. Consider smaller GPU or spot instances.
                 </div>
             </div>
@@ -3033,27 +1411,27 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
 
         # 2-4. Fixed workload values with inline descriptions (like datasets)
         st.markdown(f"""
-        <div style="margin-top: 0.5rem; background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px;">
-            <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 8px;">
+            <div style="padding: 0.5rem 0; ">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
-                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
+                    <span style="font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
+                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
             </div>
-                <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
+                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
             </div>
-            <div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="padding: 0.5rem 0; ">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
-                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
+                    <span style="font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
+                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
                 </div>
-                <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
+                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
             </div>
             <div style="padding: 0.5rem 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
-                    <span style="color: white; font-weight: 700; font-size: 1.1rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
+                    <span style="font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
+                    <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
                 </div>
-                <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
+                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -3062,7 +1440,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         workload_messages = get_workload_insights(use_case, new_qps, user_count)
         
         for icon, color, text, severity in workload_messages[:3]:  # Limit to 3 for space
-            st.markdown(f'<div style="font-size: 0.85rem; color: white; padding: 0.4rem 0.5rem; line-height: 1.4; background: #000000; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size: 0.85rem; padding: 0.4rem 0.5rem; line-height: 1.4; border-radius: 6px; margin: 4px 0;">{text}</div>', unsafe_allow_html=True)
 
     with col3:
         # Accuracy Benchmarks - show which benchmarks are used for this use case
@@ -3119,40 +1497,28 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         
         datasets = TASK_DATASETS.get(use_case, TASK_DATASETS["chatbot_conversational"])
         
-        st.markdown("""
-        <div class="slo-card">
-            <div class="slo-header">
-                <span class="slo-title">Accuracy Benchmarks</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.write("**Accuracy Benchmarks**")
 
-        # Display datasets with weights - black background, white text for visibility
-        datasets_html = '<div style="background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem;">'
+        # Display datasets with weights
+        datasets_html = '<div style="padding: 0.5rem;">'
         for item in datasets:
             name = item[0]
             weight = item[1]
             tooltip = item[2] if len(item) > 2 else ""
-            datasets_html += f'''<div style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            datasets_html += f'''<div style="padding: 0.5rem 0; ">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: rgba(255,255,255,0.95); font-size: 0.95rem; font-weight: 500;">{name}</span>
-                    <span style="color: white; font-weight: 700; font-size: 0.95rem; background: #000000; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
+                    <span style="font-size: 0.95rem; font-weight: 500;">{name}</span>
+                    <span style="font-weight: 700; font-size: 0.95rem; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
             </div>
-                <div style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
+                <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
             </div>'''
         datasets_html += '</div>'
-        datasets_html += '<div style="font-size: 0.75rem; color: white; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
+        datasets_html += '<div style="font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
         st.markdown(datasets_html, unsafe_allow_html=True)
 
     with col4:
         # PRIORITIES card - interactive priority dropdowns with weights
-        st.markdown("""
-        <div class="slo-card">
-            <div class="slo-header">
-                <span class="slo-title">Priorities</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.write("**Priorities**")
 
         # Load priority weights config from backend (cached)
         priority_config = fetch_priority_weights()
@@ -3209,12 +1575,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         # Note: weight_complexity removed from UI (hardcoded to 0)
 
         # Container for the priority rows
-        st.markdown('<div style="background: rgba(255,255,255,0.03); padding: 0.5rem; border-radius: 8px; margin-top: 0.5rem;">', unsafe_allow_html=True)
+        st.markdown('<div style="padding: 0.5rem; border-radius: 8px; margin-top: 0.5rem;">', unsafe_allow_html=True)
 
         # Row 1: Accuracy
         acc_col1, acc_col2, acc_col3 = st.columns([2, 1.5, 1])
         with acc_col1:
-            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Accuracy</span>', unsafe_allow_html=True)
+            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Accuracy</span>', unsafe_allow_html=True)
         with acc_col2:
             acc_priority_display = value_to_priority.get(st.session_state.accuracy_priority, "Medium")
             new_acc_priority = st.selectbox("Accuracy", priority_options, index=priority_options.index(acc_priority_display), key="acc_priority_select", label_visibility="collapsed")
@@ -3230,7 +1596,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         # Row 2: Cost
         cost_col1, cost_col2, cost_col3 = st.columns([2, 1.5, 1])
         with cost_col1:
-            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Cost</span>', unsafe_allow_html=True)
+            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Cost</span>', unsafe_allow_html=True)
         with cost_col2:
             cost_priority_display = value_to_priority.get(st.session_state.cost_priority, "Medium")
             new_cost_priority = st.selectbox("Cost", priority_options, index=priority_options.index(cost_priority_display), key="cost_priority_select", label_visibility="collapsed")
@@ -3246,7 +1612,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         # Row 3: Latency
         lat_col1, lat_col2, lat_col3 = st.columns([2, 1.5, 1])
         with lat_col1:
-            st.markdown('<span style="color: rgba(255,255,255,0.95); font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Latency</span>', unsafe_allow_html=True)
+            st.markdown('<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">Latency</span>', unsafe_allow_html=True)
         with lat_col2:
             lat_priority_display = value_to_priority.get(st.session_state.latency_priority, "Medium")
             new_lat_priority = st.selectbox("Latency", priority_options, index=priority_options.index(lat_priority_display), key="lat_priority_select", label_visibility="collapsed")
@@ -3303,46 +1669,17 @@ def show_category_dialog():
     
     # Category config - theme colors (no emojis)
     category_config = {
-        "balanced": {"title": "Balanced - Top 5", "color": "#EE0000", "field": "final", "top5_key": "top5_balanced"},
-        "accuracy": {"title": "Best Accuracy - Top 5", "color": "#EE0000", "field": "accuracy", "top5_key": "top5_accuracy"},
-        "latency": {"title": "Best Latency - Top 5", "color": "#EE0000", "field": "latency", "top5_key": "top5_latency"},
-        "cost": {"title": "Best Cost - Top 5", "color": "#EE0000", "field": "cost", "top5_key": "top5_cost"},
+        "balanced": {"title": "Balanced - Top 5", "field": "final", "top5_key": "top5_balanced"},
+        "accuracy": {"title": "Best Accuracy - Top 5", "field": "accuracy", "top5_key": "top5_accuracy"},
+        "latency": {"title": "Best Latency - Top 5", "field": "latency", "top5_key": "top5_latency"},
+        "cost": {"title": "Best Cost - Top 5", "field": "cost", "top5_key": "top5_cost"},
     }
     
     config = category_config.get(category, category_config["balanced"])
     top5_list = st.session_state.get(config["top5_key"], [])
     
-    # Theme CSS
-    st.markdown("""
-    <style>
-        [data-testid="stDialog"] > div {
-            background: #000000 !important;
-        }
-        [data-testid="stDialog"] [data-testid="stMarkdownContainer"] p,
-        [data-testid="stDialog"] [data-testid="stMarkdownContainer"] span,
-        [data-testid="stDialog"] [data-testid="stMarkdownContainer"] div {
-            color: #ffffff !important;
-        }
-        [data-testid="stDialog"] [data-testid="stButton"] button {
-            background: #000000 !important;
-            border: 1px solid #EE0000 !important;
-            color: white !important;
-        }
-        [data-testid="stDialog"] [data-testid="stButton"] button:hover {
-            background: #EE0000 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Header
-    st.markdown(f"""
-    <div style="background: #EE0000; padding: 1rem; border-radius: 12px; margin-bottom: 1.5rem;">
-        <h3 style="color: #ffffff; margin: 0; font-size: 1.3rem;">{config['title']}</h3>
-        <p style="color: rgba(255,255,255,0.9); margin: 0.5rem 0 0 0; font-size: 0.9rem;">
-            Use case: <strong style="color: white;">{format_use_case_name(use_case)}</strong>
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader(config['title'])
+    st.caption(f"Use case: {format_use_case_name(use_case)}")
         
     if not top5_list:
         st.warning("No models available for this category.")
@@ -3389,51 +1726,46 @@ def show_category_dialog():
         throughput_display = f"{tps:.0f} tok/s" if tps and tps > 0 else "N/A"
         
         highlight_score = scores.get(config["field"], 0)
-        # Theme rank colors: red for #1, gray shades for others
-        rank_colors = ["#EE0000", "#666666", "#555555", "#444444", "#333333"]
-        rank_color = rank_colors[i] if i < 5 else "#333333"
-        rank_text_color = "#ffffff"  # Always white text
-        
+
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.95)); 
-                    border: 1px solid #333333; border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
+        <div style="border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <span style="background: {rank_color}; color: {rank_text_color}; font-weight: 800; padding: 0.25rem 0.6rem; 
+                    <span style="font-weight: 800; padding: 0.25rem 0.6rem;
                                 border-radius: 6px; font-size: 0.85rem;">#{i+1}</span>
                     <div>
-                        <div style="color: white; font-weight: 700; font-size: 1.05rem;">{model_name}</div>
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem;">{hw_display} (TP={tp})</div>
+                        <div style="font-weight: 700; font-size: 1.05rem;">{model_name}</div>
+                        <div style="font-size: 0.8rem;">{hw_display} (TP={tp})</div>
         </div>
                 </div>
                 <div style="text-align: right;">
-                    <div style="color: #ffffff; font-size: 1.75rem; font-weight: 800;">{highlight_score:.0f}</div>
-                    <div style="color: rgba(255,255,255,0.4); font-size: 0.65rem; text-transform: uppercase;">FINAL</div>
+                    <div style="font-size: 1.75rem; font-weight: 800;">{highlight_score:.0f}</div>
+                    <div style="font-size: 0.65rem; text-transform: uppercase;">FINAL</div>
                 </div>
             </div>
             <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem; padding: 0.5rem; 
-                        background: rgba(0,0,0,0.4); border-radius: 8px;">
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Acc: {scores['accuracy']:.0f}</span>
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Lat: {scores['latency']:.0f}</span>
-                <span style="color: rgba(255,255,255,0.7); font-size: 0.8rem;">Cost: {scores['cost']:.0f}</span>
-                <span style="color: #ffffff; font-size: 0.8rem; font-weight: 600;">Final: {scores['final']:.1f}</span>
+                        border-radius: 8px;">
+                <span style="font-size: 0.8rem;">Acc: {scores['accuracy']:.0f}</span>
+                <span style="font-size: 0.8rem;">Lat: {scores['latency']:.0f}</span>
+                <span style="font-size: 0.8rem;">Cost: {scores['cost']:.0f}</span>
+                <span style="font-size: 0.8rem; font-weight: 600;">Final: {scores['final']:.1f}</span>
             </div>
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem;">
-                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">TTFT ({percentile_label})</div>
-                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{ttft if isinstance(ttft, str) else f'{ttft:.0f}ms'}</div>
+                <div style="padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 0.65rem;">TTFT ({percentile_label})</div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">{ttft if isinstance(ttft, str) else f'{ttft:.0f}ms'}</div>
                 </div>
-                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">ITL ({percentile_label})</div>
-                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{itl if isinstance(itl, str) else f'{itl:.0f}ms'}</div>
+                <div style="padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 0.65rem;">ITL ({percentile_label})</div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">{itl if isinstance(itl, str) else f'{itl:.0f}ms'}</div>
                 </div>
-                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">E2E ({percentile_label})</div>
-                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{e2e if isinstance(e2e, str) else f'{e2e:.0f}ms'}</div>
+                <div style="padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 0.65rem;">E2E ({percentile_label})</div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">{e2e if isinstance(e2e, str) else f'{e2e:.0f}ms'}</div>
                 </div>
-                <div style="background: #EE0000; padding: 0.4rem; border-radius: 6px; text-align: center;">
-                    <div style="color: rgba(255,255,255,0.8); font-size: 0.65rem;">Throughput</div>
-                    <div style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">{throughput_display}</div>
+                <div style="padding: 0.4rem; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 0.65rem;">Throughput</div>
+                    <div style="font-weight: 700; font-size: 0.9rem;">{throughput_display}</div>
                 </div>
             </div>
         </div>
@@ -3458,23 +1790,20 @@ def show_full_table_dialog():
             st.rerun()
         return
     
-    # Dark theme styling for dialog
-    st.markdown("""<style>[data-testid="stDialog"],[data-testid="stDialog"] > div,[data-testid="stDialog"] > div > div {background: #0d1117 !important;}[data-testid="stDialog"] .stMarkdown,[data-testid="stDialog"] p,[data-testid="stDialog"] span,[data-testid="stDialog"] th,[data-testid="stDialog"] td {color: #f0f6fc !important;}</style>""", unsafe_allow_html=True)
-    
-    # Header
-    st.markdown('<div style="background: linear-gradient(135deg, #EE0000, #cc0000); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem;"><h2 style="color: white; margin: 0; font-size: 1.5rem;">Configuration Options</h2><p style="color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;">All viable deployment configurations ranked by category</p></div>', unsafe_allow_html=True)
+    st.subheader("Configuration Options")
+    st.caption("All viable deployment configurations ranked by category")
     
     total_configs = ranked_response.get("total_configs_evaluated", 0)
     configs_after_filters = ranked_response.get("configs_after_filters", 0)
     
-    st.markdown(f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
     
     # Define categories
     categories = [
-        ("balanced", "Balanced", "#EE0000"),
-        ("best_accuracy", "Best Accuracy", "#ffffff"),
-        ("lowest_cost", "Lowest Cost", "#f59e0b"),
-        ("lowest_latency", "Lowest Latency", "#ffffff"),
+        ("balanced", "Balanced"),
+        ("best_accuracy", "Best Accuracy"),
+        ("lowest_cost", "Lowest Cost"),
+        ("lowest_latency", "Lowest Latency"),
     ]
     
     # Helper function to format GPU config
@@ -3489,10 +1818,10 @@ def show_full_table_dialog():
     
     # Build table rows
     all_rows = []
-    for cat_key, cat_name, cat_color in categories:
+    for cat_key, cat_name in categories:
         recs = ranked_response.get(cat_key, [])
         if not recs:
-            all_rows.append(f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;"><span style="color: {cat_color}; font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.5); font-style: italic;">No configurations found</td></tr>')
+            all_rows.append(f'<tr ><td style="padding: 0.75rem 0.5rem;"><span style="font-weight: 600;">{cat_name}</span></td><td colspan="7" style="padding: 0.75rem 0.5rem; font-style: italic;">No configurations found</td></tr>')
         else:
             for i, rec in enumerate(recs[:5]):  # Show top 5 per category
                 model_name = format_display_name(rec.get("model_name", "Unknown"))
@@ -3506,16 +1835,16 @@ def show_full_table_dialog():
                 meets_slo = rec.get("meets_slo", False)
                 slo_icon = "Yes" if meets_slo else "No"
                 
-                cat_display = f'<span style="color: {cat_color}; font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
+                cat_display = f'<span style="font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
                 
-                row = f'<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
+                row = f'<tr ><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; ">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; ">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; ">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; ">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
                 all_rows.append(row)
     
     # Table header
-    header = '<thead><tr style="border-bottom: 2px solid rgba(255,255,255,0.2);"><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th><th style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th><th style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th><th style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th></tr></thead>'
+    header = '<thead><tr ><th style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Category</th><th style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Model</th><th style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">GPU Config</th><th style="text-align: right; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">TTFT</th><th style="text-align: right; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Cost/mo</th><th style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Acc</th><th style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Score</th><th style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">SLO</th></tr></thead>'
     
     # Render table
-    table_html = f'<table style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">{header}<tbody>{"".join(all_rows)}</tbody></table>'
+    table_html = f'<table style="width: 100%; border-collapse: collapse; border-radius: 8px;">{header}<tbody>{"".join(all_rows)}</tbody></table>'
     
     st.markdown(table_html, unsafe_allow_html=True)
     
@@ -3535,12 +1864,12 @@ def render_options_list_inline():
         return
 
     # Header
-    st.markdown('<div style="background: linear-gradient(135deg, #EE0000, #cc0000); padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; margin-top: 1rem;"><h2 style="color: white; margin: 0; font-size: 1.5rem;">Configuration Options</h2><p style="color: rgba(255,255,255,0.8); margin: 0.5rem 0 0 0; font-size: 0.9rem;">All viable deployment configurations ranked by category</p></div>', unsafe_allow_html=True)
+    st.markdown('<div style="padding: 1rem 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; margin-top: 1rem;"><h2 style="margin: 0; font-size: 1.5rem;">Configuration Options</h2><p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">All viable deployment configurations ranked by category</p></div>', unsafe_allow_html=True)
 
     total_configs = ranked_response.get("total_configs_evaluated", 0)
     configs_after_filters = ranked_response.get("configs_after_filters", 0)
 
-    st.markdown(f'<div style="color: #ffffff; margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="color: #06b6d4; font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="color: #10b981; font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-bottom: 1rem; font-size: 0.9rem;">Evaluated <span style="font-weight: 600;">{total_configs}</span> viable configurations, showing <span style="font-weight: 600;">{configs_after_filters}</span> unique options</div>', unsafe_allow_html=True)
 
     # Define categories
     categories = [
@@ -3593,7 +1922,7 @@ def render_options_list_inline():
         rows_html = []
         for row in table_data:
             rows_html.append(f'''
-                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"
+                <tr 
                     data-category="{row['category']}"
                     data-model="{row['model']}"
                     data-gpu="{row['gpu_config']}"
@@ -3602,13 +1931,13 @@ def render_options_list_inline():
                     data-accuracy="{row['accuracy']}"
                     data-balanced="{row['balanced']}"
                     data-slo="{row['slo_value']}">
-                    <td style="padding: 0.75rem 0.5rem; color: white;">{row['category']}</td>
-                    <td style="padding: 0.75rem 0.5rem; color: white; font-weight: 500;">{row['model']}</td>
-                    <td style="padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem;">{row['gpu_config']}</td>
-                    <td style="padding: 0.75rem 0.5rem; text-align: right; color: #06b6d4;">{row['ttft']:.0f}ms</td>
-                    <td style="padding: 0.75rem 0.5rem; text-align: right; color: #f59e0b;">${row['cost']:,.0f}</td>
-                    <td style="padding: 0.75rem 0.5rem; text-align: center; color: #10b981;">{row['accuracy']:.0f}</td>
-                    <td style="padding: 0.75rem 0.5rem; text-align: center; color: #8b5cf6;">{row['balanced']:.1f}</td>
+                    <td style="padding: 0.75rem 0.5rem; ">{row['category']}</td>
+                    <td style="padding: 0.75rem 0.5rem; font-weight: 500;">{row['model']}</td>
+                    <td style="padding: 0.75rem 0.5rem; font-size: 0.85rem;">{row['gpu_config']}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: right; ">{row['ttft']:.0f}ms</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: right; ">${row['cost']:,.0f}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: center; ">{row['accuracy']:.0f}</td>
+                    <td style="padding: 0.75rem 0.5rem; text-align: center; ">{row['balanced']:.1f}</td>
                     <td style="padding: 0.75rem 0.5rem; text-align: center;">{row['slo']}</td>
                 </tr>
             ''')
@@ -3634,35 +1963,33 @@ def render_options_list_inline():
                 position: relative;
             }}
             .sortable-table th:hover {{
-                background: rgba(50, 50, 50, 0.8) !important;
+                !important;
             }}
             .sortable-table th.sort-asc::after {{
                 content: " ▲";
                 font-size: 0.7em;
-                color: #06b6d4;
-            }}
+                }}
             .sortable-table th.sort-desc::after {{
                 content: " ▼";
                 font-size: 0.7em;
-                color: #06b6d4;
-            }}
+                }}
             .sortable-table tbody tr:hover {{
-                background: rgba(30, 30, 30, 0.6) !important;
+                !important;
             }}
         </style>
         </head>
         <body>
-        <table class="sortable-table" id="recsTableInline" style="width: 100%; border-collapse: collapse; background: rgba(13, 17, 23, 0.95); border-radius: 8px;">
+        <table class="sortable-table" id="recsTableInline" style="width: 100%; border-collapse: collapse; border-radius: 8px;">
             <thead>
-                <tr style="border-bottom: 2px solid rgba(255,255,255,0.2);">
-                    <th onclick="sortTableInline(0, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Category</th>
-                    <th onclick="sortTableInline(1, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Model</th>
-                    <th onclick="sortTableInline(2, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">GPU Config</th>
-                    <th onclick="sortTableInline(3, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">TTFT</th>
-                    <th onclick="sortTableInline(4, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Cost/mo</th>
-                    <th onclick="sortTableInline(5, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Acc</th>
-                    <th onclick="sortTableInline(6, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">Score</th>
-                    <th onclick="sortTableInline(7, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; color: rgba(255,255,255,0.7); font-size: 0.85rem; font-weight: 600;">SLO</th>
+                <tr >
+                    <th onclick="sortTableInline(0, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Category</th>
+                    <th onclick="sortTableInline(1, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Model</th>
+                    <th onclick="sortTableInline(2, 'string')" style="text-align: left; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">GPU Config</th>
+                    <th onclick="sortTableInline(3, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">TTFT</th>
+                    <th onclick="sortTableInline(4, 'number')" style="text-align: right; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Cost/mo</th>
+                    <th onclick="sortTableInline(5, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Acc</th>
+                    <th onclick="sortTableInline(6, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">Score</th>
+                    <th onclick="sortTableInline(7, 'number')" style="text-align: center; padding: 0.75rem 0.5rem; font-size: 0.85rem; font-weight: 600;">SLO</th>
                 </tr>
             </thead>
             <tbody>
@@ -3719,7 +2046,7 @@ def render_options_list_inline():
         '''
 
         components.html(table_html, height=450, scrolling=True)
-        st.markdown('<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">Click on column headers to sort the table</p>', unsafe_allow_html=True)
+        st.markdown('<p style="font-size: 0.85rem; margin-top: 0.5rem;">Click on column headers to sort the table</p>', unsafe_allow_html=True)
     else:
         st.warning("No configurations to display")
 
@@ -3773,42 +2100,6 @@ def main():
     with tab4:
         render_deployment_tab()
 
-    # Handle tab switching after approval
-    if st.session_state.get('switch_to_tab2', False):
-        st.session_state.switch_to_tab2 = False
-        import streamlit.components.v1 as components
-        components.html("""
-        <script>
-            setTimeout(function() {
-                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs.length > 1) tabs[1].click();
-            }, 100);
-        </script>
-        """, height=0)
-
-    if st.session_state.get('switch_to_tab3', False):
-        st.session_state.switch_to_tab3 = False
-        import streamlit.components.v1 as components
-        components.html("""
-        <script>
-            setTimeout(function() {
-                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs.length > 2) tabs[2].click();
-            }, 100);
-        </script>
-        """, height=0)
-
-    if st.session_state.get('switch_to_tab1', False):
-        st.session_state.switch_to_tab1 = False
-        import streamlit.components.v1 as components
-        components.html("""
-        <script>
-            setTimeout(function() {
-                const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-                if (tabs.length > 0) tabs[0].click();
-            }, 100);
-        </script>
-        """, height=0)
 
 
 def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
@@ -3826,7 +2117,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         st.session_state.user_input = st.session_state.pending_user_input
         del st.session_state.pending_user_input
 
-    st.markdown('<div class="section-header">Describe your use case or select from 9 predefined scenarios</div>', unsafe_allow_html=True)
+    st.subheader("Describe your use case or select from 9 predefined scenarios")
 
     # Input area
     st.text_area(
@@ -3909,7 +2200,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     
     # Show character count - white text
     char_count = len(st.session_state.user_input) if st.session_state.user_input else 0
-    st.markdown(f'<div style="text-align: right; font-size: 0.75rem; color: white; margin-top: -0.5rem;">{char_count}/2000 characters</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align: right; font-size: 0.75rem; margin-top: -0.5rem;">{char_count}/2000 characters</div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1.5, 1, 2])
     with col1:
@@ -4027,7 +2318,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         
         # Completion banner (tab auto-advances on approval)
         st.markdown("""
-        <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
+        <div style="padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
             <strong>Step 1 Complete</strong> · You can now go to Technical Specification
         </div>
         """, unsafe_allow_html=True)
@@ -4040,9 +2331,9 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     # Check if extraction is approved first
     if not st.session_state.extraction_approved:
         st.markdown("""
-        <div style="background: #1a1a1a; color: white; padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">
+        <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
             <strong style="font-size: 1.1rem;">Complete Step 1 First</strong><br>
-            <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">Go to the <strong>Define Use Case</strong> tab to describe your use case and approve the extraction.</span>
+            <span style="font-size: 0.95rem; ">Go to the <strong>Define Use Case</strong> tab to describe your use case and approve the extraction.</span>
         </div>
         """, unsafe_allow_html=True)
         return
@@ -4056,7 +2347,7 @@ def render_technical_specs_tab(priority: str, models_df: pd.DataFrame):
     if st.session_state.slo_approved == True:
         # Completion banner (tab auto-advances on approval)
         st.markdown("""
-        <div style="background: #EE0000; color: white; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
+        <div style="padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
             <strong>Step 2 Complete</strong> · You can now view Recommendations
         </div>
         """, unsafe_allow_html=True)
@@ -4070,17 +2361,17 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     if not st.session_state.slo_approved:
         if not st.session_state.extraction_approved:
             st.markdown("""
-            <div style="background: #1a1a1a; color: white; padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">
+            <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
                 <strong style="font-size: 1.1rem;">Complete Previous Steps First</strong><br>
-                <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">1. Go to <strong>Define Use Case</strong> tab to describe your use case<br>
+                <span style="font-size: 0.95rem; ">1. Go to <strong>Define Use Case</strong> tab to describe your use case<br>
                 2. Then go to <strong>Technical Specification</strong> tab to set your SLO targets</span>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown("""
-            <div style="background: #1a1a1a; color: white; padding: 1.5rem; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.2);">
+            <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
                 <strong style="font-size: 1.1rem;">Complete Step 2 First</strong><br>
-                <span style="font-size: 0.95rem; color: rgba(255,255,255,0.8);">Go to the <strong>Technical Specification</strong> tab to set your SLO targets and workload parameters.</span>
+                <span style="font-size: 0.95rem; ">Go to the <strong>Technical Specification</strong> tab to set your SLO targets and workload parameters.</span>
             </div>
             """, unsafe_allow_html=True)
         return
@@ -4157,7 +2448,7 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
 
 def render_extraction_result(extraction: dict, priority: str):
     """Render beautiful extraction results."""
-    st.markdown('<div class="section-header">Extracted Business Context</div>', unsafe_allow_html=True)
+    st.subheader("Extracted Business Context")
 
     use_case = extraction.get("use_case", "unknown")
     user_count = extraction.get("user_count", 0)
@@ -4214,7 +2505,7 @@ def render_extraction_result(extraction: dict, priority: str):
 
 def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
     """Render extraction results with YES/NO approval buttons."""
-    st.markdown('<div class="section-header">Extracted Business Context</div>', unsafe_allow_html=True)
+    st.subheader("Extracted Business Context")
 
     use_case = extraction.get("use_case", "unknown")
     user_count = extraction.get("user_count", 0)
@@ -4243,7 +2534,7 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
         priorities_item = f'''<div class="extraction-item"><div><div class="extraction-label">Priorities</div><div class="extraction-value">{priorities_display}</div></div></div>'''
 
     st.markdown(f"""
-    <div class="extraction-card" style="border: 2px solid #EE0000;">
+    <div class="extraction-card" >
         <div class="extraction-grid">
             <div class="extraction-item">
                 <div>
@@ -4270,13 +2561,12 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
 
     # Approval question
     st.markdown("""
-    <div style="background: #000000; 
-                padding: 1.25rem; border-radius: 1rem; margin: 1.5rem 0; text-align: center;
-                border: 1px solid rgba(255, 255, 255, 0.2);">
-        <p style="color: white; font-size: 1.2rem; font-weight: 600; margin: 0;">
+    <div style="padding: 1.25rem; border-radius: 1rem; margin: 1.5rem 0; text-align: center;
+                ">
+        <p style="font-size: 1.2rem; font-weight: 600; margin: 0;">
             Is this extraction correct?
         </p>
-        <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.5rem;">
+        <p style="font-size: 0.9rem; margin-top: 0.5rem;">
             Verify the extracted business context before proceeding to recommendations
         </p>
     </div>
@@ -4308,57 +2598,8 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
 
 def render_extraction_edit_form(extraction: dict, models_df: pd.DataFrame):
     """Render editable form for extraction correction."""
-    st.markdown('<div class="section-header">Edit Business Context</div>', unsafe_allow_html=True)
-    
-    # CSS to make form inputs visible
-    st.markdown("""
-    <style>
-        /* Edit form - make ALL labels white */
-        .stSelectbox label, .stNumberInput label {
-            color: white !important;
-            font-weight: 600 !important;
-        }
-        /* Selectbox styling */
-        .stSelectbox > div > div {
-            color: white !important;
-        }
-        .stSelectbox [data-baseweb="select"] > div {
-            background: rgba(102, 126, 234, 0.2) !important;
-            color: white !important;
-            border: 1px solid rgba(102, 126, 234, 0.4) !important;
-        }
-        .stSelectbox [data-baseweb="select"] span {
-            color: white !important;
-        }
-        /* Number input styling - match selectbox */
-        .stNumberInput > div > div > input {
-            color: white !important;
-            background: rgba(102, 126, 234, 0.2) !important;
-            border: 1px solid rgba(102, 126, 234, 0.4) !important;
-        }
-        .stNumberInput button {
-            background: rgba(102, 126, 234, 0.3) !important;
-            color: white !important;
-            border: 1px solid rgba(102, 126, 234, 0.4) !important;
-        }
-        .stNumberInput button:hover {
-            background: rgba(102, 126, 234, 0.5) !important;
-        }
-        /* Dropdown menu items */
-        [data-baseweb="menu"] {
-            background: #1a1a2e !important;
-        }
-        [data-baseweb="menu"] li {
-            color: white !important;
-        }
-        [data-baseweb="menu"] li:hover {
-            background: rgba(102, 126, 234, 0.3) !important;
-        }
-    </style>
-    <div style="background: rgba(56, 239, 125, 0.1); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #38ef7d;">
-        <p style="color: white; margin: 0;">Review and adjust the extracted values below, then click "Apply Changes" to continue.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.subheader("Edit Business Context")
+    st.info("Review and adjust the extracted values below, then click \"Apply Changes\" to continue.")
     
     # Use case dropdown
     use_cases = [
@@ -4498,10 +2739,10 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
         if not is_valid:
             # Show validation errors
             st.markdown(f"""
-            <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.5); 
+            <div style="border: 1px solid rgba(239, 68, 68, 0.5); 
                         border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; text-align: center;">
                 <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem;">⚠️ Invalid SLO Values</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 0.8rem; margin-top: 0.25rem;">
+                <div style="font-size: 0.8rem; margin-top: 0.25rem;">
                     {' • '.join(validation_errors)}
                 </div>
             </div>
@@ -4609,12 +2850,11 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     # === MODIFY SLOs & RE-RUN SECTION ===
     st.markdown("---")
     st.markdown("""
-    <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(166, 124, 0, 0.05)); 
-                padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.2); margin-top: 1rem; background: #000000;">
+    <div style="padding: 1rem; border-radius: 0.75rem; margin-top: 1rem; ">
         <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-            <span style="color: white; font-weight: 700; font-size: 1rem;">Want Different Results?</span>
+            <span style="font-weight: 700; font-size: 1rem;">Want Different Results?</span>
         </div>
-        <p style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin: 0;">
+        <p style="font-size: 0.85rem; margin: 0;">
             Adjust SLO targets above to find models with different latency/performance trade-offs. 
             Stricter SLOs = fewer models, Relaxed SLOs = more options.
             </p>
@@ -4647,64 +2887,6 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
 def _render_winner_details(winner: dict, priority: str, extraction: dict):
     """Render detailed winner information inside the expander."""
     
-    # Dark theme styling for popup dialog - including header
-    st.markdown("""
-    <style>
-        /* Dialog container - force dark background everywhere */
-        [data-testid="stDialog"],
-        [data-testid="stDialog"] > div,
-        [data-testid="stDialog"] > div > div,
-        [data-testid="stDialog"] [data-testid="stVerticalBlock"],
-        [data-testid="stDialog"] [data-testid="stVerticalBlockBorderWrapper"],
-        div[data-modal-container="true"],
-        div[data-modal-container="true"] > div {
-            background: #0d1117 !important;
-            background-color: #0d1117 !important;
-        }
-        
-        /* Dialog header area */
-        [data-testid="stDialog"] header,
-        [data-testid="stDialog"] [data-testid="stModalHeader"],
-        [role="dialog"] > div:first-child,
-        [role="dialog"] header {
-            background: #0d1117 !important;
-            background-color: #0d1117 !important;
-        }
-        
-        /* Dialog title */
-        [data-testid="stDialog"] [data-testid="stModalHeader"] span,
-        [role="dialog"] header span {
-            color: #D4AF37 !important;
-        }
-        
-        /* All text in dialog */
-        [data-testid="stDialog"] .stMarkdown,
-        [data-testid="stDialog"] p, 
-        [data-testid="stDialog"] span,
-        [data-testid="stDialog"] div,
-        [data-testid="stDialog"] h1, 
-        [data-testid="stDialog"] h2, 
-        [data-testid="stDialog"] h3,
-        [data-testid="stDialog"] label {
-            color: #f0f6fc !important;
-        }
-        
-        /* Close button */
-        [data-testid="stDialog"] button[kind="secondary"],
-        [data-testid="stDialog"] [data-testid="stBaseButton-secondary"] {
-            background: rgba(212, 175, 55, 0.2) !important;
-            color: #D4AF37 !important;
-            border: 1px solid rgba(212, 175, 55, 0.4) !important;
-        }
-        
-        /* Section headers in dialog */
-        [data-testid="stDialog"] .section-header {
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.2)) !important;
-            color: #f0f6fc !important;
-        }
-    </style>
-            """, unsafe_allow_html=True)
-            
     # Handle both backend format (scores) and UI format (score_breakdown)
     backend_scores = winner.get("scores", {}) or {}
     ui_breakdown = winner.get("score_breakdown", {}) or {}
@@ -4716,7 +2898,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     }
     
     # === 📋 FINAL RECOMMENDATION BOX (Schema-Aligned Clean Format) ===
-    st.markdown('<div class="section-header" style="background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);">Final Recommendation</div>', unsafe_allow_html=True)
+    st.subheader("Final Recommendation")
     
     # Extract data for clean display - handle both backend and UI formats
     model_name = winner.get("model_name", "Unknown Model")
@@ -4758,7 +2940,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     
     # Schema-aligned recommendation box - Build HTML without comments
     # All models now have benchmark data (filtered to valid models only)
-    benchmark_status = "<strong style='color: #10b981;'>Verified</strong> - Real benchmark data"
+    benchmark_status = "<strong style=''>Verified</strong> - Real benchmark data"
     priority_text = priority.replace('_', ' ').title()
     
     # Build hardware display text
@@ -4766,53 +2948,53 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     if tp > 1 and replicas > 1:
         hw_display += f" (TP={tp}, R={replicas})"
     
-    rec_html = f'''<div style="background: #1a1a2e; padding: 2rem; border-radius: 1.25rem; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 1.5rem; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);">
-    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid rgba(16, 185, 129, 0.3);">
+    rec_html = f'''<div style="padding: 2rem; border-radius: 1.25rem; margin-bottom: 1.5rem; ">
+    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; ">
         <span style="font-size: 2.5rem;"></span>
         <div>
-            <h2 style="margin: 0; color: #10b981; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">RECOMMENDATION</h2>
-            <p style="margin: 0.25rem 0 0 0; color: #9ca3af; font-size: 0.85rem;">Based on {priority_text} optimization</p>
+            <h2 style="margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em;">RECOMMENDATION</h2>
+            <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">Based on {priority_text} optimization</p>
                     </div>
                     </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
         <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-            <div style="background: #16213e; padding: 1rem; border-radius: 0.75rem; border-left: 4px solid #10b981;">
-                <p style="margin: 0 0 0.5rem 0; color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Model</p>
-                <p style="margin: 0; color: #f0f6fc; font-size: 1.25rem; font-weight: 700;">{model_name}</p>
-                <p style="margin: 0.25rem 0 0 0; color: #9ca3af; font-size: 0.8rem;">Quality Score: <span style="color: #10b981; font-weight: 700;">{quality_score:.0f}%</span></p>
+            <div style="padding: 1rem; border-radius: 0.75rem; ">
+                <p style="margin: 0 0 0.5rem 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Model</p>
+                <p style="margin: 0; font-size: 1.25rem; font-weight: 700;">{model_name}</p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.8rem;">Quality Score: <span style="font-weight: 700;">{quality_score:.0f}%</span></p>
                     </div>
-            <div style="background: #16213e; padding: 1rem; border-radius: 0.75rem; border-left: 4px solid #06b6d4;">
-                <p style="margin: 0 0 0.5rem 0; color: #9ca3af; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Hardware Configuration</p>
-                <p style="margin: 0; color: #f0f6fc; font-size: 1.25rem; font-weight: 700;">{hw_display}</p>
+            <div style="padding: 1rem; border-radius: 0.75rem; ">
+                <p style="margin: 0 0 0.5rem 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">Hardware Configuration</p>
+                <p style="margin: 0; font-size: 1.25rem; font-weight: 700;">{hw_display}</p>
                     </div>
                 </div>
-        <div style="background: #16213e; padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(139, 92, 246, 0.4);">
-            <p style="margin: 0 0 1rem 0; color: #8b5cf6; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Expected SLO (p95)</p>
+        <div style="padding: 1.25rem; border-radius: 0.75rem; ">
+            <p style="margin: 0 0 1rem 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;">Expected SLO (p95)</p>
             <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <span style="color: #d1d5db; font-size: 0.85rem;">Max RPS</span>
-                    <span style="color: #8b5cf6; font-weight: 800; font-size: 1.1rem;">{max_rps}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; ">
+                    <span style="font-size: 0.85rem;">Max RPS</span>
+                    <span style="font-weight: 800; font-size: 1.1rem;">{max_rps}</span>
             </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <span style="color: #d1d5db; font-size: 0.85rem;">TTFT (p95)</span>
-                    <span style="color: #f59e0b; font-weight: 800; font-size: 1.1rem;">{ttft_display}<span style="font-size: 0.7rem; color: #9ca3af;"> ms</span></span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; ">
+                    <span style="font-size: 0.85rem;">TTFT (p95)</span>
+                    <span style="font-weight: 800; font-size: 1.1rem;">{ttft_display}<span style="font-size: 0.7rem; "> ms</span></span>
                 </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                    <span style="color: #d1d5db; font-size: 0.85rem;">ITL (p95)</span>
-                    <span style="color: #ec4899; font-weight: 800; font-size: 1.1rem;">{itl_display}<span style="font-size: 0.7rem; color: #9ca3af;"> ms</span></span>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; ">
+                    <span style="font-size: 0.85rem;">ITL (p95)</span>
+                    <span style="font-weight: 800; font-size: 1.1rem;">{itl_display}<span style="font-size: 0.7rem; "> ms</span></span>
                     </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0;">
-                    <span style="color: #d1d5db; font-size: 0.85rem;">E2E (p95)</span>
-                    <span style="color: #06b6d4; font-weight: 800; font-size: 1.1rem;">{e2e_display}<span style="font-size: 0.7rem; color: #9ca3af;"> ms</span></span>
+                    <span style="font-size: 0.85rem;">E2E (p95)</span>
+                    <span style="font-weight: 800; font-size: 1.1rem;">{e2e_display}<span style="font-size: 0.7rem; "> ms</span></span>
                     </div>
                     </div>
                     </div>
                 </div>
-    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid rgba(212, 175, 55, 0.3); display: flex; justify-content: space-between; align-items: center;">
-        <div style="color: #9ca3af; font-size: 0.85rem;"><strong style="color: #10b981;">Verified</strong> - Real benchmark data</div>
+    <div style="margin-top: 1.5rem; padding-top: 1rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.85rem;"><strong >Verified</strong> - Real benchmark data</div>
         <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <span style="color: #d1d5db; font-size: 0.9rem;">Final Score:</span>
-            <span style="background: linear-gradient(135deg, #D4AF37, #F4E4BA); color: #1a1a2e; padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 900; font-size: 1.5rem; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);">{final_score:.1f}</span>
+            <span style="font-size: 0.9rem;">Final Score:</span>
+            <span style="padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 900; font-size: 1.5rem; ">{final_score:.1f}</span>
             </div>
         </div>
 </div>'''
@@ -4820,13 +3002,13 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     st.markdown(rec_html, unsafe_allow_html=True)
         
     st.markdown("---")
-    st.markdown('<div class="section-header" style="background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);">Winner Details: Score Breakdown</div>', unsafe_allow_html=True)
+    st.subheader("Winner Details: Score Breakdown")
     
     # Add explanation for the score notation - golden styled
     st.markdown("""
-    <div style="background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(166, 124, 0, 0.05)); padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #D4AF37;">
-        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.9rem;">
-            <strong style="color: #D4AF37;">Score Format:</strong> <code style="background: rgba(212, 175, 55, 0.2); color: #F4E4BA; padding: 0.1rem 0.4rem; border-radius: 0.25rem;">87 → +17.4</code> means the model scored <strong>87/100</strong> in this category, contributing <strong style="color: #38ef7d;">+17.4 points</strong> to the final weighted score.
+    <div style="padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; ">
+        <p style="margin: 0; font-size: 0.9rem;">
+            <strong >Score Format:</strong> <code style="padding: 0.1rem 0.4rem; border-radius: 0.25rem;">87 → +17.4</code> means the model scored <strong>87/100</strong> in this category, contributing <strong >+17.4 points</strong> to the final weighted score.
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -4834,7 +3016,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown(f'<h3 style="color: white; font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; background: linear-gradient(135deg, #D4AF37, #F4E4BA, #D4AF37); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);">{winner.get("model_name", "Unknown")}</h3>', unsafe_allow_html=True)
+        st.markdown(f'<h3 style="font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; ">{winner.get("model_name", "Unknown")}</h3>', unsafe_allow_html=True)
         
         # Get actual weights from session state (0-10 scale, set by user in Tech Spec tab)
         w_accuracy = st.session_state.get("weight_accuracy", 5)
@@ -4865,15 +3047,15 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         render_score_bar("Capacity", "", cap_score, "score-bar-capacity", cap_contrib)
     
     with col2:
-        st.markdown('<h3 style="color: white;">Why This Model?</h3>', unsafe_allow_html=True)
+        st.subheader("Why This Model?")
 
         model_name = winner.get('model_name', 'Unknown')
         use_case = extraction.get('use_case', 'chatbot_conversational')
         use_case_display = format_use_case_name(use_case)
 
         st.markdown(f"""
-        <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; border-left: 4px solid #38ef7d;">
-            <p style="color: rgba(255,255,255,0.95); margin: 0; font-size: 0.95rem; line-height: 1.6;">
+        <div style="padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; ">
+            <p style="margin: 0; font-size: 0.95rem; line-height: 1.6;">
                 <strong>{model_name}</strong> ranked highest for <strong>{use_case_display}</strong>
                 with a balanced score of <strong>{breakdown.get('quality_score', 0):.0f}</strong> accuracy,
                 <strong>{breakdown.get('latency_score', 0):.0f}</strong> latency,
@@ -4885,7 +3067,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         pros = winner.get("pros", ["Top Quality", "Fast Responses"])
         cons = winner.get("cons", [])
         
-        st.markdown('<p style="color: white; font-weight: 600; margin-bottom: 0.5rem;">Strengths:</p>', unsafe_allow_html=True)
+        st.markdown('<p style="font-weight: 600; margin-bottom: 0.5rem;">Strengths:</p>', unsafe_allow_html=True)
         pros_html = '<div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;">'
         for pro in pros:
             pros_html += f'<span class="tag tag-pro">{pro}</span>'
@@ -4893,7 +3075,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         st.markdown(pros_html, unsafe_allow_html=True)
         
         if cons:
-            st.markdown('<p style="color: white; font-weight: 600; margin-bottom: 0.5rem;">Trade-offs:</p>', unsafe_allow_html=True)
+            st.markdown('<p style="font-weight: 600; margin-bottom: 0.5rem;">Trade-offs:</p>', unsafe_allow_html=True)
             cons_html = '<div style="display: flex; flex-direction: column; gap: 0.4rem;">'
             for con in cons:
                 cons_html += f'<span class="tag tag-con">{con}</span>'
@@ -4902,7 +3084,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         
         st.markdown('<hr style="border-color: rgba(212, 175, 55, 0.3); margin: 1rem 0;">', unsafe_allow_html=True)
         st.markdown(f"""
-        <p style="color: white;"><strong style="color: #D4AF37;">Final Score:</strong> <code style="background: linear-gradient(135deg, #D4AF37, #F4E4BA); color: #1a1a2e; padding: 0.35rem 0.75rem; border-radius: 0.25rem; font-weight: 700; font-size: 1.1rem;">{winner.get('final_score', 0):.1f}/100</code></p>
+        <p ><strong >Final Score:</strong> <code style="padding: 0.35rem 0.75rem; border-radius: 0.25rem; font-weight: 700; font-size: 1.1rem;">{winner.get('final_score', 0):.1f}/100</code></p>
         <p style="color: rgba(212, 175, 55, 0.8); font-style: italic;">Based on {priority.replace('_', ' ').title()} priority weighting</p>
         """, unsafe_allow_html=True)
     
@@ -4931,18 +3113,14 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     # Show benchmark box if we have any SLO data
     if ttft_p95_val or itl_p95_val or e2e_p95_val:
         st.markdown("---")
-        st.markdown("""
-        <div class="section-header" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(16, 185, 129, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2);">
-            Real Benchmark SLOs (Actual Achievable Performance)
-        </div>
-        """, unsafe_allow_html=True)
+        st.subheader("Real Benchmark SLOs (Actual Achievable Performance)")
         
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.05)); padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #6366f1;">
-            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 0.9rem;">
-                <strong style="color: #6366f1;">Benchmarks:</strong> Real measured values from vLLM simulation.
-                Hardware: <strong style="color: #10b981;">{hw_count_val}x {hw_type_val}</strong> | 
-                Token Config: <strong style="color: #f59e0b;">{prompt_tokens_val}→{output_tokens_val}</strong>
+        <div style="padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; ">
+            <p style="margin: 0; font-size: 0.9rem;">
+                <strong >Benchmarks:</strong> Real measured values from vLLM simulation.
+                Hardware: <strong >{hw_count_val}x {hw_type_val}</strong> | 
+                Token Config: <strong >{prompt_tokens_val}→{output_tokens_val}</strong>
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -4964,42 +3142,42 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         
         with col1:
             st.markdown(f"""
-            <div style="background: var(--bg-card); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(99, 102, 241, 0.3);">
+            <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                     <span style="font-size: 1.5rem;">⏱️</span>
-                    <span style="color: #6366f1; font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">TTFT</span>
+                    <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">TTFT</span>
                 </div>
                 <div style="text-align: center;">
-                    <p style="color: #10b981; font-weight: 800; font-size: 2rem; margin: 0;">{int(ttft_p95_show) if ttft_p95_show else 'N/A'}<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">ms</span></p>
-                    <p style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin: 0.25rem 0 0 0;">p95 latency</p>
+                    <p style="font-weight: 800; font-size: 2rem; margin: 0;">{int(ttft_p95_show) if ttft_p95_show else 'N/A'}<span style="font-size: 1rem; ">ms</span></p>
+                    <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">p95 latency</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col2:
             st.markdown(f"""
-            <div style="background: var(--bg-card); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(16, 185, 129, 0.3);">
+            <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                    <span style="font-size: 1rem; color: white; font-weight: 700;">TTFT</span>
-                    <span style="color: #10b981; font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">ITL</span>
+                    <span style="font-size: 1rem; font-weight: 700;">TTFT</span>
+                    <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">ITL</span>
                 </div>
                 <div style="text-align: center;">
-                    <p style="color: #f59e0b; font-weight: 800; font-size: 2rem; margin: 0;">{int(itl_p95_show) if itl_p95_show else 'N/A'}<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">ms</span></p>
-                    <p style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin: 0.25rem 0 0 0;">inter-token latency</p>
+                    <p style="font-weight: 800; font-size: 2rem; margin: 0;">{int(itl_p95_show) if itl_p95_show else 'N/A'}<span style="font-size: 1rem; ">ms</span></p>
+                    <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">inter-token latency</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
         
         with col3:
             st.markdown(f"""
-            <div style="background: var(--bg-card); padding: 1.25rem; border-radius: 0.75rem; border: 1px solid rgba(245, 158, 11, 0.3);">
+            <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                     <span style="font-size: 1.5rem;">🏁</span>
-                    <span style="color: #f59e0b; font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">E2E</span>
+                    <span style="font-weight: 700; font-size: 0.9rem; text-transform: uppercase;">E2E</span>
                 </div>
                 <div style="text-align: center;">
-                    <p style="color: #ec4899; font-weight: 800; font-size: 2rem; margin: 0;">{int(e2e_p95_show) if e2e_p95_show else 'N/A'}<span style="font-size: 1rem; color: rgba(255,255,255,0.5);">ms</span></p>
-                    <p style="color: rgba(255,255,255,0.5); font-size: 0.75rem; margin: 0.25rem 0 0 0;">end-to-end</p>
+                    <p style="font-weight: 800; font-size: 2rem; margin: 0;">{int(e2e_p95_show) if e2e_p95_show else 'N/A'}<span style="font-size: 1rem; ">ms</span></p>
+                    <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">end-to-end</p>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -5007,27 +3185,27 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         # Throughput and Config row
         st.markdown(f"""
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
-            <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.05)); padding: 1rem; border-radius: 0.75rem; text-align: center; border: 1px solid rgba(139, 92, 246, 0.2);">
+            <div style="padding: 1rem; border-radius: 0.75rem; text-align: center; ">
                 <span style="font-size: 1.25rem;">🚀</span>
-                <p style="color: rgba(255,255,255,0.7); margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Throughput</p>
-                <p style="color: #8b5cf6; font-weight: 800; font-size: 1.5rem; margin: 0;">{int(tps_show) if tps_show else 'N/A'} <span style="font-size: 0.8rem;">tok/s</span></p>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Throughput</p>
+                <p style="font-weight: 800; font-size: 1.5rem; margin: 0;">{int(tps_show) if tps_show else 'N/A'} <span style="font-size: 0.8rem;">tok/s</span></p>
             </div>
-            <div style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(14, 165, 233, 0.05)); padding: 1rem; border-radius: 0.75rem; text-align: center; border: 1px solid rgba(6, 182, 212, 0.2);">
-                <span style="font-size: 1rem; color: white; font-weight: 700;">HW</span>
-                <p style="color: rgba(255,255,255,0.7); margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Hardware</p>
-                <p style="color: #06b6d4; font-weight: 800; font-size: 1.25rem; margin: 0;">{hw_count_val}x {hw_type_val}</p>
+            <div style="padding: 1rem; border-radius: 0.75rem; text-align: center; ">
+                <span style="font-size: 1rem; font-weight: 700;">HW</span>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Hardware</p>
+                <p style="font-weight: 800; font-size: 1.25rem; margin: 0;">{hw_count_val}x {hw_type_val}</p>
             </div>
-            <div style="background: linear-gradient(135deg, rgba(244, 114, 182, 0.1), rgba(236, 72, 153, 0.05)); padding: 1rem; border-radius: 0.75rem; text-align: center; border: 1px solid rgba(244, 114, 182, 0.2);">
-                <span style="font-size: 1rem; color: white; font-weight: 700;">Tokens</span>
-                <p style="color: rgba(255,255,255,0.7); margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Token Config</p>
-                <p style="color: #f472b6; font-weight: 700; font-size: 1rem; margin: 0;">{prompt_tokens_val} → {output_tokens_val}</p>
+            <div style="padding: 1rem; border-radius: 0.75rem; text-align: center; ">
+                <span style="font-size: 1rem; font-weight: 700;">Tokens</span>
+                <p style="margin: 0.25rem 0 0 0; font-size: 0.75rem; text-transform: uppercase;">Token Config</p>
+                <p style="font-weight: 700; font-size: 1rem; margin: 0;">{prompt_tokens_val} → {output_tokens_val}</p>
             </div>
         </div>
         
-        <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(16, 185, 129, 0.08); border-radius: 0.5rem; border: 1px solid rgba(16, 185, 129, 0.2);">
-            <p style="color: rgba(255,255,255,0.8); margin: 0; font-size: 0.8rem; text-align: center;">
-                <strong style="color: #10b981;">Data Source:</strong> vLLM Simulation Benchmarks | 
-                <strong style="color: #6366f1;">Model:</strong> {winner.get('model_name', 'Unknown')}
+        <div style="margin-top: 1rem; padding: 0.75rem; border-radius: 0.5rem; ">
+            <p style="margin: 0; font-size: 0.8rem; text-align: center;">
+                <strong >Data Source:</strong> vLLM Simulation Benchmarks | 
+                <strong >Model:</strong> {winner.get('model_name', 'Unknown')}
             </p>
         </div>
         """, unsafe_allow_html=True)

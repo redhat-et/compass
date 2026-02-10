@@ -53,34 +53,19 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 4: Strip Custom CSS — Switch to Native Streamlit
+## Phase 4: Strip Custom CSS — Switch to Native Streamlit -- DONE (5,039 → 3,224 lines)
 
-**What to change:**
+**What was changed:**
 
-This is the largest visual change. The goal is to remove nearly all custom CSS and rely on Streamlit's native widgets.
-
-- **Delete the 1,300-line CSS block** (lines 156-1479). Keep only minimal overrides if absolutely needed (e.g., hiding Streamlit's deploy button).
-
-- **Delete all scattered `st.markdown("<style>...")` blocks** injected inside render functions (SLO input styling, slider styling, dialog styling, expander styling).
-
-- **Remove Google Fonts imports** — use Streamlit's default font.
-
-- **Replace `st.markdown(..., unsafe_allow_html=True)` calls with native widgets**:
-  - HTML headers → `st.subheader()` / `st.header()`
-  - Status banners → `st.success()` / `st.error()` / `st.info()` / `st.warning()`
-  - Metric displays → `st.metric()`
-  - Custom card HTML → `st.container()` with native widgets inside
-  - Section dividers → `st.divider()`
-
-- **Remove `render_hero()`** custom HTML — replace with `st.title("NeuralNav")` and `st.caption()` or keep a simple logo + title.
-
-- **Simplify `render_score_bar()`** — replace HTML progress bars with `st.progress()` or just text display of scores.
-
-- **Remove the carousel component** (repeated 5x with complex index management). Replace with a simple table or list per category using `st.dataframe()` or native layout.
-
-**Estimated removal**: ~1,500+ lines (CSS block + inline HTML/styles)
-**Risk**: Medium — visual regression is expected and intentional. The app will look like a standard Streamlit app.
-**Test**: Navigate all tabs. Verify all data displays correctly. The look will change dramatically — this is intentional. Focus on verifying that all data values, buttons, and interactions still work.
+- Deleted the 1,259-line main CSS block (Google Fonts, custom properties, animations, all component styles). Replaced with a 1-line `.stDeployButton { display: none; }` override.
+- Deleted 6 inline CSS blocks scattered in render functions (filter controls, SLO inputs, dialogs, edit form, winner details).
+- `render_hero()` → `st.title()` + `st.caption()`.
+- `render_score_bar()` → `st.progress()` + `st.write()` using native columns.
+- Carousel component (204 lines) → simple category cards using `st.container(border=True)`, `st.metric()`, and `st.caption()`. Removed prev/next buttons and index management.
+- Replaced 11 `section-header` divs and inline HTML headings with `st.subheader()`.
+- Removed 3 JavaScript tab-switching blocks (fragile `<script>` hacks).
+- `unsafe_allow_html=True` usage reduced from 95 to ~64. Remaining uses are in table/dialog rendering functions (will be addressed in later phases).
+- `slo-card` HTML wrappers → `st.write("**Title**")`.
 
 ---
 
@@ -90,7 +75,7 @@ This is the largest visual change. The goal is to remove nearly all custom CSS a
 
 - **Replace manual dialog state management** (lines 4424-4440) with Streamlit's `@st.dialog` decorator. Remove `show_winner_dialog`, `show_category_dialog`, `show_full_table_dialog` session state variables and the mutual-exclusion logic.
 
-- **Remove JavaScript tab switching** (lines 4472-4506, 3 blocks). These inject `<script>` tags to programmatically click tabs. Fragile and unsupported. Replace with clear UX messaging (the step-completion banners already tell users which tab to go to).
+- **~~Remove JavaScript tab switching~~** — Done in Phase 4.
 
 - **Deduplicate SLO input fields** — the TTFT/ITL/E2E input pattern (lines 3566-3612) is repeated 3 times with only labels and keys differing. Extract a helper function.
 
