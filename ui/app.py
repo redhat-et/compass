@@ -177,19 +177,6 @@ st.markdown("""
         0%, 100% { transform: translateY(0px); }
         50% { transform: translateY(-6px); }
     }
-    @keyframes pulse-glow {
-        0%, 100% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.15); }
-        50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.25), 0 0 60px rgba(16, 185, 129, 0.1); }
-    }
-    @keyframes gradient-shift {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-    }
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
     @keyframes slide-up {
         from { opacity: 0; transform: translateY(15px); }
         to { opacity: 1; transform: translateY(0); }
@@ -197,14 +184,6 @@ st.markdown("""
     @keyframes fade-in {
         from { opacity: 0; }
         to { opacity: 1; }
-    }
-    @keyframes scale-in {
-        from { opacity: 0; transform: scale(0.97); }
-        to { opacity: 1; transform: scale(1); }
-    }
-    @keyframes border-glow {
-        0%, 100% { border-color: rgba(99, 102, 241, 0.3); }
-        50% { border-color: rgba(99, 102, 241, 0.6); }
     }
     
     /* Corporate Color Palette */
@@ -310,29 +289,6 @@ st.markdown("""
         position: relative;
         z-index: 1;
         margin-top: 0.5rem;
-    }
-    .hero-badges {
-        display: none;
-    }
-    .hero-badge {
-        background: rgba(255,255,255,0.1);
-        backdrop-filter: blur(16px);
-        padding: 0.75rem 1.5rem;
-        border-radius: 100px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: white;
-        border: 1px solid rgba(255,255,255,0.15);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        transition: all 0.25s ease;
-        font-family: 'Inter', sans-serif;
-    }
-    .hero-badge:hover {
-        background: rgba(255,255,255,0.18);
-        transform: translateY(-3px);
-        border-color: rgba(255,255,255,0.3);
     }
     
     /* Stats Cards - HuggingFace Leaderboard Inspired */
@@ -798,13 +754,6 @@ st.markdown("""
         transform: translateY(-4px);
         box-shadow: 0 8px 25px rgba(88, 166, 255, 0.1);
     }
-    .extraction-icon {
-        display: none;  /* Hide extraction icons */
-    }
-    .extraction-icon-usecase { display: none; }
-    .extraction-icon-users { display: none; }
-    .extraction-icon-priority { display: none; }
-    .extraction-icon-hardware { display: none; }
     .extraction-label {
         font-size: 0.8rem;
         color: var(--text-muted);
@@ -1629,59 +1578,6 @@ def load_206_models() -> pd.DataFrame:
     except Exception as e:
         logger.error(f"Failed to load benchmarks from API: {e}")
         return pd.DataFrame()
-
-@st.cache_data
-def get_benchmark_ranges_for_token_config(prompt_tokens: int, output_tokens: int) -> dict:
-    """Get actual min-max ranges for each percentile from benchmark data for a specific token config.
-    
-    OUTLIER FILTERING: Caps max values at realistic thresholds to exclude bad benchmark entries
-    (e.g., 24B models on L4 GPUs that result in 200+ second TTFT).
-    """
-    try:
-        json_path = DATA_DIR / "benchmarks_redhat_performance.json"
-        with open(json_path, 'r') as f:
-            data = json.load(f)
-        
-        benchmarks = data.get("benchmarks", [])
-        
-        # Filter by token config
-        matching = [b for b in benchmarks 
-                    if b.get('prompt_tokens') == prompt_tokens and b.get('output_tokens') == output_tokens]
-        
-        if not matching:
-            return {"config_count": 0}
-        
-        # OUTLIER CAPS - realistic max values to filter bad benchmark entries
-        # Based on analysis: mean TTFT ~100-900ms, outliers are 200,000+ ms
-        OUTLIER_CAPS = {
-            'ttft': 10000,    # Cap TTFT at 10 seconds (outliers are 200+ seconds)
-            'itl': 500,       # Cap ITL at 500ms
-            'e2e': 120000,    # Cap E2E at 2 minutes (outliers are 5+ minutes)
-        }
-        
-        # Calculate min/max for each percentile with outlier filtering
-        result = {"config_count": len(matching)}
-        
-        for percentile in ['mean', 'p90', 'p95', 'p99']:
-            for metric in ['ttft', 'itl', 'e2e']:
-                key = f"{metric}_{percentile}"
-                cap = OUTLIER_CAPS.get(metric, float('inf'))
-                
-                # Filter values: must be > 0 and below the outlier cap
-                vals = [b.get(key, 0) for b in matching 
-                        if b.get(key) and 0 < b.get(key) <= cap]
-                
-                if vals:
-                    result[f"{key}_min"] = min(vals)
-                    result[f"{key}_max"] = max(vals)
-                else:
-                    # Fallback if no values pass filter
-                    result[f"{key}_min"] = 0
-                    result[f"{key}_max"] = cap
-        
-        return result
-    except Exception:
-        return {"config_count": 0}
 
 # =============================================================================
 # RANKED RECOMMENDATIONS (Backend API Integration)
@@ -2672,183 +2568,6 @@ def render_deployment_tab():
             st.rerun()
 
 
-def render_about_section(models_df: pd.DataFrame):
-    """Render About section at the bottom with expandable info."""
-    st.markdown("""
-    <div style="margin-top: 2rem; padding: 1.5rem; background: #000000; 
-                border-radius: 1rem; border: 1px solid rgba(255,255,255,0.2);">
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
-            <span style="color: #EE0000; font-weight: 700; font-size: 1.2rem;">About</span>
-        </div>
-        <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">2,662</strong> Model-Hardware Configs</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">40</strong> Models with Performance</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">50</strong> Models with Accuracy</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">6</strong> GPU Types</span>
-            <span style="color: rgba(255,255,255,0.8); font-size: 0.9rem;"><strong style="color: white;">9</strong> Use Cases</span>
-        </div>
-        <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 0;">
-            Powered by <strong style="color: white;">Qwen 2.5 7B</strong> for context extraction, <strong style="color: white;">Performance Benchmarks,</strong> and <strong style="color: white;">Artificial Analysis</strong> accuracy scores.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # MCDM Expander styling
-    st.markdown("""
-    <style>
-        [data-testid="stExpander"] {
-            background: var(--bg-card) !important;
-            border: 1px solid var(--border-default) !important;
-            border-radius: 12px !important;
-        }
-        [data-testid="stExpander"] summary {
-            background: rgba(88, 166, 255, 0.08) !important;
-            border-radius: 11px 11px 0 0 !important;
-            padding: 1rem 1.25rem !important;
-        }
-        [data-testid="stExpander"] summary span {
-            color: var(--text-primary) !important;
-            font-weight: 600 !important;
-            font-size: 1rem !important;
-        }
-        [data-testid="stExpander"] svg {
-            color: var(--accent-blue) !important;
-        }
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] h4,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] th,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] td,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] span,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] strong {
-            color: var(--text-primary) !important;
-        }
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] code {
-            background: rgba(88, 166, 255, 0.1) !important;
-            color: var(--accent-blue) !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Three expanders for extra info
-    with st.expander("**Scoring Methodology** - How each category is calculated", expanded=False):
-        st.markdown('<h4 style="color: #EE0000 !important; margin-bottom: 1.25rem; font-family: Inter, sans-serif;">4 Recommendation Categories</h4>', unsafe_allow_html=True)
-        st.markdown("""
-<table style="width: 100%; border-collapse: collapse; margin-top: 1rem; background: transparent;">
-<tr style="border-bottom: 2px solid rgba(255,255,255,0.25);">
-    <th style="text-align: left; padding: 0.75rem; color: #EE0000 !important; font-weight: 700; width: 140px;">Category</th>
-    <th style="text-align: left; padding: 0.75rem; color: #EE0000 !important; font-weight: 700;">Scoring Logic</th>
-</tr>
-<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
-    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Accuracy</td>
-    <td style="padding: 0.75rem; color: white !important;"><strong>RAW</strong> accuracy score from Artificial Analysis benchmarks (MMLU-Pro, GPQA, etc.) - Top 5 unique models</td>
-</tr>
-<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
-    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Latency</td>
-    <td style="padding: 0.75rem; color: white !important;">From the <strong>top 5 accuracy models</strong>, finds the hardware config with <strong>lowest TTFT</strong> (fastest response)</td>
-</tr>
-<tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
-    <td style="padding: 0.75rem; color: white !important; font-weight: 600;">Best Cost</td>
-    <td style="padding: 0.75rem; color: white !important;">From the <strong>top 5 accuracy models</strong>, finds the hardware config with <strong>cheapest GPU setup</strong></td>
-</tr>
-<tr style="border-bottom: 1px solid rgba(255,255,255,0.2); background: rgba(238,0,0,0.1);">
-    <td style="padding: 0.75rem; color: #EE0000 !important; font-weight: 600;">Balanced</td>
-    <td style="padding: 0.75rem; color: white !important;"><strong>TASK-OPTIMIZED</strong>: 70% (Accuracy + Task Bonus) + 30% avg(Latency, Cost) - diversifies recommendations per use case</td>
-</tr>
-</table>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('<h4 style="color: #EE0000 !important; margin-top: 1.5rem; margin-bottom: 1rem; font-family: Inter, sans-serif;">Balanced Score (Task-Optimized Formula)</h4>', unsafe_allow_html=True)
-        st.code("BALANCED = (Accuracy + Task_Bonus) × 70% + avg(Latency, Cost) × 30%", language=None)
-        st.markdown("""
-<p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 1rem;">
-    <strong style="color: #EE0000;">Task Bonuses:</strong> Different model families get bonuses based on their strengths for specific use cases.
-    For example, <strong>DeepSeek</strong> gets +20 for code tasks, <strong>Qwen</strong> gets +20 for translation, <strong>MiniMax</strong> gets +18 for long documents.
-</p>
-<p style="color: rgba(255,255,255,0.8); margin-top: 0.5rem; font-size: 0.9rem;">
-    This ensures <strong style="color: #EE0000;">diverse, task-appropriate recommendations</strong> - the best code model for code, best multilingual for translation, etc.
-    The other 3 categories (Best Accuracy, Best Latency, Best Cost) still use RAW scores without task bonuses.
-</p>
-<p style="color: rgba(255,255,255,0.6); margin-top: 0.5rem; font-size: 0.85rem;">
-    <em>Example for Code task: GPT-OSS (Acc=67, Bonus=+12) → (67+12)×0.7 + 55×0.3 = <strong>71.8</strong><br>
-    DeepSeek (Acc=62, Bonus=+20) → (62+20)×0.7 + 60×0.3 = <strong>75.4</strong> → DeepSeek wins for code!</em>
-</p>
-        """, unsafe_allow_html=True)
-    
-    with st.expander("Model Catalog - Browse 204 open-source models", expanded=False):
-        render_catalog_content(models_df)
-    
-    with st.expander("How It Works - End-to-end pipeline documentation", expanded=False):
-        render_how_it_works_content()
-
-
-def render_catalog_content(models_df: pd.DataFrame):
-    """Model catalog content for About section expander."""
-    st.markdown("""
-    <p style="color: rgba(255,255,255,0.9); margin: 0 0 1rem 0; font-size: 0.95rem;">
-        Complete benchmark data from <strong style="color: #D4AF37;">Performance DB</strong> + 
-        <strong style="color: #38ef7d;">Artificial Analysis</strong> covering 
-        <span style="color: #38ef7d; font-weight: 700;">50 benchmarked models</span> with 
-        <span style="color: #667eea; font-weight: 700;">50 models having accuracy scores</span> across 
-        <span style="color: #a371f7; font-weight: 700;">15 benchmark datasets</span>.
-    </p>
-    """, unsafe_allow_html=True)
-    
-    if models_df is not None and not models_df.empty:
-        # Search
-        search = st.text_input("Search models", placeholder="e.g., Llama, Qwen, DeepSeek...", key="about_catalog_search")
-        
-        filtered_df = models_df.copy()
-        if search:
-            filtered_df = filtered_df[filtered_df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
-        
-        st.markdown(f"**Showing {len(filtered_df)} of {len(models_df)} models**")
-        st.dataframe(filtered_df.head(20), use_container_width=True, height=400)
-    else:
-        st.info("Model catalog data not available.")
-
-
-def render_how_it_works_content():
-    """How It Works content for About section expander."""
-    st.markdown("""
-    <div style="margin-bottom: 1.5rem;">
-        <h4 style="color: #EE0000; margin-bottom: 1rem;">End-to-End Pipeline</h4>
-        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid #EE0000;">
-                <div style="font-weight: 700; color: #EE0000; margin-bottom: 0.5rem;">1. Context Extraction</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Qwen 2.5 7B extracts use case, users, priority & hardware from natural language</div>
-            </div>
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid white;">
-                <div style="font-weight: 700; color: white; margin-bottom: 0.5rem;">2. MCDM Scoring</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Score 204 models on Accuracy, Latency, Cost & Capacity with weighted criteria</div>
-            </div>
-            <div style="flex: 1; min-width: 200px; padding: 1rem; background: #000000; border-radius: 0.75rem; border-left: 3px solid #EE0000;">
-                <div style="font-weight: 700; color: #EE0000; margin-bottom: 0.5rem;">3. Recommendation</div>
-                <div style="color: rgba(255,255,255,0.8); font-size: 0.85rem;">Best models with explainability, SLO compliance & deployment config</div>
-            </div>
-        </div>
-    </div>
-    
-    <h4 style="color: #EE0000; margin: 1.5rem 0 1rem 0;">Supported Use Cases</h4>
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Chat Completion</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Code Completion</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Document Q&A (RAG)</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Summarization</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Legal Analysis</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Translation</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Content Generation</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Long Doc Summary</div>
-        <div style="padding: 0.75rem; background: #000000; border-radius: 0.5rem; color: rgba(255,255,255,0.9); font-size: 0.85rem; border: 1px solid rgba(255,255,255,0.2);">Code Generation</div>
-    </div>
-    
-    <h4 style="color: #EE0000; margin: 1.5rem 0 1rem 0;">Data Sources</h4>
-    <ul style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.8; margin: 0; padding-left: 1.5rem;">
-        <li><strong style="color: white;">Artificial Analysis</strong> - Model benchmarks, pricing, and performance data</li>
-        <li><strong style="color: white;">Performance Benchmarks</strong> - Real hardware deployment SLOs (TTFT, ITL, E2E latency)</li>
-        <li><strong style="color: white;">Use-Case CSVs</strong> - Pre-computed weighted scores for each use case</li>
-    </ul>
-        """, unsafe_allow_html=True)
-
 
 def render_top5_table(recommendations: list, priority: str):
     """Render beautiful Top 5 recommendation leaderboard table with filtering.
@@ -3362,39 +3081,11 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
     User drags slider LEFT to tighten SLOs and filter down configs.
     Priority affects the MAX - low_latency has tighter max values.
     """
-    # Get workload profile from API for token config
-    workload_profile = fetch_workload_profile(use_case)
-    if not workload_profile:
-        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+    # Fetch SLO defaults (min, max, default) from backend
+    slo_defaults = fetch_slo_defaults(use_case)
+    if not slo_defaults:
+        st.error(f"Failed to fetch SLO defaults for use case: {use_case}")
         return
-    prompt_tokens = workload_profile['prompt_tokens']
-    output_tokens = workload_profile['output_tokens']
-
-    # Get actual benchmark ranges for this use case's token config
-    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
-
-    # Priority adjustment factors (hardcoded - these rarely change)
-    priority_factors = {
-        'low_latency': {'ttft_factor': 0.5, 'itl_factor': 0.5, 'e2e_factor': 0.5},
-        'balanced': {'ttft_factor': 1.0, 'itl_factor': 1.0, 'e2e_factor': 1.0},
-        'cost_optimized': {'ttft_factor': 1.5, 'itl_factor': 1.5, 'e2e_factor': 1.5},
-    }
-    priority_factor = priority_factors.get(priority, priority_factors['balanced'])
-    ttft_factor = priority_factor.get('ttft_factor', 1.0)
-    itl_factor = priority_factor.get('itl_factor', 1.0)
-    e2e_factor = priority_factor.get('e2e_factor', 1.0)
-    
-    # Get selected percentile (default P95)
-    percentile_key = st.session_state.get('slo_percentile', 'p95')
-    
-    # Calculate MAX values (adjusted by priority) - these are the DEFAULTS
-    ttft_max_raw = benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000)
-    itl_max_raw = benchmark_ranges.get(f'itl_{percentile_key}_max', 430)
-    e2e_max_raw = benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000)
-    
-    ttft_default = int(ttft_max_raw * ttft_factor)
-    itl_default = int(itl_max_raw * itl_factor)
-    e2e_default = int(e2e_max_raw * e2e_factor)
 
     # Fetch expected RPS from backend using research-based workload patterns
     rps_data = fetch_expected_rps(use_case, user_count)
@@ -3408,19 +3099,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
     last_use_case = st.session_state.get("_last_rps_use_case")
     last_user_count = st.session_state.get("_last_rps_user_count")
     if last_use_case != use_case or last_user_count != user_count:
-        # Use case or user count changed - reset to new calculated default
         st.session_state.custom_qps = None
         st.session_state._last_rps_use_case = use_case
         st.session_state._last_rps_user_count = user_count
-        # Clear the widget key to force re-render with new value
         if "edit_qps" in st.session_state:
             del st.session_state["edit_qps"]
 
-    # Use custom values if set, otherwise use MAX as default (shows all configs)
-    # Ensure all values are integers for slider compatibility
-    ttft = int(st.session_state.custom_ttft) if st.session_state.custom_ttft else ttft_default
-    itl = int(st.session_state.custom_itl) if st.session_state.custom_itl else itl_default
-    e2e = int(st.session_state.custom_e2e) if st.session_state.custom_e2e else e2e_default
     qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
     
     # Section header - Technical Specification
@@ -3430,9 +3114,6 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
     </div>
     """, unsafe_allow_html=True)
     
-    # benchmark_ranges already fetched above for defaults
-    
-    # Benchmark ranges table removed - user found it confusing
     
     # Create 4 columns for all cards in one row
     col1, col2, col3, col4 = st.columns(4)
@@ -3517,10 +3198,6 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         if not workload_profile:
             st.error(f"Failed to fetch workload profile for use case: {use_case}")
             return
-        prompt_tokens = workload_profile['prompt_tokens']
-        output_tokens = workload_profile['output_tokens']
-        benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
-
         # Percentile options
         percentile_options = ["P50", "P90", "P95", "P99"]
         percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
@@ -3539,34 +3216,18 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         prev_itl = st.session_state.get("_last_itl")
         prev_e2e = st.session_state.get("_last_e2e")
 
-        # Fetch use-case specific SLO defaults from backend API
-        slo_defaults = fetch_slo_defaults(use_case)
-        default_ttft = slo_defaults["ttft_ms"]["default"] if slo_defaults else 500
-        default_itl = slo_defaults["itl_ms"]["default"] if slo_defaults else 50
-        default_e2e = slo_defaults["e2e_ms"]["default"] if slo_defaults else 10000
-
-        # Helper function to get range for a metric and percentile
-        def get_metric_range(metric: str, percentile_key: str) -> tuple:
-            if metric == "ttft":
-                return (
-                    int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15)),
-                    int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
-                )
-            elif metric == "itl":
-                return (
-                    int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3)),
-                    int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
-                )
-            else:  # e2e
-                return (
-                    int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800)),
-                    int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
-                )
+        # SLO min/max ranges from backend (already fetched above)
+        def get_metric_range(metric: str) -> tuple:
+            metric_key = {"ttft": "ttft_ms", "itl": "itl_ms", "e2e": "e2e_ms"}[metric]
+            return (
+                int(slo_defaults[metric_key]["min"]),
+                int(slo_defaults[metric_key]["max"]),
+            )
 
         # === TTFT ===
-        ttft_min, ttft_max = get_metric_range("ttft", st.session_state.ttft_percentile)
+        ttft_min, ttft_max = get_metric_range("ttft")
         if 'input_ttft' not in st.session_state:
-            st.session_state.input_ttft = default_ttft
+            st.session_state.input_ttft = slo_defaults["ttft_ms"]["default"]
 
         st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
         ttft_val_col, ttft_pct_col = st.columns([2, 1])
@@ -3577,12 +3238,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             ttft_pct_display = reverse_map.get(st.session_state.ttft_percentile, "P95")
             selected_ttft_pct = st.selectbox("TTFT percentile", percentile_options, index=percentile_options.index(ttft_pct_display), key="ttft_pct_selector", label_visibility="collapsed")
             st.session_state.ttft_percentile = percentile_map[selected_ttft_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {ttft_min:,} - {ttft_max:,} ms</div>', unsafe_allow_html=True)
 
         # === ITL ===
-        itl_min, itl_max = get_metric_range("itl", st.session_state.itl_percentile)
+        itl_min, itl_max = get_metric_range("itl")
         if 'input_itl' not in st.session_state:
-            st.session_state.input_itl = default_itl
+            st.session_state.input_itl = slo_defaults["itl_ms"]["default"]
 
         st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
         itl_val_col, itl_pct_col = st.columns([2, 1])
@@ -3593,12 +3254,12 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             itl_pct_display = reverse_map.get(st.session_state.itl_percentile, "P95")
             selected_itl_pct = st.selectbox("ITL percentile", percentile_options, index=percentile_options.index(itl_pct_display), key="itl_pct_selector", label_visibility="collapsed")
             st.session_state.itl_percentile = percentile_map[selected_itl_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {itl_min:,} - {itl_max:,} ms</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {itl_min:,} - {itl_max:,} ms</div>', unsafe_allow_html=True)
 
         # === E2E ===
-        e2e_min, e2e_max = get_metric_range("e2e", st.session_state.e2e_percentile)
+        e2e_min, e2e_max = get_metric_range("e2e")
         if 'input_e2e' not in st.session_state:
-            st.session_state.input_e2e = default_e2e
+            st.session_state.input_e2e = slo_defaults["e2e_ms"]["default"]
 
         st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="color: #EE0000; font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
         e2e_val_col, e2e_pct_col = st.columns([2, 1])
@@ -3609,7 +3270,7 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
             e2e_pct_display = reverse_map.get(st.session_state.e2e_percentile, "P95")
             selected_e2e_pct = st.selectbox("E2E percentile", percentile_options, index=percentile_options.index(e2e_pct_display), key="e2e_pct_selector", label_visibility="collapsed")
             st.session_state.e2e_percentile = percentile_map[selected_e2e_pct]
-        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: -0.5rem;">Recommended Range: {e2e_min:,} - {e2e_max:,} ms</div>', unsafe_allow_html=True)
 
         # Check if SLO values changed - if so, clear recommendation cache
         curr_ttft = st.session_state.get("custom_ttft")
@@ -4450,8 +4111,8 @@ def main():
     # Main Content - Compact hero
     render_hero()
     
-    # Tab-based navigation (5 tabs)
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Define Use Case", "Technical Specification", "Recommendations", "Deployment", "About"])
+    # Tab-based navigation (4 tabs)
+    tab1, tab2, tab3, tab4 = st.tabs(["Define Use Case", "Technical Specification", "Recommendations", "Deployment"])
 
     with tab1:
         render_use_case_input_tab(priority, models_df)
@@ -4464,9 +4125,6 @@ def main():
 
     with tab4:
         render_deployment_tab()
-
-    with tab5:
-        render_about_section(models_df)
 
     # Handle tab switching after approval
     if st.session_state.get('switch_to_tab2', False):
@@ -5157,25 +4815,17 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
     # ==========================================================================
     # VALIDATE SLO VALUES - Use case-specific ranges (same as sliders)
     # ==========================================================================
-    # Get workload profile from API for token config
-    workload_profile = fetch_workload_profile(use_case)
-    if not workload_profile:
-        st.error(f"Failed to fetch workload profile for use case: {use_case}")
+    slo_defaults = fetch_slo_defaults(use_case)
+    if not slo_defaults:
+        st.error(f"Failed to fetch SLO defaults for use case: {use_case}")
         return
-    prompt_tokens = workload_profile['prompt_tokens']
-    output_tokens = workload_profile['output_tokens']
-    benchmark_ranges = get_benchmark_ranges_for_token_config(prompt_tokens, output_tokens)
-    
-    # Get selected percentile (same as sliders)
-    percentile_key = st.session_state.get('slo_percentile', 'p95')
-    
-    # Get ranges for this specific percentile and use case
-    ttft_min = int(benchmark_ranges.get(f'ttft_{percentile_key}_min', 15))
-    ttft_max = int(benchmark_ranges.get(f'ttft_{percentile_key}_max', 270000))
-    itl_min = int(benchmark_ranges.get(f'itl_{percentile_key}_min', 3))
-    itl_max = int(benchmark_ranges.get(f'itl_{percentile_key}_max', 430))
-    e2e_min = int(benchmark_ranges.get(f'e2e_{percentile_key}_min', 800))
-    e2e_max = int(benchmark_ranges.get(f'e2e_{percentile_key}_max', 300000))
+
+    ttft_min = int(slo_defaults["ttft_ms"]["min"])
+    ttft_max = int(slo_defaults["ttft_ms"]["max"])
+    itl_min = int(slo_defaults["itl_ms"]["min"])
+    itl_max = int(slo_defaults["itl_ms"]["max"])
+    e2e_min = int(slo_defaults["e2e_ms"]["min"])
+    e2e_max = int(slo_defaults["e2e_ms"]["max"])
     
     # Get current SLO values from session state (these are from the sliders)
     current_ttft = int(st.session_state.get('edit_ttft', ttft_max))
