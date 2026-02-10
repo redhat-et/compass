@@ -111,30 +111,148 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 7: Split into Multi-File Module
+## Phase 7: Split into Multi-File Module -- DONE (3,035 → 2,775 lines across 10 files)
 
-**What to change:**
+**Context:** `ui/app.py` was 3,035 lines with 52 functions clearly grouped by domain. All prior phases cleaned and organized the code. Split into focused modules with no behavior change.
 
-Convert the single `app.py` into a focused module structure:
+### Target Structure
 
 ```
 ui/
-  app.py              # Entry point: page config, session state init, main(), tab routing (~100-150 lines)
-  api_client.py       # All fetch_* functions, extract_business_context() (~150 lines)
-  helpers.py          # normalize_model_name(), format_use_case_name(), format_gpu_config(), get_scores() (~80 lines)
-  state.py            # Session state defaults dict + init function (~40 lines)
+  app.py              # Entry point + tab routing (447 lines)
+  api_client.py       # All backend API calls (276 lines)
+  helpers.py          # Pure utility functions (149 lines)
+  state.py            # Session state defaults + init (65 lines)
   components/
-    __init__.py
-    extraction.py     # Extraction result display, approval workflow, edit form
-    slo.py            # SLO inputs, workload profile, weight controls
-    recommendations.py # Recommendation tables, category displays
-    deployment.py     # YAML generation, deployment tab
-    dialogs.py        # Winner details, category exploration, full table dialogs
+    __init__.py        # Empty package marker
+    extraction.py      # Extraction display/approval/edit (245 lines)
+    slo.py             # SLO targets, workload, benchmarks, priorities (464 lines)
+    recommendations.py # Category cards, top-5 table, options list (447 lines)
+    deployment.py      # Deployment tab (167 lines)
+    dialogs.py         # Winner details, category/full-table dialogs (515 lines)
   static/
-    neuralnav-logo.png  # Already exists
+    neuralnav-logo.png # (unchanged)
 ```
 
-**Estimated removal**: 0 (pure reorganization)
+### Import Path Strategy
+
+`streamlit run ui/app.py` runs from repo root, so `ui/` is not on `sys.path` by default. At the top of `app.py` (before local imports):
+```python
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
+```
+Then all modules use flat imports: `from api_client import ...`, `from components.slo import ...`.
+
+### Dead Code to Remove (not moved — deleted)
+
+- `render_weight_controls()` (lines 465-539) — only called from dead `render_ranked_recommendations()`
+- `render_ranked_recommendations()` (lines 542-732) — call site commented out
+- `DATA_DIR` (line 30) — declared, never used
+- `build_row()` and first `format_gpu_config()` — local functions inside dead code
+
+~260 lines removed.
+
+### File Assignments
+
+**`ui/helpers.py`** — pure functions, no Streamlit dependency:
+- `PROVIDER_MAPPING` dict
+- `normalize_model_name()`
+- `format_display_name()`
+- `format_use_case_name()`
+- `get_scores()`
+- `format_gpu_config()` — NEW module-level function (currently defined identically as local function in 3 places; consolidate into one)
+
+**`ui/state.py`** — session state initialization:
+- `SESSION_DEFAULTS` dict
+- `init_session_state()` function wrapping the init loop
+
+**`ui/api_client.py`** — all HTTP communication with backend:
+- `API_BASE_URL`, `logger`
+- `load_206_models()` (@st.cache_data)
+- `fetch_slo_defaults()` (@st.cache_data)
+- `fetch_expected_rps()` (@st.cache_data)
+- `fetch_workload_profile()` (@st.cache_data)
+- `fetch_priority_weights()` (@st.cache_data)
+- `fetch_ranked_recommendations()`
+- `extract_business_context()`
+- `deploy_and_generate_yaml(recommendation)` — NEW, extracted from inline requests in `_render_category_card()`
+
+**`ui/components/slo.py`**:
+- `TASK_DATASETS` dict
+- `get_workload_insights()`
+- `_render_slo_targets()`, `_render_workload_profile()`, `_render_accuracy_benchmarks()`, `_render_priorities()`
+- `render_slo_cards()`, `render_slo_with_approval()`
+- Imports from: `api_client` (fetch_*), no cross-component imports
+
+**`ui/components/recommendations.py`**:
+- `_render_filter_summary()`, `_render_category_card()`, `render_top5_table()`
+- `render_options_list_inline()`
+- `render_recommendation_result()`
+- Imports from: `api_client` (deploy_and_generate_yaml), `helpers` (format_display_name, get_scores, format_gpu_config)
+
+**`ui/components/extraction.py`**:
+- `render_extraction_result()`, `render_extraction_with_approval()`, `render_extraction_edit_form()`
+- Imports from: `api_client` (fetch_priority_weights), `helpers` (format_use_case_name)
+
+**`ui/components/deployment.py`**:
+- `render_deployment_tab()`
+- Imports from: `api_client` (API_BASE_URL) — keeps inline requests for now (deployment-specific flow)
+
+**`ui/components/dialogs.py`**:
+- `render_score_bar()`, `_render_winner_details()`
+- `show_winner_details_dialog()`, `show_category_dialog()`, `show_full_table_dialog()` (all @st.dialog)
+- Imports from: `helpers` (format_display_name, format_use_case_name, get_scores, format_gpu_config)
+
+**`ui/app.py`** — slim entry point:
+- `st.set_page_config()` (must be first Streamlit call)
+- CSS override (3 lines)
+- `init_session_state()` call
+- `render_hero()` (8 lines, kept inline)
+- `main()` — dialog dispatch + tab routing
+- `render_use_case_input_tab()` (~220 lines, orchestrates Tab 1 flow)
+- `render_technical_specs_tab()` (25 lines)
+- `render_results_tab()` (~90 lines)
+- `if __name__ == "__main__": main()`
+
+### Dependency Graph (no cycles)
+
+```
+app.py → state, api_client, helpers, components/*
+components/extraction.py → api_client, helpers
+components/slo.py → api_client
+components/recommendations.py → api_client, helpers
+components/deployment.py → api_client
+components/dialogs.py → helpers
+state.py → (none)
+api_client.py → (none)
+helpers.py → (none)
+```
+
+### Implementation Sequence
+
+1. Create `ui/helpers.py` — no dependencies
+2. Create `ui/state.py` — no dependencies
+3. Create `ui/api_client.py` — no internal dependencies
+4. Create `ui/components/__init__.py` — empty
+5. Create `ui/components/dialogs.py` — depends on helpers
+6. Create `ui/components/slo.py` — depends on api_client
+7. Create `ui/components/extraction.py` — depends on api_client, helpers
+8. Create `ui/components/recommendations.py` — depends on api_client, helpers
+9. Create `ui/components/deployment.py` — depends on api_client
+10. Rewrite `ui/app.py` — imports from all above, delete dead code
+
+Verify syntax (`python -m py_compile`) after each file. Full workflow test after step 10.
+
+### Verification
+
+1. `python -m py_compile ui/app.py` — syntax check
+2. `streamlit run ui/app.py` — full workflow test
+3. All 4 tabs should function identically to before the split
+4. Prev/next navigation on category cards should still work
+5. All dialogs (winner details, category explore, full table) should open/close correctly
+
+**Actual removal**: ~260 lines (dead code)
 **Risk**: Medium — touches every function (import paths change)
 **Test**: `streamlit run ui/app.py` — full workflow, all tabs, all interactions. Nothing should change visually or functionally.
 
@@ -150,9 +268,9 @@ ui/
 | 4 | Strip CSS, switch to native Streamlit | ~1,500 | Medium |
 | 5 | Simplify dialogs + deduplicate patterns | ~200 | Medium |
 | 6 | Break apart large functions | 0 (reorg) | Low |
-| 7 | Split into multi-file module | 0 (reorg) | Medium |
+| 7 | Split into multi-file module | ~260 (dead code) + reorg into 10 files | Medium |
 
-**Total estimated reduction**: ~2,380 lines removed from original 5,774, with the remainder reorganized into ~8 focused files.
+**Total reduction**: ~3,000 lines removed from original 5,774 → 2,775 lines across 10 focused files.
 
 ## Verification (after each phase)
 
