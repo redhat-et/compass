@@ -163,100 +163,76 @@ st.markdown("""
 # SESSION STATE
 # =============================================================================
 
-if "extraction_result" not in st.session_state:
-    st.session_state.extraction_result = None
-if "recommendation_result" not in st.session_state:
-    st.session_state.recommendation_result = None
-if "user_input" not in st.session_state:
-    st.session_state.user_input = ""
-if "models_df" not in st.session_state:
-    st.session_state.models_df = None
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = None
-# Workflow approval state
-if "extraction_approved" not in st.session_state:
-    st.session_state.extraction_approved = None  # None = pending, True = approved, False = editing
-if "slo_approved" not in st.session_state:
-    st.session_state.slo_approved = None
-if "edited_extraction" not in st.session_state:
-    st.session_state.edited_extraction = None
-# Tab switching flags
-if "switch_to_tab2" not in st.session_state:
-    st.session_state.switch_to_tab2 = False
-if "switch_to_tab3" not in st.session_state:
-    st.session_state.switch_to_tab3 = False
-# Editable SLO values
-if "edit_slo" not in st.session_state:
-    st.session_state.edit_slo = False
-if "custom_ttft" not in st.session_state:
-    st.session_state.custom_ttft = None
-if "custom_itl" not in st.session_state:
-    st.session_state.custom_itl = None
-if "custom_e2e" not in st.session_state:
-    st.session_state.custom_e2e = None
-if "custom_qps" not in st.session_state:
-    st.session_state.custom_qps = None
-# SLO percentile selection (Mean, P90, P95, P99)
-if "slo_percentile" not in st.session_state:
-    st.session_state.slo_percentile = "p95"  # Default to P95
-
+SESSION_DEFAULTS = {
+    # Core workflow state
+    "extraction_result": None,
+    "recommendation_result": None,
+    "user_input": "",
+    "models_df": None,
+    "selected_model": None,
+    # Workflow approval (None = pending, True = approved, False = editing)
+    "extraction_approved": None,
+    "slo_approved": None,
+    "edited_extraction": None,
+    # SLO values
+    "edit_slo": False,
+    "custom_ttft": None,
+    "custom_itl": None,
+    "custom_e2e": None,
+    "custom_qps": None,
+    "slo_percentile": "p95",
+    "ttft_percentile": "p95",
+    "itl_percentile": "p95",
+    "e2e_percentile": "p95",
+    "include_near_miss": False,
+    # Category expansion
+    "expanded_categories": set(),
+    # Dialog state
+    "show_winner_dialog": False,
+    "balanced_winner": None,
+    "winner_priority": "balanced",
+    "winner_extraction": {},
+    "show_category_dialog": False,
+    "explore_category": "balanced",
+    "show_full_table_dialog": False,
+    "show_options_list_expanded": False,
+    # Use case tracking
+    "detected_use_case": "chatbot_conversational",
+    # Top-5 lists per category
+    "top5_balanced": [],
+    "top5_accuracy": [],
+    "top5_latency": [],
+    "top5_cost": [],
+    "top5_simplest": [],
+    # Deployment tab
+    "deployment_selected_config": None,
+    "deployment_yaml_files": {},
+    "deployment_id": None,
+    "deployment_yaml_generated": False,
+}
 # Ranking weights are initialized in the PRIORITIES section of the Tech Spec tab
 # using values from priority_weights.json. Do NOT hardcode defaults here.
-# See fetch_priority_weights() and the PRIORITIES section around line 5317.
 
-if "include_near_miss" not in st.session_state:
-    st.session_state.include_near_miss = False
-
-# Category expansion state (for inline expand/collapse of additional options)
-if "expanded_categories" not in st.session_state:
-    st.session_state.expanded_categories = set()
-
-# Winner dialog state - must be explicitly initialized to False
-if "show_winner_dialog" not in st.session_state:
-    st.session_state.show_winner_dialog = False
-if "balanced_winner" not in st.session_state:
-    st.session_state.balanced_winner = None
-if "winner_priority" not in st.session_state:
-    st.session_state.winner_priority = "balanced"
-if "winner_extraction" not in st.session_state:
-    st.session_state.winner_extraction = {}
-
-# Use case tracking
-if "detected_use_case" not in st.session_state:
-    st.session_state.detected_use_case = "chatbot_conversational"
-
-# Category exploration dialog state
-if "show_category_dialog" not in st.session_state:
-    st.session_state.show_category_dialog = False
-if "explore_category" not in st.session_state:
-    st.session_state.explore_category = "balanced"
-if "show_full_table_dialog" not in st.session_state:
-    st.session_state.show_full_table_dialog = False
-if "show_options_list_expanded" not in st.session_state:
-    st.session_state.show_options_list_expanded = False
-if "top5_balanced" not in st.session_state:
-    st.session_state.top5_balanced = []
-if "top5_accuracy" not in st.session_state:
-    st.session_state.top5_accuracy = []
-if "top5_latency" not in st.session_state:
-    st.session_state.top5_latency = []
-if "top5_cost" not in st.session_state:
-    st.session_state.top5_cost = []
-if "top5_simplest" not in st.session_state:
-    st.session_state.top5_simplest = []
-# Deployment tab state
-if "deployment_selected_config" not in st.session_state:
-    st.session_state.deployment_selected_config = None
-if "deployment_yaml_files" not in st.session_state:
-    st.session_state.deployment_yaml_files = {}
-if "deployment_id" not in st.session_state:
-    st.session_state.deployment_id = None
-if "deployment_yaml_generated" not in st.session_state:
-    st.session_state.deployment_yaml_generated = False
+for _key, _default in SESSION_DEFAULTS.items():
+    if _key not in st.session_state:
+        st.session_state[_key] = _default
 
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
+
+def get_scores(rec: dict) -> dict:
+    """Extract normalized scores from a backend recommendation."""
+    backend_scores = rec.get("scores", {}) or {}
+    return {
+        "accuracy": backend_scores.get("accuracy_score", 0),
+        "latency": backend_scores.get("latency_score", 0),
+        "cost": backend_scores.get("price_score", 0),
+        "complexity": backend_scores.get("complexity_score", 0),
+        "final": backend_scores.get("balanced_score", 0),
+    }
+
 
 def format_use_case_name(use_case: str) -> str:
     """Format use case name with proper capitalization for acronyms."""
@@ -1029,19 +1005,6 @@ def render_top5_table(recommendations: list, priority: str):
         st.info("No models available. Please check your requirements.")
         return
     
-    # Helper function to get scores from recommendation
-    # ALL scores come from BACKEND - no UI calculation
-    def get_scores(rec):
-        backend_scores = rec.get("scores", {}) or {}
-        
-        return {
-            "accuracy": backend_scores.get("accuracy_score", 0),
-            "latency": backend_scores.get("latency_score", 0),
-            "cost": backend_scores.get("price_score", 0),
-            "complexity": backend_scores.get("complexity_score", 0),
-            "final": backend_scores.get("balanced_score", 0),
-        }
-    
     # ==========================================================================
     # USE BACKEND'S PRE-RANKED LISTS (ACCURACY-FIRST strategy applied in backend)
     # The backend's analyzer.py implements:
@@ -1264,74 +1227,36 @@ def render_slo_cards(use_case: str, user_count: int, priority: str = "balanced")
         percentile_map = {"P50": "p50", "P90": "p90", "P95": "p95", "P99": "p99"}
         reverse_map = {"p50": "P50", "p90": "P90", "p95": "P95", "p99": "P99"}
 
-        # Initialize percentile states for each metric
-        if 'ttft_percentile' not in st.session_state:
-            st.session_state.ttft_percentile = "p95"
-        if 'itl_percentile' not in st.session_state:
-            st.session_state.itl_percentile = "p95"
-        if 'e2e_percentile' not in st.session_state:
-            st.session_state.e2e_percentile = "p95"
-
         # Track previous SLO values to detect changes
         prev_ttft = st.session_state.get("_last_ttft")
         prev_itl = st.session_state.get("_last_itl")
         prev_e2e = st.session_state.get("_last_e2e")
 
         # SLO min/max ranges from backend (already fetched above)
-        def get_metric_range(metric: str) -> tuple:
+        def render_slo_input(metric: str, label: str, step: int):
+            """Render a single SLO input (value + percentile selector)."""
             metric_key = {"ttft": "ttft_ms", "itl": "itl_ms", "e2e": "e2e_ms"}[metric]
-            return (
-                int(slo_defaults[metric_key]["min"]),
-                int(slo_defaults[metric_key]["max"]),
-            )
+            val_min = int(slo_defaults[metric_key]["min"])
+            val_max = int(slo_defaults[metric_key]["max"])
+            input_key = f"input_{metric}"
+            custom_key = f"custom_{metric}"
+            pct_key = f"{metric}_percentile"
+            if input_key not in st.session_state:
+                st.session_state[input_key] = slo_defaults[metric_key]["default"]
+            st.write(f"**{label}**")
+            val_col, pct_col = st.columns([2, 1])
+            with val_col:
+                st.number_input(f"{metric.upper()} value", min_value=val_min, max_value=val_max, step=step, key=input_key, label_visibility="collapsed")
+                st.session_state[custom_key] = st.session_state[input_key]
+            with pct_col:
+                pct_display = reverse_map.get(st.session_state[pct_key], "P95")
+                selected_pct = st.selectbox(f"{metric.upper()} percentile", percentile_options, index=percentile_options.index(pct_display), key=f"{metric}_pct_selector", label_visibility="collapsed")
+                st.session_state[pct_key] = percentile_map[selected_pct]
+            st.caption(f"Recommended Range: {val_min:,} - {val_max:,} ms")
 
-        # === TTFT ===
-        ttft_min, ttft_max = get_metric_range("ttft")
-        if 'input_ttft' not in st.session_state:
-            st.session_state.input_ttft = slo_defaults["ttft_ms"]["default"]
-
-        st.markdown('<div style="margin-top: 0.5rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">TTFT (Time to First Token)</span></div>', unsafe_allow_html=True)
-        ttft_val_col, ttft_pct_col = st.columns([2, 1])
-        with ttft_val_col:
-            st.number_input("TTFT value", min_value=ttft_min, max_value=ttft_max, step=100, key="input_ttft", label_visibility="collapsed")
-            st.session_state.custom_ttft = st.session_state.input_ttft
-        with ttft_pct_col:
-            ttft_pct_display = reverse_map.get(st.session_state.ttft_percentile, "P95")
-            selected_ttft_pct = st.selectbox("TTFT percentile", percentile_options, index=percentile_options.index(ttft_pct_display), key="ttft_pct_selector", label_visibility="collapsed")
-            st.session_state.ttft_percentile = percentile_map[selected_ttft_pct]
-        st.caption(f"Recommended Range: {ttft_min:,} - {ttft_max:,} ms")
-
-        # === ITL ===
-        itl_min, itl_max = get_metric_range("itl")
-        if 'input_itl' not in st.session_state:
-            st.session_state.input_itl = slo_defaults["itl_ms"]["default"]
-
-        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">ITL (Inter-Token Latency)</span></div>', unsafe_allow_html=True)
-        itl_val_col, itl_pct_col = st.columns([2, 1])
-        with itl_val_col:
-            st.number_input("ITL value", min_value=itl_min, max_value=itl_max, step=10, key="input_itl", label_visibility="collapsed")
-            st.session_state.custom_itl = st.session_state.input_itl
-        with itl_pct_col:
-            itl_pct_display = reverse_map.get(st.session_state.itl_percentile, "P95")
-            selected_itl_pct = st.selectbox("ITL percentile", percentile_options, index=percentile_options.index(itl_pct_display), key="itl_pct_selector", label_visibility="collapsed")
-            st.session_state.itl_percentile = percentile_map[selected_itl_pct]
-        st.caption(f"Recommended Range: {itl_min:,} - {itl_max:,} ms")
-
-        # === E2E ===
-        e2e_min, e2e_max = get_metric_range("e2e")
-        if 'input_e2e' not in st.session_state:
-            st.session_state.input_e2e = slo_defaults["e2e_ms"]["default"]
-
-        st.markdown('<div style="margin-top: 1rem; margin-bottom: 0.25rem;"><span style="font-weight: 700; font-size: 0.95rem;">E2E (End-to-End Latency)</span></div>', unsafe_allow_html=True)
-        e2e_val_col, e2e_pct_col = st.columns([2, 1])
-        with e2e_val_col:
-            st.number_input("E2E value", min_value=e2e_min, max_value=e2e_max, step=1000, key="input_e2e", label_visibility="collapsed")
-            st.session_state.custom_e2e = st.session_state.input_e2e
-        with e2e_pct_col:
-            e2e_pct_display = reverse_map.get(st.session_state.e2e_percentile, "P95")
-            selected_e2e_pct = st.selectbox("E2E percentile", percentile_options, index=percentile_options.index(e2e_pct_display), key="e2e_pct_selector", label_visibility="collapsed")
-            st.session_state.e2e_percentile = percentile_map[selected_e2e_pct]
-        st.caption(f"Recommended Range: {e2e_min:,} - {e2e_max:,} ms")
+        render_slo_input("ttft", "TTFT (Time to First Token)", step=100)
+        render_slo_input("itl", "ITL (Inter-Token Latency)", step=10)
+        render_slo_input("e2e", "E2E (End-to-End Latency)", step=1000)
 
         # Check if SLO values changed - if so, clear recommendation cache
         curr_ttft = st.session_state.get("custom_ttft")
@@ -1688,20 +1613,9 @@ def show_category_dialog():
             st.rerun()
         return
     
-    # Helper to get scores — all from backend
-    def get_model_scores(rec):
-        backend_scores = rec.get("scores", {}) or {}
-        return {
-            "accuracy": backend_scores.get("accuracy_score", 0),
-            "latency": backend_scores.get("latency_score", 0),
-            "cost": backend_scores.get("price_score", 0),
-            "complexity": backend_scores.get("complexity_score", 0),
-            "final": backend_scores.get("balanced_score", 0),
-        }
-    
     # Render each model in the top 5
     for i, rec in enumerate(top5_list):
-        scores = get_model_scores(rec)
+        scores = get_scores(rec)
         model_name = format_display_name(rec.get('model_name', 'Unknown'))
         gpu_cfg = rec.get('gpu_config', {}) or {}
         hw_type = gpu_cfg.get('gpu_type', rec.get('hardware', 'H100'))
@@ -2056,22 +1970,12 @@ def render_options_list_inline():
 # =============================================================================
 
 def main():
-    # Show dialogs if triggered
-    # Only show ONE dialog at a time (Streamlit limitation)
-    if st.session_state.show_winner_dialog is True and st.session_state.balanced_winner is not None:
-        # Reset other dialogs
-        st.session_state.show_category_dialog = False
-        st.session_state.show_full_table_dialog = False
+    # Show dialogs if triggered (Streamlit only renders one at a time)
+    if st.session_state.show_winner_dialog and st.session_state.balanced_winner is not None:
         show_winner_details_dialog()
-    elif st.session_state.get('show_category_dialog') is True:
-        # Reset other dialogs
-        st.session_state.show_winner_dialog = False
-        st.session_state.show_full_table_dialog = False
+    elif st.session_state.show_category_dialog:
         show_category_dialog()
-    elif st.session_state.get('show_full_table_dialog') is True:
-        # Reset other dialogs
-        st.session_state.show_winner_dialog = False
-        st.session_state.show_category_dialog = False
+    elif st.session_state.show_full_table_dialog:
         show_full_table_dialog()
     
     # Load models
@@ -2576,7 +2480,6 @@ def render_extraction_with_approval(extraction: dict, models_df: pd.DataFrame):
     with col1:
         if st.button("Yes, Continue", type="primary", use_container_width=True, key="approve_extraction"):
             st.session_state.extraction_approved = True
-            st.session_state.switch_to_tab2 = True
             st.rerun()
     with col2:
         if st.button("No, Edit", use_container_width=True, key="edit_extraction"):
@@ -2751,7 +2654,6 @@ def render_slo_with_approval(extraction: dict, priority: str, models_df: pd.Data
         # Button disabled if invalid
         if st.button("Generate Recommendations", type="primary", use_container_width=True, key="generate_recs", disabled=not is_valid):
             st.session_state.slo_approved = True
-            st.session_state.switch_to_tab3 = True
             st.rerun()
 
 
@@ -2879,8 +2781,6 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
             for key in keys_to_clear:
                 if key in st.session_state:
                     del st.session_state[key]
-            # Set flag to switch to Tab 1 after rerun
-            st.session_state.switch_to_tab1 = True
             st.rerun()
 
 

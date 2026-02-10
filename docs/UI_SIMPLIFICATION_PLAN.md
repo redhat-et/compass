@@ -69,25 +69,17 @@ The goal is to strip this down to a clean, native-Streamlit UI that trusts the b
 
 ---
 
-## Phase 5: Simplify Dialogs and Repeated Patterns
+## Phase 5: Simplify Dialogs and Repeated Patterns -- DONE (3,218 → 3,117 lines)
 
-**What to change:**
+**What was changed:**
 
-- **Replace manual dialog state management** (lines 4424-4440) with Streamlit's `@st.dialog` decorator. Remove `show_winner_dialog`, `show_category_dialog`, `show_full_table_dialog` session state variables and the mutual-exclusion logic.
-
-- **~~Remove JavaScript tab switching~~** — Done in Phase 4.
-
-- **Deduplicate SLO input fields** — the TTFT/ITL/E2E input pattern (lines 3566-3612) is repeated 3 times with only labels and keys differing. Extract a helper function.
-
-- **Consolidate `get_scores()` / `get_model_scores()`** — two near-identical helpers in different functions. Unify into one module-level function.
-
-- **Simplify session state initialization** — replace 67 individual `if "key" not in st.session_state:` blocks with a single defaults dict + loop.
-
-- **Remove `format_display_name()` and `normalize_model_name()`** complexity if the backend already returns normalized names. If not, keep but simplify.
-
-**Estimated removal**: ~200 lines
-**Risk**: Medium — dialog behavior changes slightly
-**Test**: Full workflow. Verify dialogs open/close correctly. Verify SLO inputs work. Verify tab navigation works (manually clicking).
+- **Session state initialization**: Replaced 27 individual `if "key" not in st.session_state:` blocks with a single `SESSION_DEFAULTS` dict + loop (~45 lines replaced by ~20).
+- **Consolidated `get_scores()`**: Extracted identical `get_scores()` / `get_model_scores()` into one module-level function. Removed both local duplicates.
+- **Simplified dialog mutual-exclusion**: Removed redundant reset of other dialog flags — Streamlit's `@st.dialog` handles exclusivity natively.
+- **Deduplicated SLO inputs**: Extracted `render_slo_input()` helper to replace 3 near-identical TTFT/ITL/E2E blocks (~45 lines → 3 calls + 15-line helper).
+- **Removed dead tab-switching writes**: Removed 3 `switch_to_tab` session state assignments (JS tab-switching blocks were removed in Phase 4, making these dead writes).
+- **Moved per-metric percentile init** (`ttft_percentile`, `itl_percentile`, `e2e_percentile`) into `SESSION_DEFAULTS`.
+- **Name functions**: Kept `format_display_name()` / `normalize_model_name()` — both actively used (6+ call sites), backend does not normalize names.
 
 ---
 
