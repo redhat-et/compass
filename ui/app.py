@@ -60,14 +60,17 @@ st.set_page_config(
 # =============================================================================
 # MINIMAL CSS OVERRIDES
 # =============================================================================
-st.markdown("""
+st.markdown(
+    """
 <style>
     /* Reduce top whitespace and align content with toolbar */
     .block-container { padding-top: 0 !important; }
     /* Transparent header so menu appears inline with content */
     header[data-testid="stHeader"] { background: transparent; }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # =============================================================================
 # SESSION STATE INIT
@@ -79,6 +82,7 @@ init_session_state()
 # VISUAL COMPONENTS
 # =============================================================================
 
+
 def render_hero():
     """Render compact hero section with logo."""
     logo_col, title_col = st.columns([1, 11], vertical_alignment="center")
@@ -86,12 +90,15 @@ def render_hero():
         st.image("ui/static/neuralnav-logo.png", width=48)
     with title_col:
         st.title("NeuralNav")
-    st.caption("AI-Powered LLM Deployment Recommendations — From Natural Language to Production in Seconds")
+    st.caption(
+        "AI-Powered LLM Deployment Recommendations — From Natural Language to Production in Seconds"
+    )
 
 
 # =============================================================================
 # TAB FUNCTIONS
 # =============================================================================
+
 
 def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     """Tab 1: Use case input interface."""
@@ -138,19 +145,25 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     with col3:
         if st.button("Document Q&A", use_container_width=True, key="task_rag"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Document Q&A system for enterprise knowledge base, 300 users."
+            st.session_state.pending_user_input = (
+                "Document Q&A system for enterprise knowledge base, 300 users."
+            )
             st.rerun()
 
     with col4:
         if st.button("Summarization", use_container_width=True, key="task_summ"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "News article summarization for 300 users, cost-effective solution preferred."
+            st.session_state.pending_user_input = (
+                "News article summarization for 300 users, cost-effective solution preferred."
+            )
             st.rerun()
 
     with col5:
         if st.button("Legal Analysis", use_container_width=True, key="task_legal"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Legal document analysis for 300 lawyers, accuracy is critical."
+            st.session_state.pending_user_input = (
+                "Legal document analysis for 300 lawyers, accuracy is critical."
+            )
             st.rerun()
 
     # Row 2: 4 more task buttons
@@ -159,25 +172,33 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     with col6:
         if st.button("Translation", use_container_width=True, key="task_trans"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Multi-language translation service for 300 users."
+            st.session_state.pending_user_input = (
+                "Multi-language translation service for 300 users."
+            )
             st.rerun()
 
     with col7:
         if st.button("Content Generation", use_container_width=True, key="task_content"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Content generation tool for marketing team, 300 users."
+            st.session_state.pending_user_input = (
+                "Content generation tool for marketing team, 300 users."
+            )
             st.rerun()
 
     with col8:
         if st.button("Long Doc Summary", use_container_width=True, key="task_longdoc"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Long document summarization for research papers, 30 researchers, accuracy matters."
+            st.session_state.pending_user_input = (
+                "Long document summarization for research papers, 30 researchers, accuracy matters."
+            )
             st.rerun()
 
     with col9:
         if st.button("Code Generation", use_container_width=True, key="task_codegen"):
             clear_dialog_states()
-            st.session_state.pending_user_input = "Full code generation tool for implementing features, 30 developers."
+            st.session_state.pending_user_input = (
+                "Full code generation tool for implementing features, 30 developers."
+            )
             st.rerun()
 
     # Show character count
@@ -189,16 +210,32 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
 
     col1, col2, col3 = st.columns([1.5, 1, 2])
     with col1:
-        analyze_disabled = len(st.session_state.user_input.strip()) < 10 if st.session_state.user_input else True
-        analyze_clicked = st.button("Analyze Use Case", type="primary", use_container_width=True, disabled=analyze_disabled)
-        if analyze_disabled and st.session_state.user_input and len(st.session_state.user_input.strip()) < 10:
+        analyze_disabled = (
+            len(st.session_state.user_input.strip()) < 10 if st.session_state.user_input else True
+        )
+        analyze_clicked = st.button(
+            "Analyze Use Case", type="primary", use_container_width=True, disabled=analyze_disabled
+        )
+        if (
+            analyze_disabled
+            and st.session_state.user_input
+            and len(st.session_state.user_input.strip()) < 10
+        ):
             st.caption("Please enter at least 10 characters")
     with col2:
         if st.button("Clear", use_container_width=True):
             for key in [
-                "user_input", "extraction_result", "recommendation_result",
-                "extraction_approved", "slo_approved", "edited_extraction",
-                "custom_ttft", "custom_itl", "custom_e2e", "custom_qps", "used_priority",
+                "user_input",
+                "extraction_result",
+                "recommendation_result",
+                "extraction_approved",
+                "slo_approved",
+                "edited_extraction",
+                "custom_ttft",
+                "custom_itl",
+                "custom_e2e",
+                "custom_qps",
+                "used_priority",
             ]:
                 if key in st.session_state:
                     del st.session_state[key]
@@ -206,7 +243,11 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
             st.rerun()
 
     # Input validation before analysis
-    if analyze_clicked and st.session_state.user_input and len(st.session_state.user_input.strip()) >= 10:
+    if (
+        analyze_clicked
+        and st.session_state.user_input
+        and len(st.session_state.user_input.strip()) >= 10
+    ):
         # Reset workflow state
         st.session_state.extraction_approved = None
         st.session_state.slo_approved = None
@@ -237,8 +278,12 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
                 st.session_state.ranked_response = None
 
                 for key in [
-                    "accuracy_priority", "cost_priority", "latency_priority",
-                    "weight_accuracy", "weight_cost", "weight_latency",
+                    "accuracy_priority",
+                    "cost_priority",
+                    "latency_priority",
+                    "weight_accuracy",
+                    "weight_cost",
+                    "weight_latency",
                 ]:
                     if key in st.session_state:
                         del st.session_state[key]
@@ -248,7 +293,9 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
                 priority_config = fetch_priority_weights()
                 pw_map = priority_config.get("priority_weights", {}) if priority_config else {}
                 defaults_cfg = priority_config.get("defaults", {}) if priority_config else {}
-                default_weights = defaults_cfg.get("weights", {"accuracy": 5, "cost": 4, "latency": 2})
+                default_weights = defaults_cfg.get(
+                    "weights", {"accuracy": 5, "cost": 4, "latency": 2}
+                )
 
                 st.session_state.accuracy_priority = extraction.get("accuracy_priority", "medium")
                 st.session_state.cost_priority = extraction.get("cost_priority", "medium")
@@ -276,7 +323,9 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
                 st.session_state.new_extraction_available = True
 
                 st.session_state.used_priority = extraction.get("priority", priority)
-                st.session_state.detected_use_case = extraction.get("use_case", "chatbot_conversational")
+                st.session_state.detected_use_case = extraction.get(
+                    "use_case", "chatbot_conversational"
+                )
                 progress_bar.progress(100, text="Ready!")
             else:
                 st.error("Could not extract business context. Please try rephrasing your input.")
@@ -306,34 +355,45 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     if st.session_state.extraction_approved is True:
         render_extraction_result(st.session_state.extraction_result, used_priority)
 
-        st.markdown("""
+        st.markdown(
+            """
         <div style="padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
             <strong>Step 1 Complete</strong> · You can now go to Technical Specification
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_technical_specs_tab():
     """Tab 2: Technical Specification (SLO targets and workload settings)."""
     if not st.session_state.extraction_approved:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
             <strong style="font-size: 1.1rem;">Complete Step 1 First</strong><br>
             <span style="font-size: 0.95rem; ">Go to the <strong>Define Use Case</strong> tab to describe your use case and approve the extraction.</span>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
         return
 
-    final_extraction = st.session_state.edited_extraction or st.session_state.extraction_result or {}
+    final_extraction = (
+        st.session_state.edited_extraction or st.session_state.extraction_result or {}
+    )
 
     render_slo_with_approval(final_extraction)
 
     if st.session_state.slo_approved is True:
-        st.markdown("""
+        st.markdown(
+            """
         <div style="padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; margin-bottom: 0.75rem; max-width: 50%;">
             <strong>Step 2 Complete</strong> · You can now view Recommendations
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
 
 def render_results_tab(priority: str, models_df: pd.DataFrame):
@@ -342,23 +402,31 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
 
     if not st.session_state.slo_approved:
         if not st.session_state.extraction_approved:
-            st.markdown("""
+            st.markdown(
+                """
             <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
                 <strong style="font-size: 1.1rem;">Complete Previous Steps First</strong><br>
                 <span style="font-size: 0.95rem; ">1. Go to <strong>Define Use Case</strong> tab to describe your use case<br>
                 2. Then go to <strong>Technical Specification</strong> tab to set your SLO targets</span>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
         else:
-            st.markdown("""
+            st.markdown(
+                """
             <div style="padding: 1.5rem; border-radius: 8px; text-align: center; ">
                 <strong style="font-size: 1.1rem;">Complete Step 2 First</strong><br>
                 <span style="font-size: 0.95rem; ">Go to the <strong>Technical Specification</strong> tab to set your SLO targets and workload parameters.</span>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
         return
 
-    final_extraction = st.session_state.edited_extraction or st.session_state.extraction_result or {}
+    final_extraction = (
+        st.session_state.edited_extraction or st.session_state.extraction_result or {}
+    )
 
     # Always regenerate recommendations to ensure fresh SLO filtering
     st.session_state.recommendation_result = None
@@ -372,7 +440,9 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
     itl_target = st.session_state.get("custom_itl") or st.session_state.get("input_itl") or 50
     e2e_target = st.session_state.get("custom_e2e") or st.session_state.get("input_e2e") or 10000
 
-    qps_target = st.session_state.get("spec_expected_qps") or st.session_state.get("custom_qps") or 1
+    qps_target = (
+        st.session_state.get("spec_expected_qps") or st.session_state.get("custom_qps") or 1
+    )
 
     prompt_tokens = st.session_state.get("spec_prompt_tokens", 512)
     output_tokens = st.session_state.get("spec_output_tokens", 256)
@@ -410,12 +480,15 @@ def render_results_tab(priority: str, models_df: pd.DataFrame):
         st.session_state.recommendation_result = recommendation
 
     if st.session_state.recommendation_result:
-        render_recommendation_result(st.session_state.recommendation_result, used_priority, final_extraction)
+        render_recommendation_result(
+            st.session_state.recommendation_result, used_priority, final_extraction
+        )
 
 
 # =============================================================================
 # MAIN APP
 # =============================================================================
+
 
 def main():
     # Show dialogs if triggered (Streamlit only renders one at a time)
@@ -437,7 +510,9 @@ def main():
     render_hero()
 
     # Tab-based navigation (4 tabs)
-    tab1, tab2, tab3, tab4 = st.tabs(["Define Use Case", "Technical Specification", "Recommendations", "Deployment"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["Define Use Case", "Technical Specification", "Recommendations", "Deployment"]
+    )
 
     with tab1:
         render_use_case_input_tab(priority, models_df)

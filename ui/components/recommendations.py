@@ -24,7 +24,8 @@ def _render_filter_summary():
     unique_models = len({r.get("model_name", "") for r in all_passed if r.get("model_name")})
 
     filter_pct = passed_configs / total_configs * 100
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem; padding: 0.6rem 1rem;
                 border-radius: 8px; ">
         <span style="font-size: 0.85rem;">
@@ -37,7 +38,9 @@ def _render_filter_summary():
             <strong>{unique_models}</strong> unique models
         </span>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_category_card(title, recs_list, highlight_field, category_key, col):
@@ -74,7 +77,9 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
     score_parts = []
     for field, label, value in score_items:
         if field == highlight_field:
-            score_parts.append(f'<span style="color: #1f77b4; font-weight: 700;">{label}: {value:.0f}</span>')
+            score_parts.append(
+                f'<span style="color: #1f77b4; font-weight: 700;">{label}: {value:.0f}</span>'
+            )
         else:
             score_parts.append(f"{label}: {value:.0f}")
     scores_line = " | ".join(score_parts)
@@ -92,7 +97,7 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
             f'<span style="font-size: 0.9rem;"><strong>Solution:</strong> Model: {model_name} | Hardware: {hw_count}x {hw_type} | Replicas: {replicas}</span><br>'
             f'<span style="font-size: 0.9rem;"><strong>Scores:</strong> {scores_line}</span><br>'
             f'<span style="font-size: 0.9rem;"><strong>Values:</strong> {metrics_line}</span>'
-            f'</div>',
+            f"</div>",
             unsafe_allow_html=True,
         )
 
@@ -130,7 +135,9 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
         is_selected = selected_category == category_key
 
         if is_selected:
-            if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
+            if st.button(
+                "Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"
+            ):
                 st.session_state.deployment_selected_config = None
                 st.session_state.deployment_selected_category = None
                 st.session_state.deployment_yaml_generated = False
@@ -239,22 +246,24 @@ def render_options_list_inline():
             meets_slo = rec.get("meets_slo", False)
             slo_value = 1 if meets_slo else 0
 
-            table_data.append({
-                "category": cat_name,
-                "model": model_name,
-                "gpu_config": gpu_str,
-                "ttft": ttft,
-                "cost": cost,
-                "accuracy": accuracy,
-                "balanced": balanced,
-                "slo": "Yes" if meets_slo else "No",
-                "slo_value": slo_value,
-            })
+            table_data.append(
+                {
+                    "category": cat_name,
+                    "model": model_name,
+                    "gpu_config": gpu_str,
+                    "ttft": ttft,
+                    "cost": cost,
+                    "accuracy": accuracy,
+                    "balanced": balanced,
+                    "slo": "Yes" if meets_slo else "No",
+                    "slo_value": slo_value,
+                }
+            )
 
     if table_data:
         rows_html = []
         for row in table_data:
-            rows_html.append(f'''
+            rows_html.append(f"""
                 <tr
                     data-category="{row['category']}"
                     data-model="{row['model']}"
@@ -273,9 +282,9 @@ def render_options_list_inline():
                     <td style="padding: 0.75rem 0.5rem; text-align: center; ">{row['balanced']:.1f}</td>
                     <td style="padding: 0.75rem 0.5rem; text-align: center;">{row['slo']}</td>
                 </tr>
-            ''')
+            """)
 
-        table_html = f'''
+        table_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -370,7 +379,7 @@ def render_options_list_inline():
         </script>
         </body>
         </html>
-        '''
+        """
 
         components.html(table_html, height=450, scrolling=True)
         st.markdown(
@@ -406,7 +415,9 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
                 st.warning("No recommendations found.")
                 return
     else:
-        st.warning("Could not fetch ranked recommendations from backend. Ensure the backend is running.")
+        st.warning(
+            "Could not fetch ranked recommendations from backend. Ensure the backend is running."
+        )
         st.session_state.ranked_response = None
         recommendations = result.get("recommendations", [])
         if not recommendations:
@@ -423,7 +434,11 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     # Get all recommendations for the cards
     all_recs = []
     for cat in ["balanced", "best_accuracy", "lowest_cost", "lowest_latency", "simplest"]:
-        cat_recs = st.session_state.ranked_response.get(cat, []) if st.session_state.ranked_response else []
+        cat_recs = (
+            st.session_state.ranked_response.get(cat, [])
+            if st.session_state.ranked_response
+            else []
+        )
         all_recs.extend(cat_recs)
 
     # Remove duplicates by model+hardware
@@ -453,4 +468,3 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
 
     if st.session_state.get("show_options_list_expanded", False):
         render_options_list_inline()
-

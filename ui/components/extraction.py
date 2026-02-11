@@ -60,7 +60,12 @@ def render_extraction_with_approval(extraction: dict, models_df):
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("Generate Specification", type="primary", use_container_width=True, key="approve_extraction"):
+        if st.button(
+            "Generate Specification",
+            type="primary",
+            use_container_width=True,
+            key="approve_extraction",
+        ):
             st.session_state.extraction_approved = True
             st.session_state._pending_tab = 1
             st.rerun()
@@ -75,8 +80,12 @@ def render_extraction_with_approval(extraction: dict, models_df):
             st.session_state.recommendation_result = None
             st.session_state.user_input = ""
             for key in [
-                "accuracy_priority", "cost_priority", "latency_priority",
-                "weight_accuracy", "weight_cost", "weight_latency",
+                "accuracy_priority",
+                "cost_priority",
+                "latency_priority",
+                "weight_accuracy",
+                "weight_cost",
+                "weight_latency",
             ]:
                 if key in st.session_state:
                     del st.session_state[key]
@@ -89,9 +98,15 @@ def render_extraction_edit_form(extraction: dict, models_df):
     st.info('Review and adjust the extracted values below, then click "Apply Changes" to continue.')
 
     use_cases = [
-        "chatbot_conversational", "code_completion", "code_generation_detailed",
-        "document_analysis_rag", "summarization_short", "long_document_summarization",
-        "translation", "content_generation", "research_legal_analysis",
+        "chatbot_conversational",
+        "code_completion",
+        "code_generation_detailed",
+        "document_analysis_rag",
+        "summarization_short",
+        "long_document_summarization",
+        "translation",
+        "content_generation",
+        "research_legal_analysis",
     ]
     use_case_labels = {
         "chatbot_conversational": "Chatbot / Conversational AI",
@@ -149,7 +164,9 @@ def render_extraction_edit_form(extraction: dict, models_df):
 
         hardware_options = ["Any GPU", "H100", "A100", "A10G", "L4", "T4"]
         current_hardware = extraction.get("hardware") or "Any GPU"
-        hw_idx = hardware_options.index(current_hardware) if current_hardware in hardware_options else 0
+        hw_idx = (
+            hardware_options.index(current_hardware) if current_hardware in hardware_options else 0
+        )
 
         new_hardware = st.selectbox(
             "Hardware",

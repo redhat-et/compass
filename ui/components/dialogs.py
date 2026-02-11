@@ -35,7 +35,9 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         "quality_score": backend_scores.get("accuracy_score", ui_breakdown.get("quality_score", 0)),
         "latency_score": backend_scores.get("latency_score", ui_breakdown.get("latency_score", 0)),
         "cost_score": backend_scores.get("price_score", ui_breakdown.get("cost_score", 0)),
-        "capacity_score": backend_scores.get("complexity_score", ui_breakdown.get("capacity_score", 0)),
+        "capacity_score": backend_scores.get(
+            "complexity_score", ui_breakdown.get("capacity_score", 0)
+        ),
     }
 
     # === FINAL RECOMMENDATION BOX ===
@@ -64,7 +66,11 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         ttft_p95 = slo_actual.get("ttft_p95_ms", slo_actual.get("ttft_mean_ms", 0))
         itl_p95 = slo_actual.get("itl_p95_ms", slo_actual.get("itl_mean_ms", 0))
         e2e_p95 = slo_actual.get("e2e_p95_ms", slo_actual.get("e2e_mean_ms", 0))
-        throughput_qps = throughput_data.get("tokens_per_sec", 0) / 100 if throughput_data.get("tokens_per_sec") else 0
+        throughput_qps = (
+            throughput_data.get("tokens_per_sec", 0) / 100
+            if throughput_data.get("tokens_per_sec")
+            else 0
+        )
 
     ttft_display = f"{int(ttft_p95)}" if ttft_p95 and ttft_p95 > 0 else "—"
     itl_display = f"{int(itl_p95)}" if itl_p95 and itl_p95 > 0 else "—"
@@ -77,7 +83,7 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     if tp > 1 and replicas > 1:
         hw_display += f" (TP={tp}, R={replicas})"
 
-    rec_html = f'''<div style="padding: 2rem; border-radius: 1.25rem; margin-bottom: 1.5rem; ">
+    rec_html = f"""<div style="padding: 2rem; border-radius: 1.25rem; margin-bottom: 1.5rem; ">
     <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; ">
         <span style="font-size: 2.5rem;"></span>
         <div>
@@ -126,20 +132,23 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
             <span style="padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 900; font-size: 1.5rem; ">{final_score:.1f}</span>
             </div>
         </div>
-</div>'''
+</div>"""
 
     st.markdown(rec_html, unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("Winner Details: Score Breakdown")
 
-    st.markdown("""
+    st.markdown(
+        """
     <div style="padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; ">
         <p style="margin: 0; font-size: 0.9rem;">
             <strong >Score Format:</strong> <code style="padding: 0.1rem 0.4rem; border-radius: 0.25rem;">87 → +17.4</code> means the model scored <strong>87/100</strong> in this category, contributing <strong >+17.4 points</strong> to the final weighted score.
         </p>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     col1, col2 = st.columns([3, 2])
 
@@ -181,7 +190,8 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         use_case = extraction.get("use_case", "chatbot_conversational")
         use_case_display = format_use_case_name(use_case)
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="padding: 1rem; border-radius: 0.75rem; margin-bottom: 1rem; ">
             <p style="margin: 0; font-size: 0.95rem; line-height: 1.6;">
                 <strong>{model_name}</strong> ranked highest for <strong>{use_case_display}</strong>
@@ -190,39 +200,61 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                 and <strong>{breakdown.get('cost_score', 0):.0f}</strong> cost efficiency.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         pros = winner.get("pros", ["Top Quality", "Fast Responses"])
         cons = winner.get("cons", [])
 
-        st.markdown('<p style="font-weight: 600; margin-bottom: 0.5rem;">Strengths:</p>', unsafe_allow_html=True)
-        pros_html = '<div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;">'
+        st.markdown(
+            '<p style="font-weight: 600; margin-bottom: 0.5rem;">Strengths:</p>',
+            unsafe_allow_html=True,
+        )
+        pros_html = (
+            '<div style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;">'
+        )
         for pro in pros:
             pros_html += f'<span class="tag tag-pro">{pro}</span>'
         pros_html += "</div>"
         st.markdown(pros_html, unsafe_allow_html=True)
 
         if cons:
-            st.markdown('<p style="font-weight: 600; margin-bottom: 0.5rem;">Trade-offs:</p>', unsafe_allow_html=True)
+            st.markdown(
+                '<p style="font-weight: 600; margin-bottom: 0.5rem;">Trade-offs:</p>',
+                unsafe_allow_html=True,
+            )
             cons_html = '<div style="display: flex; flex-direction: column; gap: 0.4rem;">'
             for con in cons:
                 cons_html += f'<span class="tag tag-con">{con}</span>'
             cons_html += "</div>"
             st.markdown(cons_html, unsafe_allow_html=True)
 
-        st.markdown('<hr style="border-color: rgba(212, 175, 55, 0.3); margin: 1rem 0;">', unsafe_allow_html=True)
-        st.markdown(f"""
+        st.markdown(
+            '<hr style="border-color: rgba(212, 175, 55, 0.3); margin: 1rem 0;">',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"""
         <p ><strong >Final Score:</strong> <code style="padding: 0.35rem 0.75rem; border-radius: 0.25rem; font-weight: 700; font-size: 1.1rem;">{winner.get('final_score', 0):.1f}/100</code></p>
         <p style="color: rgba(212, 175, 55, 0.8); font-style: italic;">Based on {priority.replace('_', ' ').title()} priority weighting</p>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     # Display benchmark SLO data
     benchmark_slo = winner.get("benchmark_slo", {}) or {}
     gpu_config = winner.get("gpu_config", {}) or {}
 
-    ttft_p95_val = winner.get("predicted_ttft_p95_ms") or benchmark_slo.get("slo_actual", {}).get("ttft_p95_ms", 0)
-    itl_p95_val = winner.get("predicted_itl_p95_ms") or benchmark_slo.get("slo_actual", {}).get("itl_p95_ms", 0)
-    e2e_p95_val = winner.get("predicted_e2e_p95_ms") or benchmark_slo.get("slo_actual", {}).get("e2e_p95_ms", 0)
+    ttft_p95_val = winner.get("predicted_ttft_p95_ms") or benchmark_slo.get("slo_actual", {}).get(
+        "ttft_p95_ms", 0
+    )
+    itl_p95_val = winner.get("predicted_itl_p95_ms") or benchmark_slo.get("slo_actual", {}).get(
+        "itl_p95_ms", 0
+    )
+    e2e_p95_val = winner.get("predicted_e2e_p95_ms") or benchmark_slo.get("slo_actual", {}).get(
+        "e2e_p95_ms", 0
+    )
     throughput_qps_val = winner.get("predicted_throughput_qps") or (
         benchmark_slo.get("throughput", {}).get("tokens_per_sec", 0) / 100
         if benchmark_slo.get("throughput", {}).get("tokens_per_sec")
@@ -230,8 +262,12 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
     )
 
     traffic_profile = winner.get("traffic_profile", {}) or {}
-    prompt_tokens_val = traffic_profile.get("prompt_tokens", benchmark_slo.get("token_config", {}).get("prompt", 512))
-    output_tokens_val = traffic_profile.get("output_tokens", benchmark_slo.get("token_config", {}).get("output", 256))
+    prompt_tokens_val = traffic_profile.get(
+        "prompt_tokens", benchmark_slo.get("token_config", {}).get("prompt", 512)
+    )
+    output_tokens_val = traffic_profile.get(
+        "output_tokens", benchmark_slo.get("token_config", {}).get("output", 256)
+    )
 
     hw_type_val = gpu_config.get("gpu_type", benchmark_slo.get("hardware", "H100"))
     hw_count_val = gpu_config.get("gpu_count", benchmark_slo.get("hardware_count", 1))
@@ -240,7 +276,8 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         st.markdown("---")
         st.subheader("Real Benchmark SLOs (Actual Achievable Performance)")
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; ">
             <p style="margin: 0; font-size: 0.9rem;">
                 <strong >Benchmarks:</strong> Real measured values from vLLM simulation.
@@ -248,7 +285,9 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                 Token Config: <strong >{prompt_tokens_val}→{output_tokens_val}</strong>
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         slo_actual = benchmark_slo.get("slo_actual", {})
         throughput = benchmark_slo.get("throughput", {})
@@ -258,10 +297,13 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
         ttft_p95_show = ttft_p95_val or slo_actual.get("ttft_p95_ms", 0)
         itl_p95_show = itl_p95_val or slo_actual.get("itl_p95_ms", 0)
         e2e_p95_show = e2e_p95_val or slo_actual.get("e2e_p95_ms", 0)
-        tps_show = throughput_qps_val * 100 if throughput_qps_val else throughput.get("tokens_per_sec", 0)
+        tps_show = (
+            throughput_qps_val * 100 if throughput_qps_val else throughput.get("tokens_per_sec", 0)
+        )
 
         with col1:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                     <span style="font-size: 1.5rem;">⏱️</span>
@@ -272,10 +314,13 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                     <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">p95 latency</p>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col2:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                     <span style="font-size: 1rem; font-weight: 700;">TTFT</span>
@@ -286,10 +331,13 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                     <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">inter-token latency</p>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col3:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="padding: 1.25rem; border-radius: 0.75rem; ">
                 <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
                     <span style="font-size: 1.5rem;">🏁</span>
@@ -300,9 +348,12 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                     <p style="font-size: 0.75rem; margin: 0.25rem 0 0 0;">end-to-end</p>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
             <div style="padding: 1rem; border-radius: 0.75rem; text-align: center; ">
                 <span style="font-size: 1.25rem;">🚀</span>
@@ -327,13 +378,17 @@ def _render_winner_details(winner: dict, priority: str, extraction: dict):
                 <strong >Model:</strong> {winner.get('model_name', 'Unknown')}
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
 
 @st.dialog("Winner Details", width="large")
 def show_winner_details_dialog():
     """Show winner details in a modal dialog."""
-    winner = st.session_state.get("balanced_winner") or st.session_state.get("winner_recommendation")
+    winner = st.session_state.get("balanced_winner") or st.session_state.get(
+        "winner_recommendation"
+    )
     priority = st.session_state.get("winner_priority", "balanced")
     extraction = st.session_state.get("winner_extraction", {})
 
@@ -356,8 +411,16 @@ def show_category_dialog():
 
     category_config = {
         "balanced": {"title": "Balanced - Top 5", "field": "final", "top5_key": "top5_balanced"},
-        "accuracy": {"title": "Best Accuracy - Top 5", "field": "accuracy", "top5_key": "top5_accuracy"},
-        "latency": {"title": "Best Latency - Top 5", "field": "latency", "top5_key": "top5_latency"},
+        "accuracy": {
+            "title": "Best Accuracy - Top 5",
+            "field": "accuracy",
+            "top5_key": "top5_accuracy",
+        },
+        "latency": {
+            "title": "Best Latency - Top 5",
+            "field": "latency",
+            "top5_key": "top5_latency",
+        },
         "cost": {"title": "Best Cost - Top 5", "field": "cost", "top5_key": "top5_cost"},
     }
 
@@ -389,15 +452,22 @@ def show_category_dialog():
 
         benchmark_metrics = rec.get("benchmark_metrics", {}) or {}
 
-        ttft = benchmark_metrics.get(f"ttft_{percentile_suffix}", rec.get("predicted_ttft_p95_ms", "N/A"))
-        itl = benchmark_metrics.get(f"itl_{percentile_suffix}", rec.get("predicted_itl_p95_ms", "N/A"))
-        e2e = benchmark_metrics.get(f"e2e_{percentile_suffix}", rec.get("predicted_e2e_p95_ms", "N/A"))
+        ttft = benchmark_metrics.get(
+            f"ttft_{percentile_suffix}", rec.get("predicted_ttft_p95_ms", "N/A")
+        )
+        itl = benchmark_metrics.get(
+            f"itl_{percentile_suffix}", rec.get("predicted_itl_p95_ms", "N/A")
+        )
+        e2e = benchmark_metrics.get(
+            f"e2e_{percentile_suffix}", rec.get("predicted_e2e_p95_ms", "N/A")
+        )
         tps = benchmark_metrics.get(f"tps_{percentile_suffix}", 0)
 
         throughput_display = f"{tps:.0f} tok/s" if tps and tps > 0 else "N/A"
         highlight_score = scores.get(config["field"], 0)
 
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
@@ -439,7 +509,9 @@ def show_category_dialog():
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("<div style='margin-top: 1rem;'></div>", unsafe_allow_html=True)
     if st.button("Close", key="close_cat_dialog", use_container_width=True):
@@ -496,7 +568,11 @@ def show_full_table_dialog():
                 meets_slo = rec.get("meets_slo", False)
                 slo_icon = "Yes" if meets_slo else "No"
 
-                cat_display = f'<span style="font-weight: 600;">{cat_name}</span> (+{len(recs)-1})' if i == 0 else ""
+                cat_display = (
+                    f'<span style="font-weight: 600;">{cat_name}</span> (+{len(recs)-1})'
+                    if i == 0
+                    else ""
+                )
 
                 row = f'<tr ><td style="padding: 0.75rem 0.5rem;">{cat_display}</td><td style="padding: 0.75rem 0.5rem; font-weight: 500;">{model_name}</td><td style="padding: 0.75rem 0.5rem; font-size: 0.85rem;">{gpu_str}</td><td style="padding: 0.75rem 0.5rem; text-align: right; ">{ttft:.0f}ms</td><td style="padding: 0.75rem 0.5rem; text-align: right; ">${cost:,.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; ">{accuracy:.0f}</td><td style="padding: 0.75rem 0.5rem; text-align: center; ">{balanced:.1f}</td><td style="padding: 0.75rem 0.5rem; text-align: center;">{slo_icon}</td></tr>'
                 all_rows.append(row)

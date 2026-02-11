@@ -79,11 +79,14 @@ def get_workload_insights(use_case: str, qps: int, user_count: int) -> list:
     distribution = workload_profile.get("distribution", "poisson")
     active_fraction = workload_profile.get("active_fraction", 0.2)
 
-    messages.append((
-        "", "",
-        f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
-        "info",
-    ))
+    messages.append(
+        (
+            "",
+            "",
+            f"Pattern: {distribution.replace('_', ' ').title()} | {int(active_fraction*100)}% concurrent users",
+            "info",
+        )
+    )
 
     return messages
 
@@ -181,7 +184,8 @@ def _render_workload_profile(use_case, workload_profile, estimated_qps, qps, use
         st.session_state.custom_qps = new_qps
 
     # Fixed workload values
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="margin-top: 0; padding: 0; border-radius: 8px;">
         <div style="padding: 0.5rem 0; ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -205,7 +209,9 @@ def _render_workload_profile(use_case, workload_profile, estimated_qps, qps, use
             <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Workload insights
     workload_messages = get_workload_insights(use_case, new_qps, user_count)
@@ -224,13 +230,13 @@ def _render_accuracy_benchmarks(use_case):
 
     datasets_html = '<div style="padding: 0.5rem;">'
     for name, weight, tooltip in datasets:
-        datasets_html += f'''<div style="padding: 0.5rem 0; ">
+        datasets_html += f"""<div style="padding: 0.5rem 0; ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.95rem; font-weight: 500;">{name}</span>
                 <span style="font-weight: 700; font-size: 0.95rem; padding: 3px 10px; border-radius: 4px;">{weight}%</span>
         </div>
             <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">{tooltip}</div>
-        </div>'''
+        </div>"""
     datasets_html += "</div>"
     datasets_html += '<div style="font-size: 0.75rem; font-weight: 600; margin-top: 0.5rem;">Weights from Artificial Analysis Intelligence Index</div>'
     st.markdown(datasets_html, unsafe_allow_html=True)
@@ -243,7 +249,9 @@ def _render_priorities():
     priority_config = fetch_priority_weights()
     priority_weights_map = priority_config.get("priority_weights", {}) if priority_config else {}
     defaults_config = priority_config.get("defaults", {}) if priority_config else {}
-    logger.debug(f"Priority config loaded: weights_map keys={list(priority_weights_map.keys())}, defaults={defaults_config}")
+    logger.debug(
+        f"Priority config loaded: weights_map keys={list(priority_weights_map.keys())}, defaults={defaults_config}"
+    )
 
     priority_options = ["Low", "Medium", "High"]
     priority_to_value = {"Low": "low", "Medium": "medium", "High": "high"}
@@ -251,9 +259,13 @@ def _render_priorities():
 
     def get_weight_for_priority(dimension: str, priority_level: str) -> int:
         pw = priority_weights_map.get(dimension, {})
-        default_weights = defaults_config.get("weights", {"accuracy": 5, "cost": 4, "latency": 2, "complexity": 2})
+        default_weights = defaults_config.get(
+            "weights", {"accuracy": 5, "cost": 4, "latency": 2, "complexity": 2}
+        )
         weight = pw.get(priority_level, default_weights.get(dimension, 5))
-        logger.info(f"get_weight_for_priority({dimension}, {priority_level}): pw={pw}, weight={weight}")
+        logger.info(
+            f"get_weight_for_priority({dimension}, {priority_level}): pw={pw}, weight={weight}"
+        )
         return weight
 
     extraction = st.session_state.get("extraction_result", {})
@@ -263,9 +275,15 @@ def _render_priorities():
         st.session_state.accuracy_priority = extraction.get("accuracy_priority", "medium")
         st.session_state.cost_priority = extraction.get("cost_priority", "medium")
         st.session_state.latency_priority = extraction.get("latency_priority", "medium")
-        st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
-        st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
-        st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
+        st.session_state.weight_accuracy = get_weight_for_priority(
+            "accuracy", st.session_state.accuracy_priority
+        )
+        st.session_state.weight_cost = get_weight_for_priority(
+            "cost", st.session_state.cost_priority
+        )
+        st.session_state.weight_latency = get_weight_for_priority(
+            "latency", st.session_state.latency_priority
+        )
         st.session_state.new_extraction_available = False
         logger.info(
             f"Updated priorities from new extraction: accuracy={st.session_state.accuracy_priority}, "
@@ -282,11 +300,17 @@ def _render_priorities():
 
     # Initialize weights based on priorities
     if "weight_accuracy" not in st.session_state:
-        st.session_state.weight_accuracy = get_weight_for_priority("accuracy", st.session_state.accuracy_priority)
+        st.session_state.weight_accuracy = get_weight_for_priority(
+            "accuracy", st.session_state.accuracy_priority
+        )
     if "weight_cost" not in st.session_state:
-        st.session_state.weight_cost = get_weight_for_priority("cost", st.session_state.cost_priority)
+        st.session_state.weight_cost = get_weight_for_priority(
+            "cost", st.session_state.cost_priority
+        )
     if "weight_latency" not in st.session_state:
-        st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
+        st.session_state.weight_latency = get_weight_for_priority(
+            "latency", st.session_state.latency_priority
+        )
 
     # Column headers
     header_label, header_priority, header_weight = st.columns([1.2, 2, 1])
@@ -298,7 +322,11 @@ def _render_priorities():
         st.caption("Weight")
 
     # Priority rows: label | dropdown | weight input
-    for dimension, state_key in [("Accuracy", "accuracy"), ("Cost", "cost"), ("Latency", "latency")]:
+    for dimension, state_key in [
+        ("Accuracy", "accuracy"),
+        ("Cost", "cost"),
+        ("Latency", "latency"),
+    ]:
         label_col, dropdown_col, weight_col = st.columns([1.2, 2, 1])
         with label_col:
             st.markdown(
@@ -318,7 +346,9 @@ def _render_priorities():
             new_priority_val = priority_to_value[new_priority]
             if new_priority_val != current_priority:
                 st.session_state[f"{state_key}_priority"] = new_priority_val
-                st.session_state[f"weight_{state_key}"] = get_weight_for_priority(state_key, new_priority_val)
+                st.session_state[f"weight_{state_key}"] = get_weight_for_priority(
+                    state_key, new_priority_val
+                )
         with weight_col:
             current_weight = st.session_state.get(f"weight_{state_key}", 5)
             new_weight = st.number_input(
@@ -415,7 +445,8 @@ def render_slo_with_approval(extraction: dict):
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if not is_valid:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="border: 1px solid rgba(239, 68, 68, 0.5);
                         border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; text-align: center;">
                 <div style="color: #ef4444; font-weight: 600; font-size: 0.9rem;">⚠️ Invalid SLO Values</div>
@@ -423,7 +454,9 @@ def render_slo_with_approval(extraction: dict):
                     {' • '.join(validation_errors)}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         if st.button(
             "Generate Recommendations",

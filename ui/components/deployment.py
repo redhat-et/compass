@@ -18,7 +18,9 @@ def render_deployment_tab():
     selected_config = st.session_state.get("deployment_selected_config")
 
     if not selected_config:
-        st.info("No configuration selected for deployment. Please select a configuration from the Recommendations tab.")
+        st.info(
+            "No configuration selected for deployment. Please select a configuration from the Recommendations tab."
+        )
         st.markdown("""
         **How to select a configuration:**
         1. Go to the **Recommendations** tab
@@ -34,7 +36,8 @@ def render_deployment_tab():
     gpu_count = gpu_config.get("gpu_count", 1)
     replicas = gpu_config.get("replicas", 1)
 
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div style="border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
         <div style="display: flex; align-items: center; gap: 2rem; flex-wrap: wrap;">
             <div>
@@ -51,7 +54,9 @@ def render_deployment_tab():
             </div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # YAML Generation Section
     if not st.session_state.get("deployment_yaml_generated"):
