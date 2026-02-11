@@ -56,24 +56,61 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
     gpu_cfg = rec.get("gpu_config", {}) or {}
     hw_type = gpu_cfg.get("gpu_type", rec.get("hardware", "H100"))
     hw_count = gpu_cfg.get("gpu_count", rec.get("hardware_count", 1))
+    replicas = gpu_cfg.get("replicas", 1)
     cost = rec.get("cost_per_month_usd", 0)
-    highlight_value = scores.get(highlight_field, 0)
+
+    # Performance metrics (P95)
+    ttft = rec.get("predicted_ttft_p95_ms") or 0
+    itl = rec.get("predicted_itl_p95_ms") or 0
+    e2e = rec.get("predicted_e2e_p95_ms") or 0
+    throughput = rec.get("predicted_throughput_qps") or 0
+
+    # Build scores line with highlight on the matching category
+    score_items = [
+        ("accuracy", "Accuracy", scores["accuracy"]),
+        ("cost", "Cost", scores["cost"]),
+        ("latency", "Latency", scores["latency"]),
+        ("final", "Balanced", scores["final"]),
+    ]
+    score_parts = []
+    for field, label, value in score_items:
+        if field == highlight_field:
+            score_parts.append(f'<span style="color: #1f77b4; font-weight: 700;">{label}: {value:.0f}</span>')
+        else:
+            score_parts.append(f"{label}: {value:.0f}")
+    scores_line = " | ".join(score_parts)
+
+    # Build metrics line
+    metrics_line = (
+        f"TTFT: {ttft:,}ms | ITL: {itl}ms | E2E: {e2e:,}ms | "
+        f"Throughput: {throughput:.1f} rps | Cost: ${cost:,.0f}/mo"
+    )
 
     with col:
         with st.container(border=True):
-            st.markdown(f"**{title}**")
-            st.write(f"{model_name}")
-            c1, c2 = st.columns(2)
-            c1.metric("Score", f"{highlight_value:.0f}")
-            c2.metric("Cost/mo", f"${cost:,.0f}")
-            st.caption(f"{hw_count}x {hw_type} | Acc {scores['accuracy']:.0f} | Lat {scores['latency']:.0f}")
+            st.markdown(
+                f'<div style="line-height: 1.7;">'
+                f'<strong style="font-size: 1.05rem;">{title}</strong><br>'
+                f'<span style="font-size: 0.9rem;"><strong>Solution:</strong> Model: {model_name} | Hardware: {hw_count}x {hw_type} | Replicas: {replicas}</span><br>'
+                f'<span style="font-size: 0.9rem;"><strong>Scores:</strong> {scores_line}</span><br>'
+                f'<span style="font-size: 0.9rem;"><strong>Values:</strong> {metrics_line}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
-            # Prev/Next navigation
+            # Prev/Next navigation (circular)
             if len(recs_list) > 1:
+                last = len(recs_list) - 1
                 nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
                 with nav_prev:
-                    if st.button("<", key=f"prev_{category_key}", disabled=(idx == 0)):
-                        st.session_state[idx_key] = idx - 1
+                    if st.button("<", key=f"prev_{category_key}"):
+                        st.session_state[idx_key] = last if idx == 0 else idx - 1
+                        st.session_state.deployment_selected_config = None
+                        st.session_state.deployment_selected_category = None
+                        st.session_state.deployment_yaml_generated = False
+                        st.session_state.deployment_yaml_files = {}
+                        st.session_state.deployment_id = None
+                        st.session_state.deployment_error = None
                         st.rerun()
                 with nav_label:
                     st.markdown(
@@ -81,8 +118,14 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
                         unsafe_allow_html=True,
                     )
                 with nav_next:
-                    if st.button("\\>", key=f"next_{category_key}", disabled=(idx == len(recs_list) - 1)):
-                        st.session_state[idx_key] = idx + 1
+                    if st.button("\\>", key=f"next_{category_key}"):
+                        st.session_state[idx_key] = 0 if idx == last else idx + 1
+                        st.session_state.deployment_selected_config = None
+                        st.session_state.deployment_selected_category = None
+                        st.session_state.deployment_yaml_generated = False
+                        st.session_state.deployment_yaml_files = {}
+                        st.session_state.deployment_id = None
+                        st.session_state.deployment_error = None
                         st.rerun()
 
             selected_category = st.session_state.get("deployment_selected_category")
@@ -414,34 +457,3 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
     if st.session_state.get("show_options_list_expanded", False):
         render_options_list_inline()
 
-    # === MODIFY SLOs & RE-RUN SECTION ===
-    st.markdown("---")
-    st.markdown("""
-    <div style="padding: 1rem; border-radius: 0.75rem; margin-top: 1rem; ">
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-            <span style="font-weight: 700; font-size: 1rem;">Want Different Results?</span>
-        </div>
-        <p style="font-size: 0.85rem; margin: 0;">
-            Adjust SLO targets above to find models with different latency/performance trade-offs.
-            Stricter SLOs = fewer models, Relaxed SLOs = more options.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    col_new, col_spacer = st.columns([1, 3])
-
-    with col_new:
-        if st.button("New Case", key="new_case_btn", type="secondary", use_container_width=True):
-            keys_to_clear = [
-                "user_input", "extraction_result", "recommendation_result",
-                "extraction_approved", "slo_approved", "edited_extraction",
-                "custom_ttft", "custom_itl", "custom_e2e", "custom_qps", "used_priority",
-                "ranked_response", "show_category_dialog", "show_full_table_dialog",
-                "show_winner_dialog", "explore_category", "detected_use_case",
-                "top5_balanced", "top5_accuracy", "top5_latency", "top5_cost", "top5_simplest",
-                "show_options_list_expanded",
-            ]
-            for key in keys_to_clear:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()

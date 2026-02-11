@@ -8,57 +8,39 @@ import streamlit as st
 from helpers import format_use_case_name
 
 
+def _format_priorities(extraction: dict) -> str:
+    """Format priority display from extraction data."""
+    accuracy = extraction.get("accuracy_priority", "medium")
+    cost = extraction.get("cost_priority", "medium")
+    latency = extraction.get("latency_priority", "medium")
+
+    parts = []
+    if accuracy != "medium":
+        parts.append(f"Accuracy: {accuracy.title()}")
+    if cost != "medium":
+        parts.append(f"Cost: {cost.title()}")
+    if latency != "medium":
+        parts.append(f"Latency: {latency.title()}")
+
+    return ", ".join(parts) if parts else "Default"
+
+
 def render_extraction_result(extraction: dict, priority: str):
     """Render extraction results (read-only, after approval)."""
     st.subheader("Extracted Business Context")
 
     use_case = extraction.get("use_case", "unknown")
+    use_case_display = use_case.replace("_", " ").title() if use_case else "Unknown"
     user_count = extraction.get("user_count", 0)
-    hardware = extraction.get("hardware")
+    hardware = extraction.get("hardware") or "Any GPU"
+    priorities = _format_priorities(extraction)
 
-    accuracy_priority = extraction.get("accuracy_priority", "medium")
-    cost_priority = extraction.get("cost_priority", "medium")
-    latency_priority = extraction.get("latency_priority", "medium")
-
-    priority_badges = []
-    if accuracy_priority != "medium":
-        priority_badges.append(f"Accuracy: {accuracy_priority.title()}")
-    if cost_priority != "medium":
-        priority_badges.append(f"Cost: {cost_priority.title()}")
-    if latency_priority != "medium":
-        priority_badges.append(f"Latency: {latency_priority.title()}")
-
-    priorities_display = ", ".join(priority_badges) if priority_badges else None
-
-    priorities_item = "<!-- no custom priorities -->"
-    if priorities_display:
-        priorities_item = f'''<div class="extraction-item"><div><div class="extraction-label">Priorities</div><div class="extraction-value">{priorities_display}</div></div></div>'''
-
-    st.markdown(f"""
-    <div class="extraction-card">
-        <div class="extraction-grid">
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Use Case</div>
-                    <div class="extraction-value">{use_case.replace("_", " ").title() if use_case else "Unknown"}</div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Expected Users</div>
-                    <div class="extraction-value">{user_count:,}</div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Hardware</div>
-                    <div class="extraction-value">{hardware if hardware else "Any GPU"}</div>
-                </div>
-            </div>
-            {priorities_item}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"**Use Case:** {use_case_display}  \n"
+        f"**Expected Users:** {user_count:,}  \n"
+        f"**Hardware:** {hardware}  \n"
+        f"**Priorities:** {priorities}"
+    )
 
 
 def render_extraction_with_approval(extraction: dict, models_df):
@@ -66,73 +48,26 @@ def render_extraction_with_approval(extraction: dict, models_df):
     st.subheader("Extracted Business Context")
 
     use_case = extraction.get("use_case", "unknown")
+    use_case_display = use_case.replace("_", " ").title() if use_case else "Unknown"
     user_count = extraction.get("user_count", 0)
-    hardware = extraction.get("hardware")
+    hardware = extraction.get("hardware") or "Any GPU"
+    priorities = _format_priorities(extraction)
 
-    accuracy_priority = extraction.get("accuracy_priority", "medium")
-    cost_priority = extraction.get("cost_priority", "medium")
-    latency_priority = extraction.get("latency_priority", "medium")
-
-    priority_badges = []
-    if accuracy_priority != "medium":
-        priority_badges.append(f"Accuracy: {accuracy_priority.title()}")
-    if cost_priority != "medium":
-        priority_badges.append(f"Cost: {cost_priority.title()}")
-    if latency_priority != "medium":
-        priority_badges.append(f"Latency: {latency_priority.title()}")
-
-    priorities_display = ", ".join(priority_badges) if priority_badges else None
-
-    priorities_item = "<!-- no custom priorities -->"
-    if priorities_display:
-        priorities_item = f'''<div class="extraction-item"><div><div class="extraction-label">Priorities</div><div class="extraction-value">{priorities_display}</div></div></div>'''
-
-    st.markdown(f"""
-    <div class="extraction-card" >
-        <div class="extraction-grid">
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Use Case</div>
-                    <div class="extraction-value">{use_case.replace("_", " ").title() if use_case else "Unknown"}</div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Expected Users</div>
-                    <div class="extraction-value">{user_count:,}</div>
-                </div>
-            </div>
-            <div class="extraction-item">
-                <div>
-                    <div class="extraction-label">Hardware</div>
-                    <div class="extraction-value">{hardware if hardware else "Any GPU"}</div>
-                </div>
-            </div>
-            {priorities_item}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Approval question
-    st.markdown("""
-    <div style="padding: 1.25rem; border-radius: 1rem; margin: 1.5rem 0; text-align: center;
-                ">
-        <p style="font-size: 1.2rem; font-weight: 600; margin: 0;">
-            Is this extraction correct?
-        </p>
-        <p style="font-size: 0.9rem; margin-top: 0.5rem;">
-            Verify the extracted business context before proceeding to recommendations
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        f"**Use Case:** {use_case_display}  \n"
+        f"**Expected Users:** {user_count:,}  \n"
+        f"**Hardware:** {hardware}  \n"
+        f"**Priorities:** {priorities}"
+    )
 
     col1, col2, col3 = st.columns([1, 1, 1])
     with col1:
-        if st.button("Yes, Continue", type="primary", use_container_width=True, key="approve_extraction"):
+        if st.button("Generate Specification", type="primary", use_container_width=True, key="approve_extraction"):
             st.session_state.extraction_approved = True
+            st.session_state._pending_tab = 1
             st.rerun()
     with col2:
-        if st.button("No, Edit", use_container_width=True, key="edit_extraction"):
+        if st.button("Modify Extracted Context", use_container_width=True, key="edit_extraction"):
             st.session_state.extraction_approved = False
             st.rerun()
     with col3:

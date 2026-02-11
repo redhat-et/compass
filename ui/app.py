@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from api_client import (
     extract_business_context,
@@ -62,8 +63,10 @@ st.set_page_config(
 # =============================================================================
 st.markdown("""
 <style>
-    /* Hide Streamlit deploy button */
-    .stDeployButton { display: none; }
+    /* Reduce top whitespace and align content with toolbar */
+    .block-container { padding-top: 0 !important; }
+    /* Transparent header so menu appears inline with content */
+    header[data-testid="stHeader"] { background: transparent; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -79,7 +82,7 @@ init_session_state()
 
 def render_hero():
     """Render compact hero section with logo."""
-    logo_col, title_col = st.columns([1, 11])
+    logo_col, title_col = st.columns([1, 11], vertical_alignment="center")
     with logo_col:
         st.image("ui/static/neuralnav-logo.png", width=48)
     with title_col:
@@ -188,7 +191,7 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
     col1, col2, col3 = st.columns([1.5, 1, 2])
     with col1:
         analyze_disabled = len(st.session_state.user_input.strip()) < 10 if st.session_state.user_input else True
-        analyze_clicked = st.button("Analyze & Recommend", type="primary", use_container_width=True, disabled=analyze_disabled)
+        analyze_clicked = st.button("Analyze Use Case", type="primary", use_container_width=True, disabled=analyze_disabled)
         if analyze_disabled and st.session_state.user_input and len(st.session_state.user_input.strip()) < 10:
             st.caption("Please enter at least 10 characters")
     with col2:
@@ -210,6 +213,13 @@ def render_use_case_input_tab(priority: str, models_df: pd.DataFrame):
         st.session_state.slo_approved = None
         st.session_state.recommendation_result = None
         st.session_state.edited_extraction = None
+        # Clear previous recommendation selection and deployment state
+        st.session_state.deployment_selected_config = None
+        st.session_state.deployment_selected_category = None
+        st.session_state.deployment_yaml_generated = False
+        st.session_state.deployment_yaml_files = {}
+        st.session_state.deployment_id = None
+        st.session_state.deployment_error = None
 
         progress_container = st.empty()
         with progress_container:
@@ -441,6 +451,17 @@ def main():
 
     with tab4:
         render_deployment_tab()
+
+    # Auto-switch to pending tab after rerun
+    pending_tab = st.session_state.pop("_pending_tab", None)
+    if pending_tab is not None:
+        components.html(
+            f"""<script>
+            var tabs = window.parent.document.querySelectorAll('[role="tab"]');
+            if (tabs.length > {pending_tab}) {{ tabs[{pending_tab}].click(); }}
+            </script>""",
+            height=0,
+        )
 
 
 if __name__ == "__main__":

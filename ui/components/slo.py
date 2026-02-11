@@ -164,6 +164,7 @@ def _render_workload_profile(use_case, workload_profile, estimated_qps, qps, use
     st.session_state.spec_peak_multiplier = peak_mult
 
     default_qps = estimated_qps
+    st.write("**Throughput (Requests Per Second)**")
     new_qps = st.number_input(
         "Expected RPS",
         value=min(qps, 10000000),
@@ -173,72 +174,36 @@ def _render_workload_profile(use_case, workload_profile, estimated_qps, qps, use
         key="edit_qps",
         label_visibility="collapsed",
     )
-    st.markdown(
-        f'<div style="font-size: 0.9rem; margin-top: -0.75rem; margin-bottom: 0.5rem;">Expected RPS: <span style="font-weight: 700; font-size: 1rem;">{new_qps}</span> <span style="font-size: 0.75rem;">(default: {default_qps})</span></div>',
-        unsafe_allow_html=True,
-    )
+    st.caption(f"Recommended RPS: {default_qps}")
 
     st.session_state.spec_expected_qps = new_qps
 
     if new_qps != qps:
         st.session_state.custom_qps = new_qps
 
-    # RPS change warnings
-    if new_qps > default_qps * 2:
-        qps_ratio = new_qps / max(default_qps, 1)
-        st.markdown(f'''
-        <div style="border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 0.6rem; margin: 0.5rem 0;">
-            <div style="color: #ef4444; font-weight: 600; font-size: 0.85rem;">High RPS Warning ({qps_ratio:.1f}x default)</div>
-            <div style="font-size: 0.75rem; margin-top: 0.3rem;">
-                • Requires <strong >{int(qps_ratio)}x more GPU replicas</strong><br/>
-                • Estimated cost increase: <strong style="color: #ef4444;">~{int((qps_ratio-1)*100)}%</strong><br/>
-                • Consider load balancing or queue-based architecture
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-    elif new_qps > default_qps * 1.5:
-        qps_ratio = new_qps / max(default_qps, 1)
-        st.markdown(f'''
-        <div style="border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-            <div style="font-weight: 600; font-size: 0.8rem;">Elevated RPS ({qps_ratio:.1f}x default)</div>
-            <div style="font-size: 0.7rem; margin-top: 0.2rem;">
-                May need additional replicas. Cost ~{int((qps_ratio-1)*100)}% higher.
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-    elif new_qps < default_qps * 0.5 and default_qps > 1:
-        st.markdown('''
-        <div style="border: 1px solid rgba(56, 239, 125, 0.3); border-radius: 8px; padding: 0.5rem; margin: 0.5rem 0;">
-            <div style="font-weight: 600; font-size: 0.8rem;">Low RPS - Cost Savings Possible</div>
-            <div style="font-size: 0.7rem; margin-top: 0.2rem;">
-                Single replica may suffice. Consider smaller GPU or spot instances.
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
-
     # Fixed workload values
     st.markdown(f"""
-    <div style="margin-top: 0.5rem; padding: 0.75rem; border-radius: 8px;">
+    <div style="margin-top: 0; padding: 0; border-radius: 8px;">
         <div style="padding: 0.5rem 0; ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.95rem; font-weight: 500;">Mean Input Tokens</span>
                 <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{prompt_tokens}</span>
         </div>
-            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average input length per request (research-based for {use_case.replace('_', ' ')})</div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Mean input token length per request</div>
         </div>
         <div style="padding: 0.5rem 0; ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.95rem; font-weight: 500;">Mean Output Tokens</span>
                 <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{output_tokens}</span>
             </div>
-            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output length generated per request</div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Average output token length generated per request</div>
         </div>
         <div style="padding: 0.5rem 0;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.95rem; font-weight: 500;">Peak Multiplier</span>
                 <span style="font-weight: 700; font-size: 1.1rem; padding: 3px 10px; border-radius: 4px;">{peak_mult}x</span>
             </div>
-            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes (user behavior patterns)</div>
+            <div style="font-size: 0.75rem; margin-top: 0.25rem; padding-left: 0;">Capacity buffer for traffic spikes</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -324,9 +289,18 @@ def _render_priorities():
     if "weight_latency" not in st.session_state:
         st.session_state.weight_latency = get_weight_for_priority("latency", st.session_state.latency_priority)
 
+    # Column headers
+    header_label, header_priority, header_weight = st.columns([1.2, 2, 1])
+    with header_label:
+        st.caption("Metric")
+    with header_priority:
+        st.caption("Priority")
+    with header_weight:
+        st.caption("Weight")
+
     # Priority rows: label | dropdown | weight input
     for dimension, state_key in [("Accuracy", "accuracy"), ("Cost", "cost"), ("Latency", "latency")]:
-        label_col, dropdown_col, weight_col = st.columns([2, 1.5, 1])
+        label_col, dropdown_col, weight_col = st.columns([1.2, 2, 1])
         with label_col:
             st.markdown(
                 f'<span style="font-size: 0.9rem; font-weight: 500; line-height: 2.5;">{dimension}</span>',
@@ -390,7 +364,8 @@ def render_slo_cards(use_case: str, user_count: int):
 
     qps = int(st.session_state.custom_qps) if st.session_state.custom_qps else estimated_qps
 
-    st.subheader("Set Technical Specification")
+    use_case_display = use_case.replace("_", " ").title()
+    st.subheader(f"Technical Specification (Use Case: {use_case_display})")
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
@@ -459,6 +434,7 @@ def render_slo_with_approval(extraction: dict):
             disabled=not is_valid,
         ):
             st.session_state.slo_approved = True
+            st.session_state._pending_tab = 2
             for _cat in ("balanced", "accuracy", "latency", "cost"):
                 st.session_state[f"cat_idx_{_cat}"] = 0
             st.rerun()
