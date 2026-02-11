@@ -5,7 +5,6 @@ All HTTP communication with the backend lives here.
 
 import logging
 import os
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -210,7 +209,7 @@ def fetch_ranked_recommendations(
         return None
 
 
-def extract_business_context(user_input: str) -> Optional[dict]:
+def extract_business_context(user_input: str) -> dict | None:
     """Extract business context using the backend LLM extraction API.
 
     Returns None on failure — caller is responsible for showing errors.

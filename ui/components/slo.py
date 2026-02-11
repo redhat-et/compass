@@ -6,7 +6,6 @@ SLO targets, workload profile, accuracy benchmarks, priorities, and approval.
 import logging
 
 import streamlit as st
-
 from api_client import (
     fetch_expected_rps,
     fetch_priority_weights,

@@ -5,7 +5,6 @@ Category cards, top-5 table, options list, and recommendation results.
 
 import streamlit as st
 import streamlit.components.v1 as components
-
 from api_client import deploy_and_generate_yaml
 from helpers import format_display_name, format_gpu_config, get_scores
 
@@ -22,7 +21,7 @@ def _render_filter_summary():
     all_passed = []
     for cat in ["balanced", "best_accuracy", "lowest_cost", "lowest_latency", "simplest"]:
         all_passed.extend(ranked_response.get(cat, []))
-    unique_models = len(set(r.get("model_name", "") for r in all_passed if r.get("model_name")))
+    unique_models = len({r.get("model_name", "") for r in all_passed if r.get("model_name")})
 
     filter_pct = passed_configs / total_configs * 100
     st.markdown(f"""
@@ -86,53 +85,24 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
         f"Throughput: {throughput:.1f} rps | Cost: ${cost:,.0f}/mo"
     )
 
-    with col:
-        with st.container(border=True):
-            st.markdown(
-                f'<div style="line-height: 1.7;">'
-                f'<strong style="font-size: 1.05rem;">{title}</strong><br>'
-                f'<span style="font-size: 0.9rem;"><strong>Solution:</strong> Model: {model_name} | Hardware: {hw_count}x {hw_type} | Replicas: {replicas}</span><br>'
-                f'<span style="font-size: 0.9rem;"><strong>Scores:</strong> {scores_line}</span><br>'
-                f'<span style="font-size: 0.9rem;"><strong>Values:</strong> {metrics_line}</span>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
+    with col, st.container(border=True):
+        st.markdown(
+            f'<div style="line-height: 1.7;">'
+            f'<strong style="font-size: 1.05rem;">{title}</strong><br>'
+            f'<span style="font-size: 0.9rem;"><strong>Solution:</strong> Model: {model_name} | Hardware: {hw_count}x {hw_type} | Replicas: {replicas}</span><br>'
+            f'<span style="font-size: 0.9rem;"><strong>Scores:</strong> {scores_line}</span><br>'
+            f'<span style="font-size: 0.9rem;"><strong>Values:</strong> {metrics_line}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
-            # Prev/Next navigation (circular)
-            if len(recs_list) > 1:
-                last = len(recs_list) - 1
-                nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
-                with nav_prev:
-                    if st.button("<", key=f"prev_{category_key}"):
-                        st.session_state[idx_key] = last if idx == 0 else idx - 1
-                        st.session_state.deployment_selected_config = None
-                        st.session_state.deployment_selected_category = None
-                        st.session_state.deployment_yaml_generated = False
-                        st.session_state.deployment_yaml_files = {}
-                        st.session_state.deployment_id = None
-                        st.session_state.deployment_error = None
-                        st.rerun()
-                with nav_label:
-                    st.markdown(
-                        f"<div style='text-align: center; line-height: 2.4; font-size: 0.85rem;'>#{idx + 1} of {len(recs_list)}</div>",
-                        unsafe_allow_html=True,
-                    )
-                with nav_next:
-                    if st.button("\\>", key=f"next_{category_key}"):
-                        st.session_state[idx_key] = 0 if idx == last else idx + 1
-                        st.session_state.deployment_selected_config = None
-                        st.session_state.deployment_selected_category = None
-                        st.session_state.deployment_yaml_generated = False
-                        st.session_state.deployment_yaml_files = {}
-                        st.session_state.deployment_id = None
-                        st.session_state.deployment_error = None
-                        st.rerun()
-
-            selected_category = st.session_state.get("deployment_selected_category")
-            is_selected = selected_category == category_key
-
-            if is_selected:
-                if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
+        # Prev/Next navigation (circular)
+        if len(recs_list) > 1:
+            last = len(recs_list) - 1
+            nav_prev, nav_label, nav_next = st.columns([1, 2, 1])
+            with nav_prev:
+                if st.button("<", key=f"prev_{category_key}"):
+                    st.session_state[idx_key] = last if idx == 0 else idx - 1
                     st.session_state.deployment_selected_config = None
                     st.session_state.deployment_selected_category = None
                     st.session_state.deployment_yaml_generated = False
@@ -140,22 +110,50 @@ def _render_category_card(title, recs_list, highlight_field, category_key, col):
                     st.session_state.deployment_id = None
                     st.session_state.deployment_error = None
                     st.rerun()
-            else:
-                if st.button("Select", key=f"select_{category_key}", use_container_width=True):
-                    st.session_state.deployment_selected_config = rec
-                    st.session_state.deployment_selected_category = category_key
+            with nav_label:
+                st.markdown(
+                    f"<div style='text-align: center; line-height: 2.4; font-size: 0.85rem;'>#{idx + 1} of {len(recs_list)}</div>",
+                    unsafe_allow_html=True,
+                )
+            with nav_next:
+                if st.button("\\>", key=f"next_{category_key}"):
+                    st.session_state[idx_key] = 0 if idx == last else idx + 1
+                    st.session_state.deployment_selected_config = None
+                    st.session_state.deployment_selected_category = None
                     st.session_state.deployment_yaml_generated = False
                     st.session_state.deployment_yaml_files = {}
                     st.session_state.deployment_id = None
-
-                    result = deploy_and_generate_yaml(rec)
-                    if result and result.get("success"):
-                        st.session_state.deployment_id = result["deployment_id"]
-                        st.session_state.deployment_yaml_files = result["files"]
-                        st.session_state.deployment_yaml_generated = True
-                    else:
-                        st.session_state.deployment_yaml_generated = False
+                    st.session_state.deployment_error = None
                     st.rerun()
+
+        selected_category = st.session_state.get("deployment_selected_category")
+        is_selected = selected_category == category_key
+
+        if is_selected:
+            if st.button("Selected", key=f"selected_{category_key}", use_container_width=True, type="primary"):
+                st.session_state.deployment_selected_config = None
+                st.session_state.deployment_selected_category = None
+                st.session_state.deployment_yaml_generated = False
+                st.session_state.deployment_yaml_files = {}
+                st.session_state.deployment_id = None
+                st.session_state.deployment_error = None
+                st.rerun()
+        else:
+            if st.button("Select", key=f"select_{category_key}", use_container_width=True):
+                st.session_state.deployment_selected_config = rec
+                st.session_state.deployment_selected_category = category_key
+                st.session_state.deployment_yaml_generated = False
+                st.session_state.deployment_yaml_files = {}
+                st.session_state.deployment_id = None
+
+                result = deploy_and_generate_yaml(rec)
+                if result and result.get("success"):
+                    st.session_state.deployment_id = result["deployment_id"]
+                    st.session_state.deployment_yaml_files = result["files"]
+                    st.session_state.deployment_yaml_generated = True
+                else:
+                    st.session_state.deployment_yaml_generated = False
+                st.rerun()
 
 
 def render_top5_table(recommendations: list, priority: str):
@@ -388,7 +386,6 @@ def render_recommendation_result(result: dict, priority: str, extraction: dict):
 
     if extraction is None:
         extraction = {}
-    use_case = extraction.get("use_case", "chatbot_conversational")
 
     ranked_response = result
 

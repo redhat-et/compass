@@ -6,8 +6,6 @@ Winner details, category exploration, and full table dialogs.
 import math
 
 import streamlit as st
-import streamlit.components.v1 as components
-
 from helpers import format_display_name, format_gpu_config, format_use_case_name, get_scores
 
 

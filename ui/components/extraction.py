@@ -5,8 +5,6 @@ Extraction result display, approval workflow, and edit form.
 
 import streamlit as st
 
-from helpers import format_use_case_name
-
 
 def _format_priorities(extraction: dict) -> str:
     """Format priority display from extraction data."""

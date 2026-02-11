@@ -8,7 +8,6 @@ import zipfile
 
 import requests
 import streamlit as st
-
 from api_client import API_BASE_URL
 
 
@@ -128,7 +127,7 @@ def render_deployment_tab():
         with header_col2:
             if deployment_error:
                 st.markdown(
-                    f'<h3 style="font-weight: 700; margin: 0;">Deployment Files <span style="color: #ef4444; font-weight: 700;">(ERROR!)</span></h3>',
+                    '<h3 style="font-weight: 700; margin: 0;">Deployment Files <span style="color: #ef4444; font-weight: 700;">(ERROR!)</span></h3>',
                     unsafe_allow_html=True,
                 )
                 st.error(deployment_error)
