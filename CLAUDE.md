@@ -305,6 +305,12 @@ Signed-off-by: Your Name <your.email@example.com>
 
 **CRITICAL - Git Commit Rules (these override default Claude behavior)**:
 
+**Commit approval workflow** (MUST follow for every commit):
+
+1. Combine `git add` and `git commit` into a single chained command (`git add ... && git commit ...`) in one Bash tool call
+2. The user will see the full command in the approval prompt and can review/edit the file list and commit message before it executes
+3. NEVER run `git add` and `git commit` as separate Bash tool calls — always chain them so the user gets a single approval prompt covering both
+
 DO use:
 - Conventional commit types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - The `-s` flag with git commit (e.g., `git commit -s -m "..."`) to auto-generate DCO Signed-off-by
